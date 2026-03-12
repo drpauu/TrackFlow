@@ -23,5 +23,6 @@ export const config = {
   supabaseSchema: process.env.SUPABASE_SCHEMA || 'public',
   supabaseKvTable: process.env.SUPABASE_KV_TABLE || 'app_kv',
   supabaseUsersTable: process.env.SUPABASE_USERS_TABLE || 'users_csv_registry',
+  supabaseChangesTable: process.env.SUPABASE_CHANGES_TABLE || 'app_changes',
   supabaseRequestTimeoutMs: Number(process.env.SUPABASE_REQUEST_TIMEOUT_MS || 12000)
 };

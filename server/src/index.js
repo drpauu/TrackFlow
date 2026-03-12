@@ -1,14 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from './config.js';
-import storageRouter from './routes/storage.js';
+import createStorageRouter from './routes/storage.js';
+import { createStorageProvider } from './storage/provider.js';
 import {
   ensureDir,
   ensureFile,
   readJsonFile,
   writeJsonFile,
   readTextFile,
-  writeTextFile
+  writeTextFile,
 } from './utils/fs.js';
 
 const DEFAULT_USERS_CSV_HEADER = 'id,name,group,groups,avatar,maxW,weekKms,todayDone,competitions\n';
@@ -63,7 +64,7 @@ async function seedAppStorageIfNeeded() {
   return false;
 }
 
-async function bootstrap() {
+async function bootstrapLocalFiles() {
   await ensureDir(config.dataDir);
   await ensureDir(config.seedsDir);
   await ensureFile(config.appStorageFile, '{}\n');
@@ -80,13 +81,19 @@ async function bootstrap() {
 }
 
 async function main() {
-  await bootstrap();
+  const isLocalMode = config.storageProvider === 'local';
+  if (isLocalMode) {
+    await bootstrapLocalFiles();
+  }
+
+  const storageProvider = createStorageProvider();
+  await storageProvider.init();
 
   const app = express();
   app.use(cors({ origin: config.corsOrigin, credentials: false }));
   app.use(express.json({ limit: '2mb' }));
 
-  app.use('/api', storageRouter);
+  app.use('/api', createStorageRouter({ storage: storageProvider }));
 
   app.use((err, _req, res, _next) => {
     console.error(err);
@@ -95,8 +102,14 @@ async function main() {
 
   app.listen(config.port, () => {
     console.log(`TrackFlow server listening on http://localhost:${config.port}`);
-    console.log(`Users CSV: ${config.usersCsvFile}`);
-    console.log(`App storage: ${config.appStorageFile}`);
+    console.log(`Storage provider: ${storageProvider.name}`);
+    if (isLocalMode) {
+      console.log(`Users CSV: ${config.usersCsvFile}`);
+      console.log(`App storage: ${config.appStorageFile}`);
+      return;
+    }
+    console.log(`Supabase URL: ${config.supabaseUrl}`);
+    console.log(`Supabase schema/table: ${config.supabaseSchema}.${config.supabaseKvTable}`);
   });
 }
 

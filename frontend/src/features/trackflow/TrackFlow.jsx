@@ -5667,10 +5667,8 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
 }
 
 // ─── ATHLETE: PERFIL ─────────────────────────────────────────────────────────
-function AthletePerfil({ user, athletes, groups, onUpdateGroups, onUpdatePassword }) {
+function AthletePerfil({ user, onUpdatePassword }) {
   const athleteGroups = getAthleteGroups(user);
-  const roster = normalizeAthletes(athletes || []);
-  const groupOptions = mergeGroupOptions(GROUPS, groups, collectAthleteGroups(roster));
   const showInitialPasswordHint = !user?.passwordChangedOnce;
   const [passwordDraft, setPasswordDraft] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -5719,14 +5717,11 @@ function AthletePerfil({ user, athletes, groups, onUpdateGroups, onUpdatePasswor
 
           <div className="profile-group-panel">
             <div className="form-group" style={{marginBottom:0}}>
-              <label className="form-label">Tus grupos</label>
-              <MultiSelect
-                options={groupOptions}
-                values={athleteGroups}
-                onChange={(nextGroups) => onUpdateGroups?.(nextGroups)}
-                placeholder="Selecciona tus grupos"
-              />
-              <div className="profile-group-hint">Puedes estar en uno o varios grupos a la vez.</div>
+              <label className="form-label">Grupos asignados por el entrenador</label>
+              <div className="profile-chip-row">
+                {athleteGroups.map((group) => <span key={`profile_group_${group}`} className={`g-tag ${groupClass(group)}`}>{group}</span>)}
+              </div>
+              <div className="profile-group-hint">Solo el entrenador puede cambiar tus grupos.</div>
             </div>
           </div>
 
@@ -6465,20 +6460,6 @@ export default function TrackFlow() {
       return next;
     });
   };
-  const handleUpdateAthleteGroups = (athleteId, selectedGroups) => {
-    if (!athleteId) return;
-    const nextGroups = collectGroupValues(selectedGroups);
-    const safeGroups = nextGroups.length ? nextGroups : ["por-asignar"];
-    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) =>
-      athlete.id === athleteId
-        ? normalizeAthleteRecord({ ...athlete, group:safeGroups[0], groups:safeGroups }, idx)
-        : normalizeAthleteRecord(athlete, idx)
-    ));
-    setUser((prev) => (prev && prev.id === athleteId
-      ? { ...prev, group:safeGroups[0], groups:safeGroups }
-      : prev
-    ));
-  };
   const handleUpdateAthletePassword = (athleteId, nextPassword) => {
     if (!athleteId) return;
     const safePassword = String(nextPassword || "").trim() || "1234";
@@ -6619,7 +6600,7 @@ export default function TrackFlow() {
         case "hoy":        return <AthleteHoy user={currentUser} week={athleteWeek} routines={routines} history={history} onToggleSlotCompletion={(slot, done) => handleToggleSlotCompletion(currentUser, slot, done)} onDismissNotification={(notificationId) => handleDismissAthleteNotification(currentUser?.id, notificationId)} onClearNotifications={() => handleClearAthleteNotifications(currentUser?.id)} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} athleteNotifications={athleteNotifications} />;
         case "semana":     return <AthleteSemana week={athleteWeek} routines={routines} user={currentUser} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
         case "gym":        return <AthleteGym user={currentUser} routines={routines} week={athleteWeek} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
-        case "perfil":     return <AthletePerfil user={currentUser} athletes={athletes} groups={groups} onUpdateGroups={(nextGroups) => handleUpdateAthleteGroups(currentUser?.id, nextGroups)} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} />;
+        case "perfil":     return <AthletePerfil user={currentUser} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} />;
         case "calendario": return <AthleteCalendario user={currentUser} week={athleteWeek} routines={routines} history={history} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} onAddCompetition={(competition) => handleAddCompetition(currentUser.id, competition)} onRemoveCompetition={(competitionId) => handleRemoveCompetition(currentUser.id, competitionId)} />;
         default: return null;
       }
