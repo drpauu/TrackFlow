@@ -1135,7 +1135,52 @@ const normalizeTrainingCatalog = (raw) =>
   (Array.isArray(raw) && raw.length ? raw : TRAINING_DATASET).map(normalizeTraining);
 const getTrainingById = (trainings, id) =>
   (Array.isArray(trainings) ? trainings : []).find((training) => training.id === id) || null;
-const makeTrainingSelection = (training, slot = "am", targetGroup = "all", overrides = {}) => (
+const collectAthleteIdValues = (...sources) => {
+  const out = [];
+  const seen = new Set();
+  const push = (raw) => {
+    const id = String(raw || "").trim();
+    if (!id) return;
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push(id);
+  };
+  sources.forEach((src) => {
+    if (Array.isArray(src)) src.forEach(push);
+    else push(src);
+  });
+  return out;
+};
+const normalizeSessionTargets = (source, fallbackTargetGroup = "all") => {
+  const base = source && typeof source === "object" ? source : {};
+  const legacyTarget = normalizeGroupName(base.targetGroup || fallbackTargetGroup || "all") || "all";
+  const explicitGroups = collectGroupValues(base.targetGroups);
+  const mergedGroups = collectGroupValues(explicitGroups, legacyTarget === "all" ? [] : [legacyTarget]);
+  const targetAthleteIds = collectAthleteIdValues(base.targetAthleteIds);
+  const hasScopedTarget = explicitGroups.length > 0 || targetAthleteIds.length > 0;
+  const targetAllRaw = base.targetAll != null ? !!base.targetAll : (!hasScopedTarget && legacyTarget === "all");
+  const targetAll = !targetAllRaw && mergedGroups.length === 0 && targetAthleteIds.length === 0 ? true : targetAllRaw;
+  return {
+    targetAll,
+    targetGroups: mergedGroups,
+    targetAthleteIds,
+    // Campo legacy para compatibilidad de datos y serialización histórica.
+    targetGroup: targetAll ? "all" : (mergedGroups[0] || "all"),
+  };
+};
+const getTargetLabel = (source, athleteLookup = null) => {
+  const target = normalizeSessionTargets(source, "all");
+  const parts = [];
+  if (target.targetAll) parts.push("Todos");
+  target.targetGroups.forEach((group) => parts.push(groupLabel(group)));
+  target.targetAthleteIds.forEach((athleteId) => {
+    const fallbackLabel = `Atleta ${athleteId.slice(-4)}`;
+    const label = athleteLookup?.[athleteId]?.name || athleteLookup?.[athleteId] || fallbackLabel;
+    parts.push(String(label || athleteId));
+  });
+  return parts.length ? parts.join(" + ") : "Todos";
+};
+const makeTrainingSelection = (training, slot = "am", targetSource = "all", overrides = {}) => (
   training
     ? {
         id: overrides.id || `session_${slot}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -1143,20 +1188,26 @@ const makeTrainingSelection = (training, slot = "am", targetGroup = "all", overr
         trainingId: training.id,
         name: training.name,
         description: training.description || "",
-        targetGroup: targetGroup || "all",
+        ...normalizeSessionTargets(
+          targetSource && typeof targetSource === "object"
+            ? targetSource
+            : { targetGroup: targetSource },
+          "all"
+        ),
         zones: safeZones(training.zones),
       }
     : null
 );
 const normalizeTrainingSelection = (selection, slot = "am", fallbackTargetGroup = "all") => {
   if (!selection || !selection.name) return null;
+  const targets = normalizeSessionTargets(selection, fallbackTargetGroup);
   return {
     id: selection.id || `session_${slot}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     slot: selection.slot || slot,
     trainingId: selection.trainingId || "",
     name: String(selection.name || "").trim(),
     description: String(selection.description || "").trim(),
-    targetGroup: selection.targetGroup || fallbackTargetGroup || "all",
+    ...targets,
     zones: safeZones(selection.zones),
   };
 };
@@ -1166,14 +1217,24 @@ const buildEmptyTrainingForm = () => ({
   zones: emptyZones(),
   weekTypes: [...WEEK_TYPES],
 });
-const isTargetVisibleForGroup = (targetGroup, group) => {
-  const target = targetGroup || "all";
+const isTargetVisibleForGroup = (source, group) => {
+  const target = normalizeSessionTargets(source, "all");
+  if (target.targetAll) return true;
   const groups = collectGroupValues(Array.isArray(group) ? group : [group]);
-  return target === "all" || groups.includes(target);
+  return target.targetGroups.some((candidate) => groups.includes(candidate));
+};
+const isTargetVisibleForAthlete = (source, athlete) => {
+  if (!athlete) return false;
+  const target = normalizeSessionTargets(source, "all");
+  if (target.targetAll) return true;
+  const athleteId = String(athlete.id || "").trim();
+  if (athleteId && target.targetAthleteIds.includes(athleteId)) return true;
+  const athleteGroups = getAthleteGroups(athlete);
+  return target.targetGroups.some((group) => athleteGroups.includes(group));
 };
 const getPrimarySessionForSlot = (day, slot, week) => {
   const direct = day?.sessions?.[slot];
-  if (direct) return normalizeTrainingSelection(direct, slot, direct.targetGroup || day?.targetGroup || week?.targetGroup || "all");
+  if (direct) return normalizeTrainingSelection(direct, slot, day?.targetGroup || week?.targetGroup || "all");
   const legacyName = slot === "am" ? day?.am : day?.pm;
   if (!legacyName) return null;
   return normalizeTrainingSelection({
@@ -1182,6 +1243,9 @@ const getPrimarySessionForSlot = (day, slot, week) => {
     trainingId: slot === "am" ? (day?.amTrainingId || "") : (day?.pmTrainingId || ""),
     name: legacyName,
     description: slot === "am" ? (day?.amDescription || "") : (day?.pmDescription || ""),
+    targetAll: slot === "am" ? day?.amTargetAll : day?.pmTargetAll,
+    targetGroups: slot === "am" ? day?.amTargetGroups : day?.pmTargetGroups,
+    targetAthleteIds: slot === "am" ? day?.amTargetAthleteIds : day?.pmTargetAthleteIds,
     targetGroup: slot === "am"
       ? (day?.amTargetGroup || day?.targetGroup || week?.targetGroup || "all")
       : (day?.pmTargetGroup || day?.targetGroup || week?.targetGroup || "all"),
@@ -1198,15 +1262,14 @@ const getSlotSessions = (day, slot, week) => {
   return [primary, ...extras].filter(Boolean);
 };
 const getDayAudienceLabel = (week, day) => {
-  const targets = new Set(
+  const labels = new Set(
     ["am", "pm"]
-      .flatMap((slot) => getSlotSessions(day, slot, week).map((session) => session.targetGroup || "all"))
-      .concat(day?.gym ? [day?.gymPlan?.inline?.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all"] : [])
+      .flatMap((slot) => getSlotSessions(day, slot, week).map((session) => getTargetLabel(session)))
+      .concat(day?.gym ? [getTargetLabel({ targetGroup: day?.gymPlan?.inline?.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all" })] : [])
       .filter(Boolean)
   );
-  if (!targets.size) return groupLabel(week?.targetGroup || "all");
-  if (targets.has("all")) return "Todos";
-  return targets.size === 1 ? groupLabel(Array.from(targets)[0]) : "Mixto";
+  if (!labels.size) return getTargetLabel({ targetGroup: week?.targetGroup || "all" });
+  return labels.size === 1 ? Array.from(labels)[0] : "Mixto";
 };
 const displayTarget = (week, day) => getDayAudienceLabel(week, day);
 const cloneWeekSnapshot = (week) => cloneDeep({
@@ -1340,13 +1403,35 @@ const getDayGymExercisesForAthlete = (day, routines, user, customExercises = [],
 const isGymVisibleForGroup = (week, day, group, routines = []) => {
   const plan = getDayResolvedGymPlan(day, routines);
   if (!plan) return false;
-  return isTargetVisibleForGroup(plan.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all", group);
+  return isTargetVisibleForGroup(
+    { targetGroup: plan.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all" },
+    group
+  );
 };
 const getVisibleDayPlanForGroup = (week, day, group, routines = []) => {
-  const am = getSlotSessions(day, "am", week).filter((session) => isTargetVisibleForGroup(session.targetGroup, group));
-  const pm = getSlotSessions(day, "pm", week).filter((session) => isTargetVisibleForGroup(session.targetGroup, group));
+  const am = getSlotSessions(day, "am", week).filter((session) => isTargetVisibleForGroup(session, group));
+  const pm = getSlotSessions(day, "pm", week).filter((session) => isTargetVisibleForGroup(session, group));
   const gymPlan = getDayResolvedGymPlan(day, routines);
-  const gymVisible = !!gymPlan && isTargetVisibleForGroup(gymPlan.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all", group);
+  const gymVisible = !!gymPlan && isTargetVisibleForGroup(
+    { targetGroup: gymPlan.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all" },
+    group
+  );
+  return {
+    am,
+    pm,
+    gym: gymVisible,
+    gymPlan: gymVisible ? gymPlan : null,
+    hasContent: am.length > 0 || pm.length > 0 || gymVisible,
+  };
+};
+const getVisibleDayPlanForAthlete = (week, day, athlete, routines = []) => {
+  const am = getSlotSessions(day, "am", week).filter((session) => isTargetVisibleForAthlete(session, athlete));
+  const pm = getSlotSessions(day, "pm", week).filter((session) => isTargetVisibleForAthlete(session, athlete));
+  const gymPlan = getDayResolvedGymPlan(day, routines);
+  const gymVisible = !!gymPlan && isTargetVisibleForAthlete(
+    { targetGroup: gymPlan.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all" },
+    athlete
+  );
   return {
     am,
     pm,
@@ -1557,11 +1642,13 @@ const buildWeekFromCalendarSeed = (calendarWeek, routines = []) => {
 
 const planVisibleForGroup = (week, day, group) => {
   const visibleSessions = ["am", "pm"].some((slot) =>
-    getSlotSessions(day, slot, week).some((session) => isTargetVisibleForGroup(session.targetGroup, group))
+    getSlotSessions(day, slot, week).some((session) => isTargetVisibleForGroup(session, group))
   );
   if (visibleSessions) return true;
   if (!day?.gym) return false;
-  const target = day?.gymPlan?.inline?.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all";
+  const target = {
+    targetGroup: day?.gymPlan?.inline?.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all",
+  };
   return isTargetVisibleForGroup(target, group);
 };
 
@@ -1674,7 +1761,12 @@ const getNextCompetitionCountdown = (competitions, maxDays = 90, fromDateIso = t
 const collectDayTargetGroups = (day, week, routines = []) => {
   const targets = new Set();
   ["am", "pm"].forEach((slot) => {
-    getSlotSessions(day, slot, week).forEach((session) => targets.add(session.targetGroup || "all"));
+    getSlotSessions(day, slot, week).forEach((session) => {
+      const target = normalizeSessionTargets(session, day?.targetGroup || week?.targetGroup || "all");
+      if (target.targetAll) targets.add("all");
+      target.targetGroups.forEach((group) => targets.add(group));
+      target.targetAthleteIds.forEach((athleteId) => targets.add(`athlete:${athleteId}`));
+    });
   });
   const gymPlan = getDayResolvedGymPlan(day, routines);
   if (gymPlan) targets.add(gymPlan.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all");
@@ -1696,7 +1788,7 @@ const dayDiffSignature = (day, week, routines = []) => {
     trainingId: session?.trainingId || "",
     name: String(session?.name || "").trim(),
     description: String(session?.description || "").trim(),
-    targetGroup: session?.targetGroup || "all",
+    ...normalizeSessionTargets(session, day?.targetGroup || week?.targetGroup || "all"),
     zones: safeZones(session?.zones),
   });
   return JSON.stringify({
@@ -2173,6 +2265,107 @@ function MultiSelect({ options = [], values = [], onChange, placeholder = "Selec
               <label key={option} className="multi-option">
                 <input type="checkbox" checked={checked} onChange={() => toggleOption(option)} />
                 <span className="multi-option-label">{option}</span>
+              </label>
+            );
+          })}
+          {!filtered.length && <div className="text-sm text-mu" style={{padding:"6px 4px"}}>Sin resultados</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MultiSelectList({
+  options = [],
+  values = [],
+  onChange,
+  placeholder = "Selecciona",
+  disabled = false,
+  searchable = true,
+  searchPlaceholder = "Buscar...",
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const rootRef = useRef(null);
+  const selected = [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || "").trim()).filter(Boolean))];
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleClickOutside = (event) => {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const normalizedOptions = (() => {
+    const seen = new Set();
+    const out = [];
+    (Array.isArray(options) ? options : []).forEach((option) => {
+      const item = typeof option === "string"
+        ? { value: option, label: option }
+        : {
+            value: option?.value ?? option?.id ?? "",
+            label: option?.label ?? option?.name ?? option?.value ?? option?.id ?? "",
+          };
+      const value = String(item.value || "").trim();
+      if (!value || seen.has(value)) return;
+      seen.add(value);
+      out.push({ value, label: String(item.label || value) });
+    });
+    return out;
+  })();
+  const labelByValue = normalizedOptions.reduce((acc, option) => {
+    acc[option.value] = option.label;
+    return acc;
+  }, {});
+  const filtered = normalizedOptions.filter((option) =>
+    option.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleOption = (rawValue) => {
+    const value = String(rawValue || "").trim();
+    if (!value) return;
+    const hasOption = selected.includes(value);
+    const next = hasOption
+      ? selected.filter((item) => item !== value)
+      : [...selected, value];
+    onChange?.(next);
+  };
+
+  return (
+    <div className={`multi-select ${disabled ? "disabled" : ""}`} ref={rootRef}>
+      <button
+        type="button"
+        className={`multi-select-trigger ${open ? "open" : ""}`}
+        onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
+      >
+        <div className="multi-select-value">
+          {selected.length > 0
+            ? selected.map((value) => <span key={value} className="multi-chip">{labelByValue[value] || value}</span>)
+            : <span className="multi-placeholder">{placeholder}</span>}
+        </div>
+        <span className="multi-arrow">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="multi-panel">
+          {searchable && (
+            <input
+              className="input multi-search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={searchPlaceholder}
+            />
+          )}
+          {filtered.map((option) => {
+            const checked = selected.includes(option.value);
+            return (
+              <label key={option.value} className="multi-option">
+                <input type="checkbox" checked={checked} onChange={() => toggleOption(option.value)} />
+                <span className="multi-option-label">{option.label}</span>
               </label>
             );
           })}
@@ -2702,6 +2895,8 @@ function CoachSemanaV2({
   setWeek,
   routines,
   trainings,
+  athletes,
+  groups,
   customExercises,
   exerciseImages,
   activeWeekNumber,
@@ -2714,7 +2909,13 @@ function CoachSemanaV2({
   const [editorWeek, setEditorWeek] = useState(normalizeWeek(week, routines));
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [exercisePicker, setExercisePicker] = useState("");
-  const targetGroups = SESSION_TARGET_GROUPS;
+  const targetGroups = mergeGroupOptions(groups, collectAthleteGroups(athletes));
+  const targetGroupsWithAll = ["all", ...targetGroups];
+  const athleteOptions = normalizeAthletes(athletes).map((athlete) => ({ value: athlete.id, label: athlete.name }));
+  const athleteLookup = normalizeAthletes(athletes).reduce((acc, athlete) => {
+    acc[athlete.id] = athlete;
+    return acc;
+  }, {});
   const trainingCatalog = normalizeTrainingCatalog(trainings);
   const allExercises = getAllExercises(customExercises, exerciseImages);
   const canEditWeek = !editorWeek.published || editorWeek.isEditingPublished;
@@ -2823,13 +3024,13 @@ function CoachSemanaV2({
     return [...weekTypeCatalog, selected];
   };
 
-  const sessionTemplate = (slot, targetGroup = editorWeek.targetGroup || "all") => ({
+  const sessionTemplate = (slot, targetSource = { targetGroup: editorWeek.targetGroup || "all" }) => ({
     id: `session_${slot}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     slot,
     trainingId: "",
     name: "",
     description: "",
-    targetGroup,
+    ...normalizeSessionTargets(targetSource, editorWeek.targetGroup || "all"),
     zones: emptyZones(),
   });
 
@@ -2840,7 +3041,12 @@ function CoachSemanaV2({
       sessions: {
         ...(prev.sessions || {}),
         [slot]: training
-          ? makeTrainingSelection(training, slot, prev.sessions?.[slot]?.targetGroup || editorWeek.targetGroup || "all", { id: prev.sessions?.[slot]?.id })
+          ? makeTrainingSelection(
+              training,
+              slot,
+              prev.sessions?.[slot] || { targetGroup: editorWeek.targetGroup || "all" },
+              { id: prev.sessions?.[slot]?.id }
+            )
           : null,
       },
     }));
@@ -2882,14 +3088,19 @@ function CoachSemanaV2({
     });
   };
 
-  const setPrimaryTarget = (slot, targetGroup) => {
+  const setPrimaryTargets = (slot, patch) => {
     setDraft((prev) => ({
-      ...prev,
+      ...(prev || {}),
       sessions: {
-        ...(prev.sessions || {}),
-        [slot]: prev.sessions?.[slot]
-          ? { ...prev.sessions[slot], targetGroup }
-          : { ...sessionTemplate(slot, targetGroup), targetGroup },
+        ...((prev && prev.sessions) || {}),
+        [slot]: (() => {
+          const current = prev?.sessions?.[slot] || sessionTemplate(slot);
+          const merged = { ...current, ...patch };
+          return {
+            ...merged,
+            ...normalizeSessionTargets(merged, editorWeek.targetGroup || "all"),
+          };
+        })(),
       },
     }));
   };
@@ -2905,7 +3116,7 @@ function CoachSemanaV2({
           trainingId: "",
           name: "",
           description: "",
-          targetGroup: editorWeek.targetGroup || "all",
+          ...normalizeSessionTargets({ targetGroup: editorWeek.targetGroup || "all" }, editorWeek.targetGroup || "all"),
           zones: emptyZones(),
         },
       ],
@@ -2919,9 +3130,25 @@ function CoachSemanaV2({
       extraSessions: (prev.extraSessions || []).map((session) => {
         if (session.id !== sessionId) return session;
         return training
-          ? makeTrainingSelection(training, session.slot || "am", session.targetGroup || editorWeek.targetGroup || "all", { id: session.id })
+          ? makeTrainingSelection(training, session.slot || "am", session, { id: session.id })
           : { ...session, trainingId: "", name: "", description: "", zones: emptyZones() };
       }),
+    }));
+  };
+  const setExtraTargets = (sessionId, patch) => {
+    setDraft((prev) => ({
+      ...prev,
+      extraSessions: (prev.extraSessions || []).map((session) => (
+        session.id === sessionId
+          ? (() => {
+              const merged = { ...session, ...patch };
+              return {
+                ...merged,
+                ...normalizeSessionTargets(merged, editorWeek.targetGroup || "all"),
+              };
+            })()
+          : session
+      )),
     }));
   };
 
@@ -3076,7 +3303,7 @@ function CoachSemanaV2({
       <div className="card card-sm mt3">
         <div className="flex ic jb mb3">
           <div style={{fontWeight:700,fontSize:13}}>{session.name}</div>
-          <span className={`badge ${groupBadge(session.targetGroup)}`}>{groupLabel(session.targetGroup)}</span>
+          <span className={`badge ${groupBadge(session.targetGroup)}`}>{getTargetLabel(session, athleteLookup)}</span>
         </div>
         {session.description && <div className="text-sm text-mu">{session.description}</div>}
         {zonesTotal(session.zones) > 0 && (
@@ -3160,13 +3387,13 @@ function CoachSemanaV2({
               <div className="day-body">
                 {amSessions.map((session, sessionIndex) => (
                   <div key={session.id || `${session.name}_${sessionIndex}`} className="session">
-                    <div className="sess-lbl">{sessionIndex === 0 ? "🌅 AM" : "➕ Extra AM"} · {groupLabel(session.targetGroup)}</div>
+                    <div className="sess-lbl">{sessionIndex === 0 ? "🌅 AM" : "➕ Extra AM"} · {getTargetLabel(session, athleteLookup)}</div>
                     <div className="sess-txt">{session.name}</div>
                   </div>
                 ))}
                 {pmSessions.map((session, sessionIndex) => (
                   <div key={session.id || `${session.name}_${sessionIndex}`} className="session pm">
-                    <div className="sess-lbl">{sessionIndex === 0 ? "🌆 PM" : "➕ Extra PM"} · {groupLabel(session.targetGroup)}</div>
+                    <div className="sess-lbl">{sessionIndex === 0 ? "🌆 PM" : "➕ Extra PM"} · {getTargetLabel(session, athleteLookup)}</div>
                     <div className="sess-txt">{session.name}</div>
                   </div>
                 ))}
@@ -3239,10 +3466,33 @@ function CoachSemanaV2({
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Grupo</label>
-                      <select className="select" value={session?.targetGroup || "all"} onChange={(e) => setPrimaryTarget(slot, e.target.value)} disabled={!canEditWeek}>
-                        {targetGroups.map((group) => <option key={group} value={group}>{groupLabel(group)}</option>)}
-                      </select>
+                      <label className="form-label">Destinatarios</label>
+                      <div className="g2">
+                        <label className="multi-option" style={{border:"1px solid var(--border)",borderRadius:10,padding:"10px 12px"}}>
+                          <input
+                            type="checkbox"
+                            checked={!!session?.targetAll}
+                            onChange={(e) => setPrimaryTargets(slot, { targetAll: e.target.checked })}
+                            disabled={!canEditWeek}
+                          />
+                          <span className="multi-option-label">Todos</span>
+                        </label>
+                        <MultiSelect
+                          options={targetGroups}
+                          values={session?.targetGroups || []}
+                          onChange={(nextGroups) => setPrimaryTargets(slot, { targetGroups: nextGroups })}
+                          placeholder="Grupos"
+                          disabled={!canEditWeek}
+                        />
+                        <MultiSelectList
+                          options={athleteOptions}
+                          values={session?.targetAthleteIds || []}
+                          onChange={(nextAthletes) => setPrimaryTargets(slot, { targetAthleteIds: nextAthletes })}
+                          placeholder="Atletas específicos"
+                          searchPlaceholder="Buscar atleta..."
+                          disabled={!canEditWeek}
+                        />
+                      </div>
                     </div>
                     <div className="form-group">
                       <label className="form-label">Kms por zona</label>
@@ -3276,7 +3526,7 @@ function CoachSemanaV2({
               <div className="flex ic jb mb3">
                 <div>
                   <div className="fw7" style={{fontSize:16}}>Entrenos extra</div>
-                  <div className="text-sm text-mu">Añade sesiones extra por la mañana o por la tarde para grupos concretos.</div>
+                  <div className="text-sm text-mu">Añade sesiones extra AM/PM para grupos, atletas específicos o combinaciones.</div>
                 </div>
                 {canEditWeek && (
                   <div className="flex ic g2r">
@@ -3330,10 +3580,33 @@ function CoachSemanaV2({
                   </div>
                   <div className="g2">
                     <div className="form-group">
-                      <label className="form-label">Grupo</label>
-                      <select className="select" value={session.targetGroup || "all"} onChange={(e) => updateExtraField(session.id, "targetGroup", e.target.value)} disabled={!canEditWeek}>
-                        {targetGroups.map((group) => <option key={group} value={group}>{groupLabel(group)}</option>)}
-                      </select>
+                      <label className="form-label">Destinatarios</label>
+                      <div className="g2">
+                        <label className="multi-option" style={{border:"1px solid var(--border)",borderRadius:10,padding:"10px 12px"}}>
+                          <input
+                            type="checkbox"
+                            checked={!!session?.targetAll}
+                            onChange={(e) => setExtraTargets(session.id, { targetAll: e.target.checked })}
+                            disabled={!canEditWeek}
+                          />
+                          <span className="multi-option-label">Todos</span>
+                        </label>
+                        <MultiSelect
+                          options={targetGroups}
+                          values={session?.targetGroups || []}
+                          onChange={(nextGroups) => setExtraTargets(session.id, { targetGroups: nextGroups })}
+                          placeholder="Grupos"
+                          disabled={!canEditWeek}
+                        />
+                        <MultiSelectList
+                          options={athleteOptions}
+                          values={session?.targetAthleteIds || []}
+                          onChange={(nextAthletes) => setExtraTargets(session.id, { targetAthleteIds: nextAthletes })}
+                          placeholder="Atletas específicos"
+                          searchPlaceholder="Buscar atleta..."
+                          disabled={!canEditWeek}
+                        />
+                      </div>
                     </div>
                     {canEditWeek && (
                       <div className="form-group" style={{display:"flex",alignItems:"flex-end"}}>
@@ -3390,7 +3663,7 @@ function CoachSemanaV2({
                     <div className="form-group">
                       <label className="form-label">Grupo</label>
                       <select className="select" value={draft.inlineRoutine?.targetGroup || "all"} onChange={(e) => setDraft({ ...draft, inlineRoutine:{ ...(draft.inlineRoutine || {}), targetGroup:e.target.value } })} disabled={!canEditWeek}>
-                        {targetGroups.map((group) => <option key={group} value={group}>{groupLabel(group)}</option>)}
+                        {targetGroupsWithAll.map((group) => <option key={group} value={group}>{groupLabel(group)}</option>)}
                       </select>
                     </div>
                   </div>
@@ -4647,8 +4920,8 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
                   </div>
                 <button className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>Cerrar</button>
               </div>
-              {selectedInfo.am.map((session, idx) => <div key={session.id || `am_${idx}`} className="session"><div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {groupLabel(session.targetGroup)}</div><div className="sess-txt">{session.name}</div></div>)}
-              {selectedInfo.pm.map((session, idx) => <div key={session.id || `pm_${idx}`} className="session pm"><div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {groupLabel(session.targetGroup)}</div><div className="sess-txt">{session.name}</div></div>)}
+              {selectedInfo.am.map((session, idx) => <div key={session.id || `am_${idx}`} className="session"><div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {getTargetLabel(session)}</div><div className="sess-txt">{session.name}</div></div>)}
+              {selectedInfo.pm.map((session, idx) => <div key={session.id || `pm_${idx}`} className="session pm"><div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {getTargetLabel(session)}</div><div className="sess-txt">{session.name}</div></div>)}
               {selectedInfo.dayPlan?.gym && <div className="session gym"><div className="sess-lbl">🏋️ Gym</div><div className="sess-txt">{selectedInfo.gymPlan?.name || "Rutina"} · {getDayGymCount(selectedInfo.dayPlan, routines)} ejercicios</div></div>}
               {!selectedInfo.am.length && !selectedInfo.pm.length && !selectedInfo.dayPlan?.gym && <div className="text-sm text-mu">Descanso</div>}
               <div className="divider" />
@@ -4680,12 +4953,17 @@ function CoachHistorial({
   athletes,
   setAthletes,
   groups,
+  setGroups,
+  onRenameAthlete,
+  onDeleteAthlete,
   view = "history",
   seasonAnchorDate,
 }) {
   const [openWeekNumber, setOpenWeekNumber] = useState(null);
   const [newAthleteName, setNewAthleteName] = useState("");
   const [newAthleteGroups, setNewAthleteGroups] = useState(["por-asignar"]);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [groupError, setGroupError] = useState("");
   const [athleteNameFilter, setAthleteNameFilter] = useState("");
   const [athleteGroupFilter, setAthleteGroupFilter] = useState("all");
   const [athleteError, setAthleteError] = useState("");
@@ -4695,7 +4973,7 @@ function CoachHistorial({
   const [bulkWeightDraft, setBulkWeightDraft] = useState({});
   const plans = normalizeWeekPlansByNumber(weekPlansByNumber, routines, seasonAnchorDate);
   const roster = normalizeAthletes(athletes || []);
-  const allGroups = mergeGroupOptions(GROUPS, groups, collectAthleteGroups(roster));
+  const allGroups = mergeGroupOptions(["por-asignar"], groups, collectAthleteGroups(roster));
   const normalizedAthleteNameFilter = String(athleteNameFilter || "").trim().toLowerCase();
   const filteredRoster = roster.filter((athlete) => {
     const matchesGroup = athleteGroupFilter === "all" || athleteBelongsToGroup(athlete, athleteGroupFilter);
@@ -4731,6 +5009,48 @@ function CoachHistorial({
   const parseSelectedGroups = (selectedValues) => {
     const normalized = collectGroupValues(selectedValues);
     return normalized.length ? normalized : ["por-asignar"];
+  };
+  const handleCreateGroup = () => {
+    const name = normalizeGroupName(newGroupName);
+    if (!name || name === "all") {
+      setGroupError("Escribe un nombre de grupo válido.");
+      return;
+    }
+    const exists = allGroups.some((group) => group.toLowerCase() === name.toLowerCase());
+    if (exists) {
+      setGroupError("Ese grupo ya existe.");
+      return;
+    }
+    if (typeof setGroups === "function") {
+      setGroups((prev) => mergeGroupOptions(prev, [name], ["por-asignar"]));
+    }
+    setNewGroupName("");
+    setGroupError("");
+  };
+  const handleDeleteGroup = (groupName) => {
+    const normalizedGroup = normalizeGroupName(groupName);
+    if (!normalizedGroup || normalizedGroup === "por-asignar" || GROUPS.includes(normalizedGroup)) return;
+    if (!window.confirm(`¿Eliminar el grupo "${normalizedGroup}"?`)) return;
+    if (typeof setGroups === "function") {
+      setGroups((prev) => mergeGroupOptions((prev || []).filter((group) => group.toLowerCase() !== normalizedGroup.toLowerCase()), ["por-asignar"]));
+    }
+    setNewAthleteGroups((prev) => {
+      const cleaned = parseSelectedGroups((prev || []).filter((group) => group.toLowerCase() !== normalizedGroup.toLowerCase()));
+      return cleaned;
+    });
+    setAthleteGroupFilter((prev) => (
+      String(prev || "").toLowerCase() === normalizedGroup.toLowerCase()
+        ? "all"
+        : prev
+    ));
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) => {
+      const remainingGroups = getAthleteGroups(athlete).filter((group) => group.toLowerCase() !== normalizedGroup.toLowerCase());
+      return normalizeAthleteRecord({
+        ...athlete,
+        group: remainingGroups[0] || "por-asignar",
+        groups: remainingGroups.length ? remainingGroups : ["por-asignar"],
+      }, idx);
+    }));
   };
   const buildBulkWeightDraft = (list) => {
     const draft = {};
@@ -4777,6 +5097,33 @@ function CoachHistorial({
         ? normalizeAthleteRecord({ ...athlete, group:nextGroups[0], groups:nextGroups }, idx)
         : normalizeAthleteRecord(athlete, idx)
     ));
+  };
+  const renameAthlete = (athlete) => {
+    const nextName = window.prompt("Nuevo nombre del atleta", athlete?.name || "");
+    if (nextName == null) return;
+    const safeName = String(nextName || "").trim();
+    if (!safeName) return;
+    if (typeof onRenameAthlete === "function") {
+      const result = onRenameAthlete(athlete.id, safeName);
+      if (result && result.ok === false) {
+        setAthleteError(result.error || "No se pudo actualizar el nombre.");
+      } else {
+        setAthleteError("");
+      }
+      return;
+    }
+    setAthletes((prev) => normalizeAthletes(prev).map((item, idx) =>
+      item.id === athlete.id
+        ? normalizeAthleteRecord({ ...item, name: safeName }, idx)
+        : normalizeAthleteRecord(item, idx)
+    ));
+  };
+  const removeAthlete = (athlete) => {
+    if (!athlete?.id) return;
+    if (!window.confirm(`¿Eliminar al atleta "${athlete.name}"?`)) return;
+    if (typeof onDeleteAthlete === "function") onDeleteAthlete(athlete.id);
+    else setAthletes((prev) => normalizeAthletes(prev).filter((item) => item.id !== athlete.id));
+    if (editingAthleteId === athlete.id) closeWeightEditor();
   };
   const openWeightEditor = (athlete) => {
     setEditingAthleteId(athlete.id);
@@ -4844,7 +5191,7 @@ function CoachHistorial({
           : <div className="ph-title">HISTORIAL <span>SEMANAL</span></div>}
         <div className="ph-sub">
           {isAthletesView
-            ? "Alta de atletas, asignación multi-grupo y edición de pesos máximos (solo coach)."
+            ? "Crear/modificar/eliminar atletas, gestionar grupos y editar pesos máximos (solo coach)."
             : "Semanas publicadas en formato compacto. Clic para ver entrenos, gym, kms y estado diario."}
         </div>
       </div>
@@ -4853,6 +5200,29 @@ function CoachHistorial({
         <div className="card mb4">
           <div className="card-title">👥 Gestión de atletas</div>
           <div className="text-sm text-mu mb3">Solo el entrenador puede crear perfiles, asignar grupos y editar pesos máximos.</div>
+          <div className="card card-sm mb3">
+            <div className="fw7 mb3">Grupos</div>
+            <div className="g2">
+              <input
+                className="input"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="Nuevo grupo"
+              />
+              <button className="btn btn-ghost" onClick={handleCreateGroup}>+ Crear grupo</button>
+            </div>
+            {groupError && <div className="text-sm mt3" style={{color:"var(--re)"}}>{groupError}</div>}
+            <div className="flex ic g2r mt3" style={{flexWrap:"wrap"}}>
+              {allGroups.map((group) => (
+                <div key={`manage_group_${group}`} className="flex ic g2r" style={{background:"var(--s2)",border:"1px solid var(--border)",borderRadius:999,padding:"6px 10px"}}>
+                  <span className={`g-tag ${groupClass(group)}`} style={{padding:"4px 10px"}}>{groupLabel(group)}</span>
+                  {!GROUPS.includes(group) && group !== "por-asignar" && (
+                    <button className="btn btn-danger btn-sm" style={{padding:"4px 10px"}} onClick={() => handleDeleteGroup(group)}>Eliminar</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="g2 mb3">
             <div className="form-group" style={{margin:0}}>
               <label className="form-label">Nombre del atleta</label>
@@ -4920,7 +5290,11 @@ function CoachHistorial({
                       <div className="text-sm text-mu">Grupos: {getAthleteGroupsLabel(athlete)}</div>
                     </div>
                   </div>
-                  <button className="btn btn-ghost btn-sm" onClick={() => openWeightEditor(athlete)}>⚖️ Pesos</button>
+                  <div className="flex ic g2r" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
+                    <button className="btn btn-ghost btn-sm" onClick={() => renameAthlete(athlete)}>✏️ Nombre</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openWeightEditor(athlete)}>⚖️ Pesos</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => removeAthlete(athlete)}>🗑️ Eliminar</button>
+                  </div>
                 </div>
                 <MultiSelect
                   options={allGroups}
@@ -5002,13 +5376,13 @@ function CoachHistorial({
                         </div>
                         {amSessions.map((session, idx) => (
                           <div key={session.id || `hist_am_${dayIndex}_${idx}`} className="session">
-                            <div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {groupLabel(session.targetGroup)}</div>
+                            <div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {getTargetLabel(session)}</div>
                             <div className="sess-txt">{session.name}</div>
                           </div>
                         ))}
                         {pmSessions.map((session, idx) => (
                           <div key={session.id || `hist_pm_${dayIndex}_${idx}`} className="session pm">
-                            <div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {groupLabel(session.targetGroup)}</div>
+                            <div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {getTargetLabel(session)}</div>
                             <div className="sess-txt">{session.name}</div>
                           </div>
                         ))}
@@ -5280,7 +5654,7 @@ function AthleteHoy({
   const todayIso = toIsoDate();
   const rawTodayPlan = week.days[todayI] || {};
   const userGroups = getAthleteGroups(user);
-  const visibleToday = getVisibleDayPlanForGroup(week, rawTodayPlan, userGroups, routines);
+  const visibleToday = getVisibleDayPlanForAthlete(week, rawTodayPlan, user, routines);
   const hasAnyAssignedToday = getSlotSessions(rawTodayPlan, "am", week).length > 0 || getSlotSessions(rawTodayPlan, "pm", week).length > 0 || !!rawTodayPlan.gym;
   const todayRecord = (history || []).find((row) => row?.athleteId === user.id && row?.dateIso === todayIso) || null;
   const completion = getDayCompletionFromHistory(visibleToday, todayRecord);
@@ -5377,7 +5751,7 @@ function AthleteHoy({
             {visibleToday.am.map((session, index) => (
               <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 12}}>
                 <div className="today-training" style={{fontSize:index === 0 ? 28 : 22}}>{session.name}</div>
-                <span className={`badge ${index === 0 ? "b-or" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {groupLabel(session.targetGroup)}</span>
+                <span className={`badge ${index === 0 ? "b-or" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {getTargetLabel(session)}</span>
               </div>
             ))}
             <button
@@ -5402,7 +5776,7 @@ function AthleteHoy({
             {visibleToday.pm.map((session, index) => (
               <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 12}}>
                 <div className="today-training" style={{fontSize:index === 0 ? 28 : 22}}>{session.name}</div>
-                <span className={`badge ${index === 0 ? "b-bl" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {groupLabel(session.targetGroup)}</span>
+                <span className={`badge ${index === 0 ? "b-bl" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {getTargetLabel(session)}</span>
               </div>
             ))}
             <button
@@ -5531,7 +5905,7 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
         {DAYS_FULL.map((day, i) => {
           const d = week.days[i];
           const isToday = i === todayI;
-          const visiblePlan = getVisibleDayPlanForGroup(week, d, userGroups, routines);
+          const visiblePlan = getVisibleDayPlanForAthlete(week, d, user, routines);
           const hasAssignedForOthers = getSlotSessions(d, "am", week).length > 0 || getSlotSessions(d, "pm", week).length > 0 || !!d.gym;
           const gymCount = visiblePlan.gym ? getDayGymCount(d, routines) : 0;
           const gymResolved = visiblePlan.gym ? getDayResolvedGymPlan(d, routines) : null;
@@ -5704,9 +6078,10 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
 }
 
 // ─── ATHLETE: PERFIL ─────────────────────────────────────────────────────────
-function AthletePerfil({ user, onUpdatePassword }) {
+function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
   const athleteGroups = getAthleteGroups(user);
-  const showInitialPasswordHint = !user?.passwordChangedOnce;
+  const [nameDraft, setNameDraft] = useState(String(user?.name || ""));
+  const [nameMsg, setNameMsg] = useState(null);
   const [passwordDraft, setPasswordDraft] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [passwordMsg, setPasswordMsg] = useState(null);
@@ -5719,6 +6094,25 @@ function AthletePerfil({ user, onUpdatePassword }) {
       value: hasValue ? numeric : null,
     };
   });
+
+  useEffect(() => {
+    setNameDraft(String(user?.name || ""));
+    setNameMsg(null);
+  }, [user?.id, user?.name]);
+
+  const saveName = () => {
+    const nextName = String(nameDraft || "").trim();
+    if (nextName.length < 2) {
+      setNameMsg({ ok:false, text:"El nombre debe tener al menos 2 caracteres." });
+      return;
+    }
+    const result = onUpdateName?.(nextName);
+    if (result && result.ok === false) {
+      setNameMsg({ ok:false, text: result.error || "No se pudo actualizar el nombre." });
+      return;
+    }
+    setNameMsg({ ok:true, text:"Nombre actualizado." });
+  };
 
   const savePassword = () => {
     const nextPassword = String(passwordDraft || "").trim();
@@ -5763,6 +6157,26 @@ function AthletePerfil({ user, onUpdatePassword }) {
           </div>
 
           <div className="profile-group-panel mt3">
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">Tu nombre</label>
+              <div className="flex ic g2r">
+                <input
+                  className="input"
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  placeholder="Nombre del atleta"
+                />
+                <button className="btn btn-ghost btn-sm" onClick={saveName}>Guardar</button>
+              </div>
+              {nameMsg && (
+                <div className="text-sm mt3" style={{color: nameMsg.ok ? "var(--gr)" : "var(--re)"}}>
+                  {nameMsg.text}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="profile-group-panel mt3">
             <div className="profile-password-grid">
               <div className="form-group" style={{marginBottom:0}}>
                 <label className="form-label">Nueva contraseña</label>
@@ -5786,9 +6200,6 @@ function AthletePerfil({ user, onUpdatePassword }) {
               </div>
             </div>
             <div className="flex ic jb mt3" style={{flexWrap:"wrap",gap:8}}>
-              {showInitialPasswordHint && (
-                <div className="text-sm text-mu">Contraseña inicial: <strong style={{color:"var(--tx)"}}>1234</strong></div>
-              )}
               <button className="btn btn-or btn-sm" onClick={savePassword}>Guardar contraseña</button>
             </div>
             {passwordMsg && (
@@ -5890,7 +6301,7 @@ function AthleteCalendario({
     const hist = histMap[selected.dateIso] || null;
     const dow  = selected.dayOfWeek;
     const dayPlan = week.days[dow];
-    const visiblePlan = getVisibleDayPlanForGroup(week, dayPlan, userGroups, routines);
+    const visiblePlan = getVisibleDayPlanForAthlete(week, dayPlan, user, routines);
     const completion = getDayCompletionFromHistory(visiblePlan, hist);
     const gymExs  = visiblePlan.gym ? getDayGymExercisesForAthlete(dayPlan, routines, user, customExercises, exerciseImages) : [];
     const gymPlan = visiblePlan.gym ? getDayResolvedGymPlan(dayPlan, routines) : null;
@@ -5961,7 +6372,7 @@ function AthleteCalendario({
                 const dow    = weekDayForDate(y, m, day);
                 const isToday = dateIso === todayIso;
                 const hist   = histMap[dateIso] || null;
-                const visiblePlan = getVisibleDayPlanForGroup(week, week.days[dow], userGroups, routines);
+                const visiblePlan = getVisibleDayPlanForAthlete(week, week.days[dow], user, routines);
                 const completion = getDayCompletionFromHistory(visiblePlan, hist);
                 const hasTrain = visiblePlan.hasContent;
                 const isCompetitionDay = !!competitionsByDate[dateIso]?.length;
@@ -6348,18 +6759,35 @@ export default function TrackFlow() {
 
   const handleLogout = () => { setUser(null); store.set("tf_user", null); };
 
-  const pushAthleteNotifications = (targetGroups, payload) => {
-    const targetSet = new Set(
-      (Array.isArray(targetGroups) ? targetGroups : [targetGroups])
-        .map((group) => String(group || "all").trim() || "all")
-    );
-    if (!targetSet.size) targetSet.add("all");
+  const pushAthleteNotifications = (targets, payload) => {
+    const rawTargets = Array.isArray(targets) ? targets : [targets];
+    const groupSet = new Set();
+    const athleteSet = new Set();
+    let includeAll = false;
+    rawTargets.forEach((rawTarget) => {
+      const token = String(rawTarget || "").trim();
+      if (!token) return;
+      if (token === "all") {
+        includeAll = true;
+        return;
+      }
+      if (token.startsWith("athlete:")) {
+        const athleteId = token.slice("athlete:".length).trim();
+        if (athleteId) athleteSet.add(athleteId);
+        return;
+      }
+      const group = normalizeGroupName(token);
+      if (group) groupSet.add(group);
+    });
+    if (!includeAll && !groupSet.size && !athleteSet.size) includeAll = true;
     const createdAt = new Date().toISOString();
     setAthleteNotificationsById((prev) => {
       const next = { ...normalizeAthleteNotificationsMap(prev) };
       normalizeAthletes(athletes).forEach((athlete) => {
         const athleteGroups = getAthleteGroups(athlete);
-        const isTargeted = targetSet.has("all") || athleteGroups.some((group) => targetSet.has(group));
+        const isTargeted = includeAll
+          || athleteSet.has(String(athlete.id || "").trim())
+          || athleteGroups.some((group) => groupSet.has(group));
         if (!isTargeted) return;
         const entry = {
           id: `notif_${athlete.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -6385,7 +6813,7 @@ export default function TrackFlow() {
     pushAthleteNotifications(targets, {
       title: isUpdate ? `Semana ${safeWeekNumber} modificada` : `Semana ${safeWeekNumber} publicada`,
       message: isUpdate
-        ? "Se ha actualizado tu plan semanal para alguno de tus grupos."
+        ? "Se ha actualizado tu plan semanal (grupo o asignación directa)."
         : "Tu nueva semana ya está publicada y disponible en calendario.",
       weekNumber: safeWeekNumber,
     });
@@ -6497,6 +6925,35 @@ export default function TrackFlow() {
       return next;
     });
   };
+  const handleUpdateAthleteName = (athleteId, nextName) => {
+    if (!athleteId) return { ok:false, error:"Atleta no válido." };
+    const safeName = String(nextName || "").trim();
+    if (safeName.length < 2) return { ok:false, error:"El nombre debe tener al menos 2 caracteres." };
+    const normalized = safeName.toLowerCase();
+    const exists = normalizeAthletes(athletes).some((athlete) =>
+      athlete.id !== athleteId && String(athlete.name || "").trim().toLowerCase() === normalized
+    );
+    if (exists) return { ok:false, error:"Ya existe otro atleta con ese nombre." };
+
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) =>
+      athlete.id === athleteId
+        ? normalizeAthleteRecord({ ...athlete, name: safeName }, idx)
+        : normalizeAthleteRecord(athlete, idx)
+    ));
+    setUser((prev) => (prev && prev.id === athleteId ? { ...prev, name: safeName } : prev));
+    return { ok:true };
+  };
+  const handleDeleteAthlete = (athleteId) => {
+    if (!athleteId) return;
+    setAthletes((prev) => normalizeAthletes(prev).filter((athlete) => athlete.id !== athleteId));
+    setAthleteNotificationsById((prev) => {
+      const next = { ...normalizeAthleteNotificationsMap(prev) };
+      delete next[athleteId];
+      return next;
+    });
+    setHistory((prev) => (Array.isArray(prev) ? prev.filter((row) => row?.athleteId !== athleteId) : []));
+    setUser((prev) => (prev && prev.id === athleteId ? null : prev));
+  };
   const handleUpdateAthletePassword = (athleteId, nextPassword) => {
     if (!athleteId) return;
     const safePassword = String(nextPassword || "").trim() || "1234";
@@ -6532,7 +6989,7 @@ export default function TrackFlow() {
     const todayIso = toIsoDate();
     const publishedWeek = resolvePublishedWeek(week, routines);
     const todayPlan = publishedWeek?.days?.[todayI] || {};
-    const visibleToday = getVisibleDayPlanForGroup(publishedWeek || week, todayPlan, getAthleteGroups(athlete), routines);
+    const visibleToday = getVisibleDayPlanForAthlete(publishedWeek || week, todayPlan, athlete, routines);
     const slotPlan = getDaySlotPlanState(visibleToday);
     if (slot === "am" && !slotPlan.amPlanned) return;
     if (slot === "pm" && !slotPlan.pmPlanned) return;
@@ -6609,14 +7066,14 @@ export default function TrackFlow() {
   const renderPage = () => {
     if (isCoach) {
       switch(page) {
-        case "semana":     return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
+        case "semana":     return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} athletes={athletes} groups={groups} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
         case "calendario": return <CoachCalendario week={week} routines={routines} history={history} activeWeekNumber={activeWeekNumber} seasonAnchorDate={seasonAnchorDate} />;
-        case "calendario_semanal": return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} view="history" seasonAnchorDate={seasonAnchorDate} />;
+        case "calendario_semanal": return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} setGroups={setGroups} onRenameAthlete={handleUpdateAthleteName} onDeleteAthlete={handleDeleteAthlete} view="history" seasonAnchorDate={seasonAnchorDate} />;
         case "gym":        return <CoachGymV2 customExercises={customExercises} setCustomExercises={setCustomExercises} exerciseImages={exerciseImages} setExerciseImages={setExerciseImages} />;
         case "dataset":    return <CoachTrainingsDataset trainings={trainings} setTrainings={setTrainings} />;
-        case "athletes":   return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} view="athletes" seasonAnchorDate={seasonAnchorDate} />;
+        case "athletes":   return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} setGroups={setGroups} onRenameAthlete={handleUpdateAthleteName} onDeleteAthlete={handleDeleteAthlete} view="athletes" seasonAnchorDate={seasonAnchorDate} />;
         case "temporadas": return <CoachTemporadas currentSeasonId={currentSeasonId} seasonWeekOneStartIso={seasonWeekOneStartIso} seasons={seasons} onFinalizeSeason={handleFinalizeSeason} />;
-        default:           return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
+        default:           return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} athletes={athletes} groups={groups} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
       }
     } else {
       const currentUser = currentAthlete;
@@ -6625,7 +7082,7 @@ export default function TrackFlow() {
         case "hoy":        return <AthleteHoy user={currentUser} week={athleteWeek} routines={routines} history={history} onToggleSlotCompletion={(slot, done) => handleToggleSlotCompletion(currentUser, slot, done)} onDismissNotification={(notificationId) => handleDismissAthleteNotification(currentUser?.id, notificationId)} onClearNotifications={() => handleClearAthleteNotifications(currentUser?.id)} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} athleteNotifications={athleteNotifications} />;
         case "semana":     return <AthleteSemana week={athleteWeek} routines={routines} user={currentUser} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
         case "gym":        return <AthleteGym user={currentUser} routines={routines} week={athleteWeek} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
-        case "perfil":     return <AthletePerfil user={currentUser} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} />;
+        case "perfil":     return <AthletePerfil user={currentUser} onUpdateName={(nextName) => handleUpdateAthleteName(currentUser?.id, nextName)} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} />;
         case "calendario": return <AthleteCalendario user={currentUser} week={athleteWeek} routines={routines} history={history} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} onAddCompetition={(competition) => handleAddCompetition(currentUser.id, competition)} onRemoveCompetition={(competitionId) => handleRemoveCompetition(currentUser.id, competitionId)} />;
         default: return null;
       }
