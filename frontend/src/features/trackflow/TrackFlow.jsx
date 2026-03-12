@@ -4686,6 +4686,8 @@ function CoachHistorial({
   const [openWeekNumber, setOpenWeekNumber] = useState(null);
   const [newAthleteName, setNewAthleteName] = useState("");
   const [newAthleteGroups, setNewAthleteGroups] = useState(["por-asignar"]);
+  const [athleteNameFilter, setAthleteNameFilter] = useState("");
+  const [athleteGroupFilter, setAthleteGroupFilter] = useState("all");
   const [athleteError, setAthleteError] = useState("");
   const [editingAthleteId, setEditingAthleteId] = useState(null);
   const [editingMaxW, setEditingMaxW] = useState({});
@@ -4694,6 +4696,13 @@ function CoachHistorial({
   const plans = normalizeWeekPlansByNumber(weekPlansByNumber, routines, seasonAnchorDate);
   const roster = normalizeAthletes(athletes || []);
   const allGroups = mergeGroupOptions(GROUPS, groups, collectAthleteGroups(roster));
+  const normalizedAthleteNameFilter = String(athleteNameFilter || "").trim().toLowerCase();
+  const filteredRoster = roster.filter((athlete) => {
+    const matchesGroup = athleteGroupFilter === "all" || athleteBelongsToGroup(athlete, athleteGroupFilter);
+    if (!matchesGroup) return false;
+    if (!normalizedAthleteNameFilter) return true;
+    return String(athlete.name || "").toLowerCase().includes(normalizedAthleteNameFilter);
+  });
   const weightExercises = ALL_BUILTIN_GYM_EXERCISES.filter((exercise) => normalizeExerciseType(exercise.type) === "weight");
   const isAthletesView = view === "athletes";
   const publishedWeeks = Object.values(plans)
@@ -4873,8 +4882,35 @@ function CoachHistorial({
           </div>
           {athleteError && <div className="text-sm mt3" style={{color:"var(--re)"}}>{athleteError}</div>}
           <div className="divider" />
+          <div className="g2 mb3">
+            <div className="form-group" style={{margin:0}}>
+              <label className="form-label">Filtrar por nombre</label>
+              <input
+                className="input"
+                value={athleteNameFilter}
+                onChange={(e) => setAthleteNameFilter(e.target.value)}
+                placeholder="Buscar atleta..."
+              />
+            </div>
+            <div className="form-group" style={{margin:0}}>
+              <label className="form-label">Filtrar por grupo</label>
+              <select
+                className="select"
+                value={athleteGroupFilter}
+                onChange={(e) => setAthleteGroupFilter(e.target.value)}
+              >
+                <option value="all">Todos los grupos</option>
+                {allGroups.map((group) => (
+                  <option key={`ath_filter_${group}`} value={group}>{groupLabel(group)}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="text-sm text-mu mb3">
+            Mostrando {filteredRoster.length} de {roster.length} atletas.
+          </div>
           <div className="g2">
-            {roster.map((athlete) => (
+            {filteredRoster.map((athlete) => (
               <div key={athlete.id} className="card card-sm">
                 <div className="flex ic jb mb3">
                   <div className="flex ic g3r">
@@ -4895,6 +4931,7 @@ function CoachHistorial({
               </div>
             ))}
             {roster.length === 0 && <div className="text-sm text-mu">No hay atletas creados todavía.</div>}
+            {roster.length > 0 && filteredRoster.length === 0 && <div className="text-sm text-mu">No hay atletas con esos filtros.</div>}
           </div>
         </div>
       )}
@@ -6505,8 +6542,6 @@ export default function TrackFlow() {
     const prevAmDone = slotPlan.amPlanned ? !!existingRow?.amDone : false;
     const prevPmDone = slotPlan.pmPlanned ? !!existingRow?.pmDone : false;
     const prevGymDone = slotPlan.gymPlanned ? !!existingRow?.gymDone : false;
-    const prevDoneSlots = Number(prevAmDone) + Number(prevPmDone) + Number(prevGymDone);
-    const prevCompleted = slotPlan.plannedSlots > 0 && prevDoneSlots >= slotPlan.plannedSlots;
 
     const amDone = slotPlan.amPlanned ? (slot === "am" ? !!nextDone : prevAmDone) : false;
     const pmDone = slotPlan.pmPlanned ? (slot === "pm" ? !!nextDone : prevPmDone) : false;
@@ -6540,17 +6575,6 @@ export default function TrackFlow() {
       };
       return [historyRow, ...rest].slice(0, 500);
     });
-
-    if (!prevCompleted && completed) {
-      setNotifications((prev) => [
-        {
-          athlete: athlete.name,
-          msg: `Ha completado los entrenos del día (${DAYS_FULL[todayI]})`,
-          time: now.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}),
-        },
-        ...(Array.isArray(prev) ? prev : []),
-      ].slice(0, 20));
-    }
   };
 
   if (loading) return (
@@ -6567,8 +6591,9 @@ export default function TrackFlow() {
 
   const isCoach = user.role === "coach";
   const isDatasetPage = isCoach && (page === "gym" || page === "dataset");
+  const isCoachAthletesPage = isCoach && page === "athletes";
   const isAthleteGymPage = !isCoach && page === "gym";
-  const allowPageScroll = isDatasetPage || isAthleteGymPage;
+  const allowPageScroll = isDatasetPage || isCoachAthletesPage || isAthleteGymPage;
   const mainAreaClass = `main-area ${allowPageScroll ? "main-area-scroll" : "main-area-fit"}`;
   const pageShellClass = `page-shell ${allowPageScroll ? "page-shell-scroll" : "page-shell-fit"}`;
   const publishedWeek = resolvePublishedWeek(week, routines);
