@@ -1,1 +1,13 @@
-id,name,group,isHR,avatar,stravaConnected,weekKms,maxW,todayDone
+id,name,group,isHR,avatar,stravaConnected,maxW,weekKms,todayDone
+marc,Marc Rodríguez,1500m,1,MR,0,"{""sq"":100,""dl"":120,""bp"":80,""ht"":140,""lp"":180,""row"":70,""lunge"":60,""rdl"":90,""calf"":100,""pm"":55}","[12,0,15,0,14,8,0]",0
+alex,Àlex Puig,1500m,1,AP,1,"{""sq"":95,""dl"":110,""bp"":75,""ht"":130,""lp"":170,""row"":65,""lunge"":55,""rdl"":85,""calf"":90,""pm"":50}","[10,0,13,0,12,6,0]",0
+jordi,Jordi Mas,1500m,1,JM,1,"{""sq"":105,""dl"":125,""bp"":85,""ht"":150,""lp"":190,""row"":75,""lunge"":65,""rdl"":95,""calf"":110,""pm"":60}","[14,0,16,0,15,9,0]",0
+pau,Pau Ferrer,800m,1,PF,0,"{""sq"":110,""dl"":130,""bp"":90,""ht"":155,""lp"":200,""row"":80,""lunge"":70,""rdl"":100,""calf"":115,""pm"":65}","[11,0,14,0,13,7,0]",0
+sergi,Sergi Vila,800m,1,SV,1,"{""sq"":90,""dl"":105,""bp"":70,""ht"":120,""lp"":165,""row"":60,""lunge"":50,""rdl"":80,""calf"":85,""pm"":45}","[9,0,12,0,11,5,0]",0
+arnau,Arnau Soler,800m,1,AS,0,"{""sq"":115,""dl"":135,""bp"":92,""ht"":160,""lp"":205,""row"":82,""lunge"":72,""rdl"":105,""calf"":120,""pm"":67}","[13,0,15,0,14,8,0]",0
+marta,Marta Bosch,1500m,1,MB,1,"{""sq"":75,""dl"":85,""bp"":50,""ht"":110,""lp"":140,""row"":45,""lunge"":40,""rdl"":70,""calf"":80,""pm"":35}","[10,0,12,0,11,6,0]",0
+laia,Laia Pons,800m,1,LP,0,"{""sq"":70,""dl"":80,""bp"":45,""ht"":100,""lp"":135,""row"":42,""lunge"":38,""rdl"":65,""calf"":75,""pm"":32}","[8,0,10,0,9,4,0]",0
+carla,Carla Vidal,1500m,1,CV,1,"{""sq"":80,""dl"":90,""bp"":55,""ht"":115,""lp"":150,""row"":48,""lunge"":42,""rdl"":72,""calf"":85,""pm"":38}","[11,0,13,0,12,7,0]",0
+roger,Roger Blanco,pequeños,0,RB,0,{},[],0
+noa,Noa Camps,pequeños,0,NC,0,{},[],0
+jan,Jan Serra,1500m,0,JS,0,"{""sq"":60,""dl"":70}",[],0

@@ -13,5 +13,8 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   dataDir: path.resolve(serverRoot, process.env.DATA_DIR || './data'),
   appStorageFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'app_storage.json'),
-  usersCsvFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'users.csv')
+  usersCsvFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'users.csv'),
+  seedsDir: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'seeds'),
+  appStorageSeedFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'seeds', 'app_storage.seed.json'),
+  usersCsvSeedFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'seeds', 'users.seed.csv')
 };
