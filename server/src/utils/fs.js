@@ -1,6 +1,21 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+const fileWriteLocks = new Map();
+
+async function queueFileWrite(filePath, writer) {
+  const prev = fileWriteLocks.get(filePath) || Promise.resolve();
+  const next = prev.catch(() => {}).then(writer);
+  fileWriteLocks.set(filePath, next);
+  try {
+    return await next;
+  } finally {
+    if (fileWriteLocks.get(filePath) === next) {
+      fileWriteLocks.delete(filePath);
+    }
+  }
+}
+
 export async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
@@ -25,10 +40,10 @@ export async function readJsonFile(filePath, fallback = {}) {
 }
 
 export async function writeJsonFile(filePath, data) {
-  await ensureDir(path.dirname(filePath));
-  const tempFile = `${filePath}.tmp`;
-  await fs.writeFile(tempFile, JSON.stringify(data, null, 2), 'utf8');
-  await fs.rename(tempFile, filePath);
+  await queueFileWrite(filePath, async () => {
+    await ensureDir(path.dirname(filePath));
+    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
+  });
 }
 
 export async function readTextFile(filePath, fallback = '') {
@@ -40,8 +55,8 @@ export async function readTextFile(filePath, fallback = '') {
 }
 
 export async function writeTextFile(filePath, content) {
-  await ensureDir(path.dirname(filePath));
-  const tempFile = `${filePath}.tmp`;
-  await fs.writeFile(tempFile, content, 'utf8');
-  await fs.rename(tempFile, filePath);
+  await queueFileWrite(filePath, async () => {
+    await ensureDir(path.dirname(filePath));
+    await fs.writeFile(filePath, content, 'utf8');
+  });
 }

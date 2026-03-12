@@ -490,12 +490,12 @@ function buildAthletes(athleteNames, maxWByAthlete) {
       id,
       name,
       group: "por-asignar",
-      isHR: false,
+      groups: ["por-asignar"],
       avatar: avatar || "AT",
-      stravaConnected: false,
       maxW: maxWByAthlete.get(name) || {},
       weekKms: [],
       todayDone: false,
+      competitions: [],
     });
   }
 
@@ -800,20 +800,23 @@ function csvEscape(value) {
 }
 
 function athletesToCsv(athletes) {
-  const columns = ["id", "name", "group", "isHR", "avatar", "stravaConnected", "maxW", "weekKms", "todayDone"];
+  const columns = ["id", "name", "group", "groups", "avatar", "maxW", "weekKms", "todayDone", "competitions"];
   const rows = [columns.join(",")];
 
   for (const athlete of athletes) {
+    const groups = Array.isArray(athlete.groups) && athlete.groups.length
+      ? athlete.groups
+      : [athlete.group || "por-asignar"];
     const row = {
       id: athlete.id,
       name: athlete.name,
-      group: athlete.group,
-      isHR: athlete.isHR ? "1" : "0",
+      group: athlete.group || groups[0] || "por-asignar",
+      groups: JSON.stringify(groups),
       avatar: athlete.avatar || "",
-      stravaConnected: athlete.stravaConnected ? "1" : "0",
       maxW: JSON.stringify(athlete.maxW || {}),
       weekKms: JSON.stringify(athlete.weekKms || []),
       todayDone: athlete.todayDone ? "1" : "0",
+      competitions: JSON.stringify(Array.isArray(athlete.competitions) ? athlete.competitions : []),
     };
     rows.push(columns.map((c) => csvEscape(row[c])).join(","));
   }
@@ -880,6 +883,8 @@ async function main() {
     tf_athletes: JSON.stringify(athletes),
     tf_groups: JSON.stringify(STATIC_GROUPS),
     tf_routines: JSON.stringify(routines),
+    tf_week_plans: JSON.stringify({ [week.weekNumber || 1]: week }),
+    tf_active_week_number: JSON.stringify(week.weekNumber || 1),
     tf_week: JSON.stringify(week),
     tf_calendar_weeks: JSON.stringify(calendarWeeks),
     tf_pesas_raw: JSON.stringify(rawDb),

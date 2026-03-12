@@ -15,7 +15,9 @@ const safeZones = z => {
 };
 
 // ─── MOCK DATA (from PESAS2024.xlsx) ─────────────────────────────────────────
-// type: "weight" = series×reps×%1RM→kg | "reps" = series×reps sin peso | "time" = series×segundos
+// type: "weight" = peso×series×reps (%1RM→kg)
+// type: "reps" = series×reps (sin carga externa)
+// type: "time_reps" = tiempo×reps (con series)
 
 const GYM_EXERCISES = [
   { id:"sq",    name:"Sentadilla",      emoji:"🏋️",  muscles:"Cuádriceps · Glúteos",   category:"compound",   type:"weight" },
@@ -28,25 +30,54 @@ const GYM_EXERCISES = [
   { id:"rdl",   name:"RDL",             emoji:"🎯",   muscles:"Isquios · Glúteos",      category:"compound",   type:"weight" },
   { id:"calf",  name:"Gemelos",         emoji:"🦴",   muscles:"Sóleo · Gastrocnemio",   category:"isolation",  type:"reps"   },
   { id:"pm",    name:"Press Militar",   emoji:"💥",   muscles:"Hombros · Tríceps",      category:"upper",      type:"weight" },
-  { id:"plank", name:"Plancha",         emoji:"⏱️",   muscles:"Core · Abdomen",         category:"core",       type:"time"   },
+  { id:"plank", name:"Plancha",         emoji:"⏱️",   muscles:"Core · Abdomen",         category:"core",       type:"time_reps" },
   { id:"box",   name:"Box Jump",        emoji:"📦",   muscles:"Cuádriceps · Glúteos",   category:"power",      type:"reps"   },
   { id:"sj",    name:"Salto Vertical",  emoji:"⬆️",   muscles:"Gemelos · Glúteos",      category:"power",      type:"reps"   },
 ];
 
+const createAthleteSeed = (name, group = "por-asignar") => {
+  const idBase = String(name || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return {
+    id: `ath_${idBase || Date.now()}`,
+    name,
+    group,
+    groups:[group],
+    avatar: String(name || "").split(" ").map((part) => part[0]).join("").toUpperCase().slice(0, 2),
+    maxW:{},
+    weekKms:[],
+    password:"1234",
+  };
+};
+
 const DEFAULT_ATHLETES = [
-  { id:"marc",  name:"Marc Rodríguez",  group:"1500m",   isHR:true,  avatar:"MR", maxW:{ sq:100,dl:120,bp:80, ht:140,lp:180,row:70, lunge:60,rdl:90, calf:100,pm:55 }, stravaConnected:false, weekKms:[12,0,15,0,14,8,0] },
-  { id:"alex",  name:"Àlex Puig",       group:"1500m",   isHR:true,  avatar:"AP", maxW:{ sq:95, dl:110,bp:75, ht:130,lp:170,row:65, lunge:55,rdl:85, calf:90, pm:50 }, stravaConnected:true,  weekKms:[10,0,13,0,12,6,0] },
-  { id:"jordi", name:"Jordi Mas",       group:"1500m",   isHR:true,  avatar:"JM", maxW:{ sq:105,dl:125,bp:85, ht:150,lp:190,row:75, lunge:65,rdl:95, calf:110,pm:60 }, stravaConnected:true,  weekKms:[14,0,16,0,15,9,0] },
-  { id:"pau",   name:"Pau Ferrer",      group:"800m",    isHR:true,  avatar:"PF", maxW:{ sq:110,dl:130,bp:90, ht:155,lp:200,row:80, lunge:70,rdl:100,calf:115,pm:65 }, stravaConnected:false, weekKms:[11,0,14,0,13,7,0] },
-  { id:"sergi", name:"Sergi Vila",      group:"800m",    isHR:true,  avatar:"SV", maxW:{ sq:90, dl:105,bp:70, ht:120,lp:165,row:60, lunge:50,rdl:80, calf:85, pm:45 }, stravaConnected:true,  weekKms:[9, 0,12,0,11,5,0] },
-  { id:"arnau", name:"Arnau Soler",     group:"800m",    isHR:true,  avatar:"AS", maxW:{ sq:115,dl:135,bp:92, ht:160,lp:205,row:82, lunge:72,rdl:105,calf:120,pm:67 }, stravaConnected:false, weekKms:[13,0,15,0,14,8,0] },
-  { id:"marta", name:"Marta Bosch",     group:"1500m",   isHR:true,  avatar:"MB", maxW:{ sq:75, dl:85, bp:50, ht:110,lp:140,row:45, lunge:40,rdl:70, calf:80, pm:35 }, stravaConnected:true,  weekKms:[10,0,12,0,11,6,0] },
-  { id:"laia",  name:"Laia Pons",       group:"800m",    isHR:true,  avatar:"LP", maxW:{ sq:70, dl:80, bp:45, ht:100,lp:135,row:42, lunge:38,rdl:65, calf:75, pm:32 }, stravaConnected:false, weekKms:[8, 0,10,0,9, 4,0] },
-  { id:"carla", name:"Carla Vidal",     group:"1500m",   isHR:true,  avatar:"CV", maxW:{ sq:80, dl:90, bp:55, ht:115,lp:150,row:48, lunge:42,rdl:72, calf:85, pm:38 }, stravaConnected:true,  weekKms:[11,0,13,0,12,7,0] },
-  { id:"roger", name:"Roger Blanco",    group:"pequeños",isHR:false, avatar:"RB", maxW:{}, stravaConnected:false, weekKms:[] },
-  { id:"noa",   name:"Noa Camps",       group:"pequeños",isHR:false, avatar:"NC", maxW:{}, stravaConnected:false, weekKms:[] },
-  { id:"jan",   name:"Jan Serra",       group:"1500m",   isHR:false, avatar:"JS", maxW:{ sq:60,dl:70 }, stravaConnected:false, weekKms:[] },
-];
+  "Nuria",
+  "Ona",
+  "Marina",
+  "Eric",
+  "Pelayo",
+  "Marçal",
+  "Teo",
+  "Pablo Col",
+  "Martí",
+  "Pol Ferran",
+  "Pol Serra",
+  "Aram",
+  "Gerard",
+  "Pablo",
+  "Jan",
+  "Leo",
+  "Ot",
+  "Enric",
+  "Roma",
+  "Pau",
+  "Mar",
+  "Janna",
+].map((name) => createAthleteSeed(name));
 
 const DEFAULT_EXERCISE_LOAD_PROFILE = {
   sq:    { sets:4, reps:6,  pct:85, type:"weight", duration:0 },
@@ -59,7 +90,7 @@ const DEFAULT_EXERCISE_LOAD_PROFILE = {
   rdl:   { sets:4, reps:8,  pct:72, type:"weight", duration:0 },
   calf:  { sets:4, reps:15, pct:0,  type:"reps",   duration:0 },
   pm:    { sets:3, reps:10, pct:70, type:"weight", duration:0 },
-  plank: { sets:3, reps:1,  pct:0,  type:"time",   duration:30 },
+  plank: { sets:3, reps:1,  pct:0,  type:"time_reps", duration:30 },
   box:   { sets:4, reps:8,  pct:0,  type:"reps",   duration:0 },
   sj:    { sets:4, reps:8,  pct:0,  type:"reps",   duration:0 },
 };
@@ -101,8 +132,8 @@ const DEFAULT_ROUTINE_LIBRARY = [
 ];
 
 const DEFAULT_WEEK = {
-  id: "week_base_car",
-  name: "Semana Base CAR",
+  id: "week_base",
+  name: "Semana Base",
   type: "Inicial",
   targetGroup: "all",
   days: [
@@ -138,21 +169,21 @@ const WEEK_TYPES = ["Inicial","Competitiva","Volumen"];
 const SESSION_TARGET_GROUPS = ["all","pequeños","1500m","800m"];
 
 const TRAINING_DATASET = [
-  { id:"tr_run_regen",  name:"Rodaje regenerativo",     description:"Trote suave de recuperación activa",         zones:{ regen:6,  ua:0,  uan:0, anae:0 } },
-  { id:"tr_run_z2",     name:"Rodaje Z2 continuo",       description:"Carrera continua a ritmo aeróbico",           zones:{ regen:2,  ua:8,  uan:0, anae:0 } },
-  { id:"tr_run_z2_lng", name:"Rodaje largo Z2",          description:"Tirada larga de 80-100 minutos",              zones:{ regen:4,  ua:14, uan:0, anae:0 } },
-  { id:"tr_fartlek_s",  name:"Fartlek suave",            description:"Cambios de ritmo a UA/UAN",                   zones:{ regen:2,  ua:4,  uan:3, anae:0 } },
-  { id:"tr_fartlek_f",  name:"Fartlek intenso",          description:"Cambios de ritmo a UAN/Anae",                 zones:{ regen:2,  ua:3,  uan:4, anae:1 } },
-  { id:"tr_series_200", name:"Series 200m",              description:"6-10 series de 200m a ritmo competición",     zones:{ regen:2,  ua:1,  uan:2, anae:3 } },
-  { id:"tr_series_400", name:"Series 400m",              description:"6-8 series de 400m a ritmo UAN/Anae",         zones:{ regen:2,  ua:1,  uan:4, anae:2 } },
-  { id:"tr_series_1k",  name:"Series 1000m extensivo",  description:"8-10 series de 1000m a ritmo UA/UAN",         zones:{ regen:2,  ua:2,  uan:6, anae:1 } },
-  { id:"tr_series_800", name:"Series 800m",              description:"4-6 series de 800m a ritmo UAN",              zones:{ regen:2,  ua:1,  uan:5, anae:1 } },
-  { id:"tr_tecnica",    name:"Técnica de carrera",       description:"Drills, ABC, skipping, pliometría",            zones:{ regen:2,  ua:0,  uan:0, anae:0 } },
-  { id:"tr_precomp",    name:"Calentamiento precomp.",   description:"Calentamiento para competición",              zones:{ regen:2,  ua:1,  uan:1, anae:0 } },
-  { id:"tr_competicion",name:"Competición",              description:"Carrera oficial o simulación de competición",  zones:{ regen:1,  ua:1,  uan:2, anae:4 } },
-  { id:"tr_movilidad",  name:"Movilidad y estiramiento", description:"Trabajo de movilidad articular y flexibilidad",zones:{ regen:0,  ua:0,  uan:0, anae:0 } },
-  { id:"tr_pliometria", name:"Pliometría",               description:"Saltos, multisaltos, trabajo explosivo",       zones:{ regen:1,  ua:0,  uan:1, anae:1 } },
-  { id:"tr_umbral",     name:"Umbral aeróbico continuo", description:"Carrera continua al ritmo de umbral aeróbico", zones:{ regen:1,  ua:10, uan:1, anae:0 } },
+  { id:"tr_run_regen",  name:"Rodaje regenerativo",     description:"Trote suave de recuperación activa",          weekTypes:["Inicial","Competitiva","Volumen"], zones:{ regen:6,  ua:0,  uan:0, anae:0 } },
+  { id:"tr_run_z2",     name:"Rodaje Z2 continuo",       description:"Carrera continua a ritmo aeróbico",          weekTypes:["Inicial","Volumen"],                zones:{ regen:2,  ua:8,  uan:0, anae:0 } },
+  { id:"tr_run_z2_lng", name:"Rodaje largo Z2",          description:"Tirada larga de 80-100 minutos",             weekTypes:["Inicial","Volumen"],                zones:{ regen:4,  ua:14, uan:0, anae:0 } },
+  { id:"tr_fartlek_s",  name:"Fartlek suave",            description:"Cambios de ritmo a UA/UAN",                  weekTypes:["Inicial","Volumen"],                zones:{ regen:2,  ua:4,  uan:3, anae:0 } },
+  { id:"tr_fartlek_f",  name:"Fartlek intenso",          description:"Cambios de ritmo a UAN/Anae",                weekTypes:["Competitiva","Volumen"],            zones:{ regen:2,  ua:3,  uan:4, anae:1 } },
+  { id:"tr_series_200", name:"Series 200m",              description:"6-10 series de 200m a ritmo competición",    weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:2, anae:3 } },
+  { id:"tr_series_400", name:"Series 400m",              description:"6-8 series de 400m a ritmo UAN/Anae",        weekTypes:["Inicial","Competitiva"],            zones:{ regen:2,  ua:1,  uan:4, anae:2 } },
+  { id:"tr_series_1k",  name:"Series 1000m extensivo",  description:"8-10 series de 1000m a ritmo UA/UAN",        weekTypes:["Inicial","Volumen"],                zones:{ regen:2,  ua:2,  uan:6, anae:1 } },
+  { id:"tr_series_800", name:"Series 800m",              description:"4-6 series de 800m a ritmo UAN",             weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:5, anae:1 } },
+  { id:"tr_tecnica",    name:"Técnica de carrera",       description:"Drills, ABC, skipping, pliometría",          weekTypes:["Inicial","Competitiva"],            zones:{ regen:2,  ua:0,  uan:0, anae:0 } },
+  { id:"tr_precomp",    name:"Calentamiento precomp.",   description:"Calentamiento para competición",              weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:1, anae:0 } },
+  { id:"tr_competicion",name:"Competición",              description:"Carrera oficial o simulación de competición", weekTypes:["Competitiva"],                      zones:{ regen:1,  ua:1,  uan:2, anae:4 } },
+  { id:"tr_movilidad",  name:"Movilidad y estiramiento", description:"Trabajo de movilidad articular y flexibilidad",weekTypes:["Inicial","Competitiva","Volumen"], zones:{ regen:0,  ua:0,  uan:0, anae:0 } },
+  { id:"tr_pliometria", name:"Pliometría",               description:"Saltos, multisaltos, trabajo explosivo",      weekTypes:["Inicial","Competitiva"],            zones:{ regen:1,  ua:0,  uan:1, anae:1 } },
+  { id:"tr_umbral",     name:"Umbral aeróbico continuo", description:"Carrera continua al ritmo de umbral aeróbico",weekTypes:["Inicial","Volumen"],                zones:{ regen:1,  ua:10, uan:1, anae:0 } },
 ];
 const ADDITIONAL_GYM_EXERCISE_NAMES = [
   "PESO MUERTO A UNA PIERNA",
@@ -254,10 +285,16 @@ const ADDITIONAL_GYM_EXERCISE_NAMES = [
   "BRACEO",
   "sentadilla auna pierna",
 ];
-const CUSTOM_TIME_EXERCISE_NAMES = new Set([
+const normalizeExerciseNameKey = (name) =>
+  String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+const makeExerciseNameSet = (names = []) => new Set(names.map((name) => normalizeExerciseNameKey(name)));
+const CUSTOM_TIME_EXERCISE_NAMES = makeExerciseNameSet([
   "ISO SIN REBOTE 15\"",
-  "HIP LOCK EN SKIPING 3\"",
-  "FARMER WALK 15 M",
   "20\" REBOTE TOBILLO ESTATICO",
   "HIP LOCK ESTATICO",
   "PLANCHA HORIZONTAL",
@@ -269,10 +306,21 @@ const CUSTOM_TIME_EXERCISE_NAMES = new Set([
   "ROLLER LUMBAR",
   "ROLLER CUADRICEPS",
 ]);
-const CUSTOM_WEIGHT_EXERCISE_NAMES = new Set([
+const CUSTOM_TIME_REPS_EXERCISE_NAMES = makeExerciseNameSet([
+  "HIP LOCK EN SKIPING 3\"",
+  "FARMER WALK 15 M",
+  "20 X REBOTE DE TOBILLO",
+  "SPLIT + SALTO",
+  "SPLIT CON SALTO EN MISMA PIERNA",
+  "SALTOS BIPODALES SIN PARADA",
+  "ATERRIZAJE DOS PIERNAS",
+  "DESACELERACION UNA PIERNA",
+]);
+const CUSTOM_WEIGHT_EXERCISE_NAMES = makeExerciseNameSet([
   "PESO MUERTO A UNA PIERNA",
   "SENTADILLA GLOBET",
   "PESO MUERTO MAS REMO ISO",
+  "PRESS BANCA",
   "HIP TRUST ISO",
   "PRESS PALOT",
   "SENTADILLA OVERHEAD",
@@ -285,28 +333,25 @@ const CUSTOM_WEIGHT_EXERCISE_NAMES = new Set([
   "ARRANCADA",
   "ELEVACION LATERAL",
   "DOS TIEMPOS",
+  "LUNGES-SENTADILLA",
   "CARGADA",
   "PRESS HOMBRO1",
   "PRESS MILITAR IMPULSION PIERNA",
 ]);
-const normalizeExerciseNameKey = (name) =>
-  String(name || "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toUpperCase();
 const inferBuiltinExerciseType = (name) => {
   const key = normalizeExerciseNameKey(name);
-  if (CUSTOM_TIME_EXERCISE_NAMES.has(key)) return "time";
+  if (CUSTOM_TIME_REPS_EXERCISE_NAMES.has(key)) return "time_reps";
+  if (CUSTOM_TIME_EXERCISE_NAMES.has(key)) return "time_reps";
   if (CUSTOM_WEIGHT_EXERCISE_NAMES.has(key)) return "weight";
-  if (/"|ROLLER|PLANCHA|BRACEO/.test(key)) return "time";
-  if (/PESO MUERTO|SENTADILLA|PRESS|REMO|ARRANCADA|CARGADA|DOS TIEMPOS/.test(key)) return "weight";
+  if (/SKIPING 3|REBOTE DE TOBILLO|SIN PARADA|FARMER WALK/.test(key)) return "time_reps";
+  if (/"|ROLLER|PLANCHA|BRACEO/.test(key)) return "time_reps";
+  if (/PESO MUERTO|SENTADILLA|PRESS|REMO|ARRANCADA|CARGADA|DOS TIEMPOS|HIP TRUST/.test(key)) return "weight";
   return "reps";
 };
 const inferBuiltinExerciseCategory = (name, type) => {
   const key = normalizeExerciseNameKey(name);
-  if (type === "time") return "stability";
+  if (type === "time_reps" && (/PLANCHA|ROLLER|BRACEO|ISO/.test(key))) return "stability";
+  if (type === "time_reps") return /SALTO|ATERRIZAJE|DESACELERACION|REBOTE/.test(key) ? "power" : "conditioning";
   if (/BANDA|ROLLER/.test(key)) return "activation";
   if (/SALTO|ATERRIZAJE|DESACELERACION|REBOTE/.test(key)) return "power";
   if (/PLANCHA|DEAD BUG|PALLOP|PALOT|CORE|LOCK/.test(key)) return "core";
@@ -318,9 +363,32 @@ const inferBuiltinExerciseEmoji = (type, name) => {
   if (/ROLLER/.test(key)) return "🌀";
   if (/BANDA/.test(key)) return "🟠";
   if (/SALTO|ATERRIZAJE|REBOTE/.test(key)) return "⚡";
-  if (type === "time") return "⏱️";
+  if (type === "time_reps") return "⌛";
   if (type === "weight") return "🏋️";
   return "🔁";
+};
+const inferBuiltinExerciseLoadProfile = (name, type) => {
+  const key = normalizeExerciseNameKey(name);
+  if (type === "weight") {
+    if (/ARRANCADA|CARGADA|DOS TIEMPOS/.test(key)) return { sets:5, reps:3, pct:70, type:"weight", duration:0 };
+    if (/PRESS/.test(key)) return { sets:4, reps:8, pct:65, type:"weight", duration:0 };
+    if (/SENTADILLA|PESO MUERTO|HIP TRUST|REMO/.test(key)) return { sets:4, reps:6, pct:72, type:"weight", duration:0 };
+    return { sets:3, reps:8, pct:65, type:"weight", duration:0 };
+  }
+  if (type === "time_reps") {
+    if (/SKIPING 3/.test(key)) return { sets:3, reps:6, pct:0, type:"time_reps", duration:3 };
+    if (/FARMER WALK 15 M/.test(key)) return { sets:4, reps:2, pct:0, type:"time_reps", duration:15 };
+    if (/20 X REBOTE DE TOBILLO/.test(key)) return { sets:3, reps:20, pct:0, type:"time_reps", duration:20 };
+    if (/SALTO|ATERRIZAJE|DESACELERACION/.test(key)) return { sets:3, reps:8, pct:0, type:"time_reps", duration:15 };
+    if (/PLANCHA/.test(key)) return { sets:3, reps:1, pct:0, type:"time_reps", duration:30 };
+    if (/ROLLER/.test(key)) return { sets:2, reps:1, pct:0, type:"time_reps", duration:45 };
+    if (/ISO/.test(key)) return { sets:3, reps:1, pct:0, type:"time_reps", duration:20 };
+    return { sets:3, reps:10, pct:0, type:"time_reps", duration:20 };
+  }
+  if (/BANDA/.test(key)) return { sets:3, reps:15, pct:0, type:"reps", duration:0 };
+  if (/SALTO|ATERRIZAJE|DESACELERACION|REBOTE/.test(key)) return { sets:3, reps:8, pct:0, type:"reps", duration:0 };
+  if (/DEAD BUG|PALLOP|PALOT|LOCK/.test(key)) return { sets:3, reps:10, pct:0, type:"reps", duration:0 };
+  return { sets:3, reps:10, pct:0, type:"reps", duration:0 };
 };
 const builtinExerciseIdFromName = (name) =>
   `builtin_${normalizeExerciseNameKey(name).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`;
@@ -335,12 +403,39 @@ const ADDITIONAL_GYM_EXERCISES = ADDITIONAL_GYM_EXERCISE_NAMES.map((name) => {
     type,
   };
 });
+const ADDITIONAL_GYM_EXERCISE_LOAD_PROFILE = ADDITIONAL_GYM_EXERCISES.reduce((acc, exercise) => {
+  acc[exercise.id] = inferBuiltinExerciseLoadProfile(exercise.name, exercise.type);
+  return acc;
+}, {});
+const EXERCISE_LOAD_PROFILE = {
+  ...DEFAULT_EXERCISE_LOAD_PROFILE,
+  ...ADDITIONAL_GYM_EXERCISE_LOAD_PROFILE,
+};
 const ALL_BUILTIN_GYM_EXERCISES = [...GYM_EXERCISES, ...ADDITIONAL_GYM_EXERCISES];
 const DAYS_SHORT = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 const DAYS_FULL  = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
 const GROUPS = ["por-asignar","1500m","800m","pequeños"];
+const NAV_ITEMS = {
+  coach: [
+    { id:"semana", icon:"📅", label:"Plan Semanal", shortLabel:"Plan" },
+    { id:"calendario", icon:"🗓️", label:"Calendario", shortLabel:"Calendario" },
+    { id:"calendario_semanal", icon:"🗂️", label:"Calendario Semanal", shortLabel:"Semanal" },
+    { id:"gym", icon:"🏋️", label:"Dataset Ejercicios", shortLabel:"Ejercicios" },
+    { id:"dataset", icon:"🧪", label:"Dataset Entrenos", shortLabel:"Entrenos" },
+    { id:"athletes", icon:"👥", label:"Gestión Atletas", shortLabel:"Atletas" },
+    { id:"temporadas", icon:"🗃️", label:"Temporadas", shortLabel:"Temporadas" },
+  ],
+  athlete: [
+    { id:"hoy", icon:"⚡", label:"Hoy", shortLabel:"Hoy" },
+    { id:"semana", icon:"📅", label:"Mi Semana", shortLabel:"Semana" },
+    { id:"gym", icon:"🏋️", label:"Mi Gym", shortLabel:"Gym" },
+    { id:"calendario", icon:"🗓️", label:"Mi Calendario", shortLabel:"Calendario" },
+    { id:"perfil", icon:"👤", label:"Mi Perfil", shortLabel:"Perfil" },
+  ],
+};
+const getNavByRole = (role) => role === "coach" ? NAV_ITEMS.coach : NAV_ITEMS.athlete;
 
-const COACH = { id:"coach", name:"Entrenador Jordi", role:"coach", password:"CAR2024" };
+const COACH = { id:"coach", name:"Juan Carlos", role:"coach", password:"150346" };
 const PESAS_DB_SOURCE = { file: "pesas2024_hardcoded_db.js", workbook: "PESAS2024.xlsx", format: "sparse-rows-trailing-null-trimmed" };
 const HARDCODED_PESAS_DB = (typeof window !== "undefined" && window.PESAS2024_HARDCODED_DB) ? window.PESAS2024_HARDCODED_DB : null;
 
@@ -362,12 +457,21 @@ button{cursor:pointer;font-family:'Nunito',sans-serif}
 input,select,textarea{font-family:'Nunito',sans-serif}
 
 /* Layout */
-.app-wrap{display:flex;min-height:100vh}
+.app-wrap{display:flex;min-height:100vh;height:100vh;overflow:hidden}
 .sidebar{width:230px;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto}
-.main-area{margin-left:230px;flex:1;padding:36px 40px;max-width:calc(100vw - 230px)}
+.main-area{margin-left:230px;flex:1;padding:24px 30px 18px;max-width:calc(100vw - 230px);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+.page-shell{flex:1;min-height:0;min-width:0}
+.page-shell-scroll{overflow:auto;padding-right:4px}
+.page-shell-fit{overflow:hidden}
+
+@media (max-height: 860px){
+  .page-shell-fit{overflow:auto}
+}
 
 /* Sidebar */
 .sb-logo{padding:28px 24px 24px;border-bottom:1px solid var(--border)}
+.sb-home{display:block;width:100%;background:transparent;border:none;color:inherit;text-align:left;padding:0}
+.sb-home:hover .sb-logotype{opacity:.92}
 .sb-logotype{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;letter-spacing:-1px;line-height:1}
 .sb-logotype span{color:var(--or)}
 .sb-tagline{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-top:3px}
@@ -425,9 +529,26 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 /* Form */
 .input,.select{background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px 14px;color:var(--tx);font-size:14px;width:100%;transition:border-color .15s}
 .input:focus,.select:focus{outline:none;border-color:var(--or)}
+.select option{background:var(--s1);color:var(--tx)}
 .input::placeholder{color:var(--mu)}
 .form-group{margin-bottom:14px}
 .form-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:6px;display:block;font-weight:700}
+
+/* Multi-select */
+.multi-select{position:relative}
+.multi-select.disabled{opacity:.6;pointer-events:none}
+.multi-select-trigger{width:100%;background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:42px;cursor:pointer}
+.multi-select-trigger.open{border-color:var(--or)}
+.multi-select-value{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+.multi-chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;background:rgba(255,107,26,.18);color:var(--or)}
+.multi-placeholder{font-size:13px;color:var(--mu)}
+.multi-arrow{font-size:12px;color:var(--mu2)}
+.multi-panel{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--s1);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 28px rgba(0,0,0,.35);z-index:220;padding:10px;max-height:260px;overflow:auto}
+.multi-search{margin-bottom:8px}
+.multi-option{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:8px;cursor:pointer}
+.multi-option:hover{background:var(--s2)}
+.multi-option input{accent-color:var(--or)}
+.multi-option-label{font-size:13px;color:var(--tx)}
 
 /* Badges */
 .badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
@@ -517,16 +638,57 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 .check-dot.done{background:rgba(74,222,128,.2);border-color:var(--gr);color:var(--gr)}
 .check-dot.nd{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.25);color:var(--re)}
 
-/* Strava-like */
-.strava-card{background:linear-gradient(135deg,rgba(252,76,2,.1),rgba(252,76,2,.03));border:1px solid rgba(252,76,2,.3);border-radius:14px;padding:20px}
-.strava-connect{background:#FC4C02;color:white;border:none;border-radius:8px;padding:11px 20px;font-size:13px;font-weight:700;display:flex;align-items:center;gap:8px;transition:all .15s}
-.strava-connect:hover{background:#e04500}
-
 /* Group tag */
 .g-tag{display:inline-block;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
 .g-1500{background:rgba(255,107,26,.2);color:var(--or)}
 .g-800{background:rgba(96,165,250,.2);color:var(--bl)}
 .g-pq{background:rgba(167,139,250,.2);color:var(--pu)}
+
+/* Athlete profile */
+.athlete-profile-page{min-height:calc(100vh - 112px)}
+.profile-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:14px;align-items:start}
+.athlete-profile-page .card{padding:18px}
+.profile-identity-card{position:relative;overflow:hidden}
+.profile-identity-card::before{content:"";position:absolute;inset:-140px auto auto -120px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.2) 0%,rgba(96,165,250,0) 72%);pointer-events:none}
+.profile-hero{position:relative;display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;background:linear-gradient(135deg,rgba(96,165,250,.18),rgba(96,165,250,.03));border:1px solid rgba(96,165,250,.28);margin-bottom:10px}
+.profile-avatar{width:68px;height:68px;font-size:26px;border-radius:16px;box-shadow:0 10px 24px rgba(59,130,246,.24)}
+.profile-hero-copy{min-width:0}
+.profile-kicker{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu2);font-weight:700}
+.profile-name{font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:900;line-height:.92;word-break:break-word}
+.profile-chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.profile-group-panel{background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:12px}
+.profile-group-hint{margin-top:6px;font-size:12px;color:var(--mu2)}
+.profile-password-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.athlete-profile-page .form-group{margin-bottom:10px}
+.athlete-profile-page .profile-group-panel.mt3{margin-top:10px}
+.profile-max-card .card-title{margin-bottom:4px}
+.athlete-profile-page .profile-max-card{display:flex;flex-direction:column}
+.max-list{border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
+.max-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+.max-left{display:flex;align-items:center;gap:8px;min-width:0}
+.max-emoji{font-size:18px;width:24px;min-width:24px;text-align:center}
+.max-name{font-size:12px;font-weight:700;line-height:1.15}
+.max-value{display:flex;align-items:baseline;gap:2px;font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--or);line-height:1;white-space:nowrap}
+.max-unit{font-family:'Nunito',sans-serif;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--mu2);font-weight:700}
+.max-empty{font-size:18px;color:var(--mu2)}
+
+/* Athlete calendar */
+.athlete-calendar-page{min-height:calc(100vh - 112px);display:flex;flex-direction:column}
+.athlete-calendar-page .ph{margin-bottom:12px}
+.athlete-cal-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);gap:14px;flex:1;min-height:0}
+.athlete-cal-left,.athlete-cal-right{display:flex;flex-direction:column;gap:10px;min-height:0}
+.athlete-cal-left .card,.athlete-cal-right .card{padding:14px;border-radius:14px}
+.athlete-comp-form{display:grid;grid-template-columns:170px 1fr auto;gap:8px;align-items:end}
+.athlete-comp-list{max-height:112px;overflow:auto;padding-right:2px}
+.athlete-cal-month{display:flex;flex-direction:column;flex:1;min-height:0}
+.athlete-cal-month-grid{min-height:0}
+.athlete-calendar-page .card-title{margin-bottom:10px}
+.athlete-calendar-page .cal-grid{gap:3px}
+.athlete-calendar-page .cal-cell{min-height:52px;padding:5px}
+.athlete-calendar-page .cal-day-num{font-size:15px;margin-bottom:2px}
+.athlete-cal-legend{font-size:11px}
+.athlete-cal-detail-stack{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;overflow:auto;padding-right:2px}
+.athlete-cal-placeholder{display:flex;align-items:center;justify-content:center;min-height:180px}
 
 /* Calendar month */
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
@@ -559,6 +721,7 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 /* Modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .modal{background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:32px;width:680px;max-width:90vw;max-height:85vh;overflow-y:auto}
+.modal.modal-no-scroll{overflow:hidden;display:flex;flex-direction:column}
 .modal-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
 .modal-close{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--mu2);font-size:13px;font-weight:700}
 .modal-close:hover{background:var(--s3);color:var(--tx)}
@@ -594,7 +757,7 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 .ex-type-badge{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:100px}
 .ex-type-weight{background:rgba(255,107,26,.2);color:var(--or)}
 .ex-type-reps{background:rgba(96,165,250,.2);color:var(--bl)}
-.ex-type-time{background:rgba(167,139,250,.2);color:var(--pu)}
+.ex-type-time_reps{background:rgba(251,191,36,.2);color:var(--ya)}
 
 /* Image upload */
 .img-upload-zone{border:2px dashed var(--border2);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:border-color .15s}
@@ -611,6 +774,77 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 .week-nav-btn{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--mu2);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
 .week-nav-btn:hover{background:var(--s3);color:var(--tx)}
 .week-nav-btn:disabled{opacity:.35;cursor:default}
+
+/* Mobile navigation */
+.mobile-topbar{display:none;position:fixed;top:0;left:0;right:0;height:58px;padding:8px 12px;background:rgba(8,8,17,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);z-index:180;align-items:center;gap:10px}
+.mobile-menu-btn{border:1px solid var(--border2);background:var(--s2);color:var(--tx);border-radius:10px;padding:8px 11px;font-size:16px;line-height:1}
+.mobile-brand{border:none;background:none;color:var(--tx);display:flex;flex-direction:column;align-items:flex-start;line-height:1;min-width:98px}
+.mobile-brand-main{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;letter-spacing:.2px}
+.mobile-brand-sub{font-size:10px;color:var(--mu);letter-spacing:.8px;text-transform:uppercase;margin-top:2px}
+.mobile-current{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mobile-logout{border:1px solid var(--border2);background:var(--s2);color:var(--mu2);border-radius:10px;padding:8px 10px;font-size:14px}
+.mobile-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:210;display:flex;justify-content:flex-start;align-items:stretch}
+.mobile-menu-sheet{width:min(420px,92vw);height:100%;background:var(--s1);border-right:1px solid var(--border2);padding:14px 12px 16px;display:flex;flex-direction:column;gap:12px}
+.mobile-menu-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.mobile-menu-nav{display:grid;gap:8px;overflow-y:auto;padding-right:2px}
+.mobile-menu-item{position:relative;display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--s2);color:var(--tx);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;text-align:left}
+.mobile-menu-item.active{border-color:rgba(255,107,26,.55);background:rgba(255,107,26,.12);color:var(--or)}
+.mobile-menu-icon{font-size:18px;line-height:1}
+.mobile-menu-label{flex:1;line-height:1.2}
+.mobile-menu-badge{background:var(--or);color:white;border-radius:999px;min-width:18px;height:18px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
+.mobile-tabbar{display:none;position:fixed;left:0;right:0;bottom:0;background:rgba(13,13,28,.98);border-top:1px solid var(--border);z-index:185;padding:8px max(10px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right));gap:8px}
+.mobile-tab-btn{position:relative;border:none;background:transparent;border-radius:12px;color:var(--mu2);padding:8px 5px 7px;display:flex;flex-direction:column;align-items:center;gap:5px;min-height:64px}
+.mobile-tab-btn.active{background:rgba(255,107,26,.16);color:var(--or)}
+.mt-icon{font-size:17px;line-height:1}
+.mt-label{font-size:10.5px;font-weight:700;letter-spacing:.2px;line-height:1.15;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mobile-notif{position:absolute;top:2px;right:8px;background:var(--or);color:white;border-radius:999px;min-width:16px;height:16px;padding:0 4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}
+
+@media (max-width: 1180px){
+  .sidebar{display:none}
+  .main-area{margin-left:0;max-width:100vw;height:100vh;padding:70px 12px calc(84px + env(safe-area-inset-bottom))}
+  .mobile-topbar{display:flex}
+  .mobile-tabbar{display:grid}
+  .page-shell,.page-shell-fit,.page-shell-scroll{overflow:auto;-webkit-overflow-scrolling:touch;padding-right:0;padding-bottom:6px}
+  .ph{margin-bottom:20px}
+  .ph-title{font-size:36px}
+  .ph-sub{font-size:12px}
+  .g4,.g3,.g2{grid-template-columns:1fr}
+  .week-grid{grid-template-columns:1fr}
+  .card{padding:16px}
+  .stat-val{font-size:42px}
+  .wt-banner{padding:12px 14px;gap:10px;flex-wrap:wrap}
+  .wt-val{font-size:24px}
+  .today-training{font-size:22px}
+  .cal-cell{min-height:58px;padding:6px}
+  .athlete-calendar-page{min-height:auto}
+  .athlete-cal-grid{grid-template-columns:1fr;gap:12px}
+  .athlete-cal-left,.athlete-cal-right{display:block}
+  .athlete-comp-form{grid-template-columns:1fr}
+  .athlete-comp-list{max-height:none;overflow:visible;padding-right:0}
+  .athlete-cal-detail-stack{overflow:visible;padding-right:0}
+  .athlete-profile-page{min-height:auto}
+  .profile-grid{grid-template-columns:1fr}
+  .profile-password-grid{grid-template-columns:1fr}
+  .athlete-profile-page .max-list{grid-template-columns:1fr}
+  .profile-name{font-size:36px}
+  .login-card{width:calc(100vw - 16px);padding:28px 18px;border-radius:18px}
+  .login-logo{font-size:48px}
+  .modal{width:calc(100vw - 14px);padding:18px;max-height:88vh}
+}
+
+@media (max-width: 640px){
+  .main-area{padding-left:10px;padding-right:10px}
+  .ph-title{font-size:31px}
+  .profile-hero{padding:14px;gap:12px}
+  .profile-avatar{width:62px;height:62px;font-size:24px;border-radius:15px}
+  .profile-name{font-size:32px}
+  .profile-group-panel{padding:12px}
+  .max-row{padding:9px 0}
+  .max-name{font-size:12.5px}
+  .max-value{font-size:26px}
+  .mt-label{font-size:9.2px}
+  .ex-row{grid-template-columns:36px 1fr 62px 62px 62px auto;gap:6px}
+}
 `;
 
 
@@ -623,6 +857,126 @@ const groupBadge = (g) => g === "1500m" ? "b-or" : g === "800m" ? "b-bl" : "b-pu
 const avatarColor = (idx) => ["","blue","green","purple",""][idx % 4];
 const groupLabel = (g) => g === "all" ? "Todos" : (g || "Todos");
 const normalizeGroupName = (g) => String(g || "").trim().replace(/\s+/g, " ");
+const exerciseTypeBadgeLabel = (type = "weight") => {
+  const normalized = normalizeExerciseType(type);
+  if (normalized === "weight") return "Peso";
+  if (normalized === "time_reps") return "Tiempo x Reps";
+  return "Reps";
+};
+const SEASON_ANCHOR_DATE = new Date(2025, 8, 15); // 15/09/2025 (lunes)
+const DEFAULT_SEASON_ID = "25/26";
+const DEFAULT_SEASON_WEEK_ONE_START_ISO = "2025-09-15";
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const parseIsoDateToLocalDate = (value) => {
+  const raw = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const [y, m, d] = raw.split("-").map((part) => Number(part));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return null;
+  return new Date(y, m - 1, d);
+};
+const normalizeSeasonWeekOneStartIso = (value, fallback = DEFAULT_SEASON_WEEK_ONE_START_ISO) => {
+  const parsed = parseIsoDateToLocalDate(value);
+  if (!parsed) return fallback;
+  return toIsoDate(parsed);
+};
+const normalizeSeasonId = (value, fallback = DEFAULT_SEASON_ID) => {
+  const raw = String(value || "").trim();
+  return /^\d{2}\/\d{2}$/.test(raw) ? raw : fallback;
+};
+const getNextSeasonId = (seasonId = DEFAULT_SEASON_ID) => {
+  const current = normalizeSeasonId(seasonId, DEFAULT_SEASON_ID);
+  const [start, end] = current.split("/").map((part) => Number(part));
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return "26/27";
+  const nextStart = (start + 1) % 100;
+  const nextEnd = (end + 1) % 100;
+  return `${String(nextStart).padStart(2, "0")}/${String(nextEnd).padStart(2, "0")}`;
+};
+const toSeasonLabel = (seasonId) => `Temporada ${normalizeSeasonId(seasonId, DEFAULT_SEASON_ID)}`;
+const buildSeasonRecord = ({
+  id = DEFAULT_SEASON_ID,
+  weekOneStartIso = DEFAULT_SEASON_WEEK_ONE_START_ISO,
+  startedAt = null,
+  finalizedAt = null,
+  archived = null,
+} = {}) => ({
+  id: normalizeSeasonId(id, DEFAULT_SEASON_ID),
+  label: toSeasonLabel(id),
+  weekOneStartIso: normalizeSeasonWeekOneStartIso(weekOneStartIso, DEFAULT_SEASON_WEEK_ONE_START_ISO),
+  startedAt: startedAt || new Date().toISOString(),
+  finalizedAt: finalizedAt || null,
+  archived: archived && typeof archived === "object" ? archived : null,
+});
+const normalizeSeasonCollection = (
+  rawSeasons,
+  activeSeasonId = DEFAULT_SEASON_ID,
+  activeWeekOneStartIso = DEFAULT_SEASON_WEEK_ONE_START_ISO
+) => {
+  const targetSeasonId = normalizeSeasonId(activeSeasonId, DEFAULT_SEASON_ID);
+  const targetWeekOneStartIso = normalizeSeasonWeekOneStartIso(activeWeekOneStartIso, DEFAULT_SEASON_WEEK_ONE_START_ISO);
+  const list = Array.isArray(rawSeasons)
+    ? rawSeasons
+    : (rawSeasons && typeof rawSeasons === "object" ? Object.values(rawSeasons) : []);
+  const byId = {};
+
+  list.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const id = normalizeSeasonId(entry.id, "");
+    if (!id) return;
+    byId[id] = buildSeasonRecord({
+      ...entry,
+      id,
+      weekOneStartIso: entry.weekOneStartIso || DEFAULT_SEASON_WEEK_ONE_START_ISO,
+    });
+  });
+
+  if (byId[targetSeasonId]) {
+    const current = byId[targetSeasonId];
+    byId[targetSeasonId] = buildSeasonRecord({
+      ...current,
+      id: targetSeasonId,
+      weekOneStartIso: targetWeekOneStartIso,
+      finalizedAt: null,
+    });
+  } else {
+    byId[targetSeasonId] = buildSeasonRecord({
+      id: targetSeasonId,
+      weekOneStartIso: targetWeekOneStartIso,
+      startedAt: new Date().toISOString(),
+      finalizedAt: null,
+      archived: null,
+    });
+  }
+
+  return Object.values(byId).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+};
+const normalizeWeekNumber = (value, fallback = null) => {
+  const n = Number(value);
+  if (Number.isFinite(n) && n > 0) return Math.round(n);
+  if (fallback != null) return normalizeWeekNumber(fallback, 1);
+  return 1;
+};
+const getSeasonWeekNumberForDate = (date = new Date(), anchorDate = SEASON_ANCHOR_DATE) => {
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const sourceAnchor = anchorDate instanceof Date ? anchorDate : SEASON_ANCHOR_DATE;
+  const anchor = new Date(sourceAnchor.getFullYear(), sourceAnchor.getMonth(), sourceAnchor.getDate());
+  const diffDays = Math.floor((target.getTime() - anchor.getTime()) / MS_PER_DAY);
+  return Math.max(1, Math.floor(diffDays / 7) + 1);
+};
+const getTodaySeasonWeekNumber = (anchorDate = SEASON_ANCHOR_DATE) =>
+  getSeasonWeekNumberForDate(new Date(), anchorDate);
+const getSeasonWeekStartDate = (weekNumber, anchorDate = SEASON_ANCHOR_DATE) => {
+  const safeWeek = normalizeWeekNumber(weekNumber, getTodaySeasonWeekNumber(anchorDate));
+  const sourceAnchor = anchorDate instanceof Date ? anchorDate : SEASON_ANCHOR_DATE;
+  return new Date(
+    sourceAnchor.getFullYear(),
+    sourceAnchor.getMonth(),
+    sourceAnchor.getDate() + (safeWeek - 1) * 7
+  );
+};
+const getSeasonWeekEndDate = (weekNumber, anchorDate = SEASON_ANCHOR_DATE) => {
+  const start = getSeasonWeekStartDate(weekNumber, anchorDate);
+  return new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+};
 const mergeGroupOptions = (...sources) => {
   const out = [];
   const seen = new Set();
@@ -638,6 +992,107 @@ const mergeGroupOptions = (...sources) => {
   });
   return out.length ? out : [...GROUPS];
 };
+const collectGroupValues = (...sources) => {
+  const out = [];
+  const seen = new Set();
+  const push = (raw) => {
+    const group = normalizeGroupName(raw);
+    if (!group || group === "all") return;
+    const key = group.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(group);
+  };
+  sources.forEach((src) => {
+    if (Array.isArray(src)) src.forEach(push);
+    else push(src);
+  });
+  return out;
+};
+const getAthleteGroups = (athlete) => {
+  const groups = collectGroupValues(athlete?.groups, athlete?.group);
+  return groups.length ? groups : ["por-asignar"];
+};
+const getAthletePrimaryGroup = (athlete) => getAthleteGroups(athlete)[0] || "por-asignar";
+const getAthleteGroupsLabel = (athlete) => getAthleteGroups(athlete).join(" · ");
+const athleteBelongsToGroup = (athlete, group) =>
+  (group || "all") === "all" || getAthleteGroups(athlete).includes(group);
+const collectAthleteGroups = (athletes = []) =>
+  (Array.isArray(athletes) ? athletes : []).flatMap((athlete) => getAthleteGroups(athlete));
+const normalizeCompetitionList = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item, index) => {
+      const dateIso = String(item?.dateIso || item?.date || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateIso)) return null;
+      return {
+        id: item?.id || `comp_${dateIso}_${index}`,
+        dateIso,
+        name: String(item?.name || "Competición").trim() || "Competición",
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => String(a.dateIso).localeCompare(String(b.dateIso)));
+};
+const normalizeAthleteRecord = (rawAthlete, idx = 0) => {
+  const source = rawAthlete && typeof rawAthlete === "object" ? rawAthlete : {};
+  const name = String(source.name || `Atleta ${idx + 1}`).trim() || `Atleta ${idx + 1}`;
+  const groups = getAthleteGroups(source);
+  const idBase = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  const maxW = source.maxW && typeof source.maxW === "object" ? source.maxW : {};
+  const competitions = normalizeCompetitionList(source.competitions);
+  const password = String(source.password ?? "1234").trim() || "1234";
+  const passwordChangedOnce = source.passwordChangedOnce != null
+    ? !!source.passwordChangedOnce
+    : password !== "1234";
+  return {
+    id: source.id || `ath_${idBase || idx + 1}_${idx + 1}`,
+    name,
+    group: groups[0] || "por-asignar",
+    groups,
+    avatar: source.avatar || name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2),
+    maxW,
+    weekKms: Array.isArray(source.weekKms) ? source.weekKms.map((value) => Number(value || 0)) : [],
+    todayDone: !!source.todayDone,
+    competitions,
+    password,
+    passwordChangedOnce,
+  };
+};
+const normalizeAthletes = (athletes) =>
+  (Array.isArray(athletes) ? athletes : [])
+    .map((athlete, idx) => normalizeAthleteRecord(athlete, idx))
+    .filter((athlete) => athlete.id && athlete.name);
+const ALLOWED_EXERCISE_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
+const ALLOWED_EXERCISE_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".svg"];
+const ALLOWED_EXERCISE_IMAGE_ACCEPT = ".png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml";
+const isExerciseImageFileAllowed = (file) => {
+  if (!file) return false;
+  const mimeType = String(file.type || "").toLowerCase();
+  if (ALLOWED_EXERCISE_IMAGE_MIME_TYPES.includes(mimeType)) return true;
+  const fileName = String(file.name || "").toLowerCase();
+  return ALLOWED_EXERCISE_IMAGE_EXTENSIONS.some((ext) => fileName.endsWith(ext));
+};
+const normalizeAthleteNotificationsMap = (rawMap) => {
+  if (!rawMap || typeof rawMap !== "object") return {};
+  const out = {};
+  Object.entries(rawMap).forEach(([athleteId, notifications]) => {
+    out[athleteId] = (Array.isArray(notifications) ? notifications : [])
+      .map((item, index) => {
+        if (!item || typeof item !== "object") return null;
+        return {
+          id: item.id || `notif_${athleteId}_${index}`,
+          title: String(item.title || "Actualización").trim() || "Actualización",
+          message: String(item.message || "").trim(),
+          createdAt: item.createdAt || new Date().toISOString(),
+          weekNumber: item.weekNumber != null ? Number(item.weekNumber) : null,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 50);
+  });
+  return out;
+};
 const cloneDeep = (value) => JSON.parse(JSON.stringify(value));
 const normalizeWeekType = (type) => {
   const key = String(type || "").trim().toLowerCase();
@@ -645,18 +1100,35 @@ const normalizeWeekType = (type) => {
   if (key.includes("general") || key.includes("vol")) return "Volumen";
   return "Inicial";
 };
+const normalizeTrainingWeekTypes = (weekTypes) => {
+  const source = Array.isArray(weekTypes) && weekTypes.length ? weekTypes : WEEK_TYPES;
+  const normalized = source.map((type) => normalizeWeekType(type));
+  return [...new Set(normalized)];
+};
+const isTrainingAvailableForWeekType = (training, weekType) => {
+  const normalizedWeekType = normalizeWeekType(weekType);
+  return normalizeTrainingWeekTypes(training?.weekTypes).includes(normalizedWeekType);
+};
 const buildExerciseFallbackProfile = (type = "weight") => (
-  type === "time"
-    ? { sets:3, reps:1, pct:0, type:"time", duration:30 }
+  type === "time_reps"
+    ? { sets:3, reps:10, pct:0, type:"time_reps", duration:20 }
     : type === "reps"
-      ? { sets:3, reps:8, pct:0, type:"reps", duration:0 }
-      : { sets:4, reps:8, pct:70, type:"weight", duration:0 }
+        ? { sets:3, reps:8, pct:0, type:"reps", duration:0 }
+        : { sets:4, reps:8, pct:70, type:"weight", duration:0 }
 );
+const normalizeExerciseType = (type = "weight") => {
+  if (type === "time_reps") return "time_reps";
+  // Legacy data used "time"; canonicalizamos a tiempo x repeticiones.
+  if (type === "time") return "time_reps";
+  if (type === "reps") return "reps";
+  return "weight";
+};
 const normalizeTraining = (training, idx = 0) => ({
   id: training?.id || `training_${Date.now()}_${idx}`,
   name: String(training?.name || `Entreno ${idx + 1}`).trim(),
   description: String(training?.description || "").trim(),
   zones: safeZones(training?.zones),
+  weekTypes: normalizeTrainingWeekTypes(training?.weekTypes),
   source: training?.source || "dataset",
 });
 const normalizeTrainingCatalog = (raw) =>
@@ -692,10 +1164,12 @@ const buildEmptyTrainingForm = () => ({
   name: "",
   description: "",
   zones: emptyZones(),
+  weekTypes: [...WEEK_TYPES],
 });
 const isTargetVisibleForGroup = (targetGroup, group) => {
   const target = targetGroup || "all";
-  return target === "all" || target === group;
+  const groups = collectGroupValues(Array.isArray(group) ? group : [group]);
+  return target === "all" || groups.includes(target);
 };
 const getPrimarySessionForSlot = (day, slot, week) => {
   const direct = day?.sessions?.[slot];
@@ -749,7 +1223,7 @@ const cloneWeekSnapshot = (week) => cloneDeep({
 const makeInlineRoutineFromExercises = (exerciseIds = [], name = "Rutina inline") => ({
   name,
   targetGroup: "all",
-  exercises: exerciseIds.map((exId) => ({ exId, ...buildExerciseFallbackProfile(getExerciseByIdFull(exId).type) })),
+  exercises: exerciseIds.map((exId) => ({ exId, ...buildExerciseFallbackProfile(normalizeExerciseType(getExerciseByIdFull(exId).type)) })),
 });
 
 const labelFromExId = (exId) =>
@@ -764,16 +1238,16 @@ const sanitizeRoutine = (routine, idx = 0) => {
     ? routine.exercises
         .map((e) => {
           const defEx = ALL_BUILTIN_GYM_EXERCISES.find((exercise) => exercise.id === e?.exId);
-          const defProfile = DEFAULT_EXERCISE_LOAD_PROFILE[e?.exId] || buildExerciseFallbackProfile(defEx?.type || "weight");
-          const exType = e?.type || defProfile?.type || defEx?.type || "weight";
+          const defProfile = EXERCISE_LOAD_PROFILE[e?.exId] || buildExerciseFallbackProfile(normalizeExerciseType(defEx?.type || "weight"));
+          const exType = normalizeExerciseType(e?.type || defProfile?.type || defEx?.type || "weight");
           return {
             exId: e?.exId,
             name: e?.name || labelFromExId(e?.exId),
-            sets: Number(e?.sets || 3),
-            reps: Number(e?.reps || 8),
-            pct: Number(e?.pct ?? (exType === "weight" ? 70 : 0)),
+            sets: Number(e?.sets ?? defProfile?.sets ?? 3),
+            reps: Number(e?.reps ?? defProfile?.reps ?? (exType === "time_reps" ? 1 : 8)),
+            pct: Number(e?.pct ?? defProfile?.pct ?? (exType === "weight" ? 70 : 0)),
             type: exType,
-            duration: Number(e?.duration || defProfile?.duration || 30),
+            duration: Number(e?.duration ?? defProfile?.duration ?? (exType === "time_reps" ? 20 : 0)),
             imageUrl: e?.imageUrl || null,
           };
         })
@@ -836,7 +1310,7 @@ const getDayResolvedGymPlan = (day, routines) => {
       type:"legacy",
       name:"Rutina legacy",
       targetGroup: day.targetGroup || "all",
-      exercises: day.gymFocus.map((exId) => ({ exId, ...(DEFAULT_EXERCISE_LOAD_PROFILE[exId] || buildExerciseFallbackProfile(getExerciseByIdFull(exId).type)) })),
+      exercises: day.gymFocus.map((exId) => ({ exId, ...(EXERCISE_LOAD_PROFILE[exId] || buildExerciseFallbackProfile(normalizeExerciseType(getExerciseByIdFull(exId).type))) })),
     };
   }
   return null;
@@ -849,7 +1323,7 @@ const getDayGymExercisesForAthlete = (day, routines, user, customExercises = [],
   if (!plan) return [];
   return (plan.exercises || []).map(row => {
     const ex = getExerciseByIdFull(row.exId, customExercises, exerciseImages);
-    const exType = row.type || ex.type || "weight";
+    const exType = normalizeExerciseType(row.type || ex.type || "weight");
     const max = user?.maxW?.[row.exId];
     const kg = (exType === "weight" && max && row.pct) ? calcWeight(max, row.pct) : null;
     return {
@@ -858,7 +1332,7 @@ const getDayGymExercisesForAthlete = (day, routines, user, customExercises = [],
       name: row.name || ex.name,
       imageUrl: exerciseImages[row.exId] || row.imageUrl || ex.imageUrl || null,
       type: exType,
-      duration: row.duration || ex.duration || 30,
+      duration: row.duration || ex.duration || (exType === "time_reps" ? 20 : 0),
       kg,
     };
   });
@@ -975,6 +1449,78 @@ const toIsoDate = (date = new Date()) => {
   return `${y}-${m}-${d}`;
 };
 
+const withWeekMetadata = (
+  rawWeek,
+  weekNumber,
+  routines = DEFAULT_ROUTINE_LIBRARY,
+  seasonAnchorDate = SEASON_ANCHOR_DATE
+) => {
+  const safeWeekNumber = normalizeWeekNumber(
+    weekNumber,
+    rawWeek?.weekNumber || getTodaySeasonWeekNumber(seasonAnchorDate)
+  );
+  return normalizeWeek({
+    ...rawWeek,
+    id: rawWeek?.id || `week_${safeWeekNumber}`,
+    name: `Semana ${safeWeekNumber}`,
+    weekNumber: safeWeekNumber,
+    startDate: rawWeek?.startDate || toIsoDate(getSeasonWeekStartDate(safeWeekNumber, seasonAnchorDate)),
+    endDate: rawWeek?.endDate || toIsoDate(getSeasonWeekEndDate(safeWeekNumber, seasonAnchorDate)),
+  }, routines);
+};
+
+const createWeekForNumber = (
+  weekNumber,
+  routines = DEFAULT_ROUTINE_LIBRARY,
+  seed = {},
+  seasonAnchorDate = SEASON_ANCHOR_DATE
+) =>
+  withWeekMetadata({
+    ...DEFAULT_WEEK,
+    ...seed,
+    type: normalizeWeekType(seed?.type || DEFAULT_WEEK.type),
+    published: !!seed?.published,
+    publishedAt: seed?.publishedAt || null,
+    updatedAt: seed?.updatedAt || null,
+    isEditingPublished: !!seed?.isEditingPublished,
+    publishedVersion: seed?.publishedVersion || null,
+  }, weekNumber, routines, seasonAnchorDate);
+
+const normalizeWeekPlansByNumber = (
+  rawPlans,
+  routines = DEFAULT_ROUTINE_LIBRARY,
+  seasonAnchorDate = SEASON_ANCHOR_DATE
+) => {
+  const source = rawPlans && typeof rawPlans === "object" ? rawPlans : {};
+  const entries = Array.isArray(source)
+    ? source.map((week) => [week?.weekNumber, week])
+    : Object.entries(source);
+  const out = {};
+  entries.forEach(([rawWeekNumber, rawWeek]) => {
+    const weekNumber = normalizeWeekNumber(rawWeek?.weekNumber || rawWeekNumber, null);
+    if (!weekNumber) return;
+    out[weekNumber] = withWeekMetadata(rawWeek, weekNumber, routines, seasonAnchorDate);
+  });
+  return out;
+};
+
+const ensureWeekInPlans = (
+  plansByNumber,
+  weekNumber,
+  routines = DEFAULT_ROUTINE_LIBRARY,
+  seasonAnchorDate = SEASON_ANCHOR_DATE
+) => {
+  const safeWeekNumber = normalizeWeekNumber(weekNumber, getTodaySeasonWeekNumber(seasonAnchorDate));
+  if (plansByNumber?.[safeWeekNumber]) return plansByNumber[safeWeekNumber];
+  return createWeekForNumber(safeWeekNumber, routines, {}, seasonAnchorDate);
+};
+
+const getDateIsoForWeekDay = (weekNumber, dayIndex = 0, seasonAnchorDate = SEASON_ANCHOR_DATE) => {
+  const start = getSeasonWeekStartDate(weekNumber, seasonAnchorDate);
+  const date = new Date(start.getFullYear(), start.getMonth(), start.getDate() + Number(dayIndex || 0));
+  return toIsoDate(date);
+};
+
 const pickActiveCalendarWeek = (weeks) => {
   if (!Array.isArray(weeks) || !weeks.length) return null;
   const today = toIsoDate();
@@ -1038,9 +1584,12 @@ const getExerciseByIdFull = (id, customExercises = [], exerciseImages = {}) => {
 };
 const getDefaultExerciseLoad = (exId, customExercises = [], exerciseImages = {}) => {
   const exercise = getExerciseByIdFull(exId, customExercises, exerciseImages);
+  const baseProfile = EXERCISE_LOAD_PROFILE[exId] || buildExerciseFallbackProfile(normalizeExerciseType(exercise.type));
+  const resolvedType = normalizeExerciseType(exercise.type || baseProfile.type || "weight");
   return {
-    ...(DEFAULT_EXERCISE_LOAD_PROFILE[exId] || buildExerciseFallbackProfile(exercise.type)),
-    type: exercise.type || DEFAULT_EXERCISE_LOAD_PROFILE[exId]?.type || "weight",
+    ...baseProfile,
+    type: resolvedType,
+    duration: Number(baseProfile.duration || (resolvedType === "time_reps" ? 20 : 0)),
   };
 };
 
@@ -1051,19 +1600,6 @@ const formatExDuration = (sec) => {
 };
 
 // ─── ZONE UTILS ──────────────────────────────────────────────────────────────
-const weekZoneSummary = (week) => {
-  const out = emptyZones();
-  (week?.days || []).forEach((day) => {
-    [...getSlotSessions(day, "am", week), ...getSlotSessions(day, "pm", week)].forEach((session) => {
-      ZONES.forEach((zone) => {
-        out[zone.id] += Number(session?.zones?.[zone.id] || 0);
-      });
-    });
-  });
-  out.total = zonesTotal(out);
-  return out;
-};
-
 const dayZoneSummary = (day, week = null) => {
   const out = emptyZones();
   if (!day) return { ...out, total:0 };
@@ -1075,18 +1611,185 @@ const dayZoneSummary = (day, week = null) => {
   out.total = zonesTotal(out);
   return out;
 };
+const weekZoneSummary = (week) => {
+  const out = emptyZones();
+  const days = Array.isArray(week?.days) ? week.days : [];
+  days.forEach((day) => {
+    const daySummary = dayZoneSummary(day, week);
+    ZONES.forEach((zone) => {
+      out[zone.id] += Number(daySummary[zone.id] || 0);
+    });
+  });
+  out.total = zonesTotal(out);
+  return out;
+};
+const getDaySlotPlanState = (visiblePlan) => {
+  const amPlanned = (visiblePlan?.am || []).length > 0;
+  const pmPlanned = (visiblePlan?.pm || []).length > 0;
+  const gymPlanned = !!visiblePlan?.gym;
+  const plannedSlots = Number(amPlanned) + Number(pmPlanned) + Number(gymPlanned);
+  return { amPlanned, pmPlanned, gymPlanned, plannedSlots };
+};
+const getDayCompletionFromHistory = (visiblePlan, historyRow) => {
+  const slotPlan = getDaySlotPlanState(visiblePlan);
+  const amDone = slotPlan.amPlanned && !!historyRow?.amDone;
+  const pmDone = slotPlan.pmPlanned && !!historyRow?.pmDone;
+  const gymDone = slotPlan.gymPlanned && !!historyRow?.gymDone;
+  const doneSlots = Number(amDone) + Number(pmDone) + Number(gymDone);
+  const ratio = slotPlan.plannedSlots > 0 ? doneSlots / slotPlan.plannedSlots : 0;
+  const status = slotPlan.plannedSlots === 0
+    ? "none"
+    : doneSlots === 0
+      ? "none"
+      : doneSlots < slotPlan.plannedSlots
+        ? "partial"
+        : "full";
+  return { ...slotPlan, amDone, pmDone, gymDone, doneSlots, ratio, status };
+};
+const getCompletionDayStyle = (completion) => {
+  if (!completion || completion.plannedSlots === 0) return {};
+  if (completion.status === "full") {
+    return { background:"rgba(74,222,128,.16)", borderColor:"rgba(74,222,128,.5)" };
+  }
+  if (completion.status === "partial") {
+    return { background:"rgba(255,167,38,.16)", borderColor:"rgba(255,167,38,.5)" };
+  }
+  return { background:"rgba(248,113,113,.16)", borderColor:"rgba(248,113,113,.45)" };
+};
+const getNextCompetitionCountdown = (competitions, maxDays = 90, fromDateIso = toIsoDate()) => {
+  const list = normalizeCompetitionList(competitions);
+  if (!list.length) return null;
+  const baseDate = new Date(`${fromDateIso}T00:00:00`);
+  const inRange = list
+    .map((item) => {
+      const targetDate = new Date(`${item.dateIso}T00:00:00`);
+      const diffMs = targetDate.getTime() - baseDate.getTime();
+      const diffDays = Math.ceil(diffMs / MS_PER_DAY);
+      return { ...item, diffDays };
+    })
+    .filter((item) => item.diffDays >= 0 && item.diffDays <= maxDays)
+    .sort((a, b) => a.diffDays - b.diffDays);
+  return inRange[0] || null;
+};
+const collectDayTargetGroups = (day, week, routines = []) => {
+  const targets = new Set();
+  ["am", "pm"].forEach((slot) => {
+    getSlotSessions(day, slot, week).forEach((session) => targets.add(session.targetGroup || "all"));
+  });
+  const gymPlan = getDayResolvedGymPlan(day, routines);
+  if (gymPlan) targets.add(gymPlan.targetGroup || day?.gymTargetGroup || day?.targetGroup || week?.targetGroup || "all");
+  if (!targets.size) targets.add(day?.targetGroup || week?.targetGroup || "all");
+  return targets;
+};
+const collectWeekTargetGroups = (week, routines = []) => {
+  const targets = new Set();
+  (Array.isArray(week?.days) ? week.days : []).forEach((day) => {
+    collectDayTargetGroups(day, week, routines).forEach((target) => targets.add(target));
+  });
+  if (!targets.size) targets.add(week?.targetGroup || "all");
+  return targets;
+};
+const dayDiffSignature = (day, week, routines = []) => {
+  const gymPlan = getDayResolvedGymPlan(day, routines);
+  const serializeSession = (session) => ({
+    slot: session?.slot || "",
+    trainingId: session?.trainingId || "",
+    name: String(session?.name || "").trim(),
+    description: String(session?.description || "").trim(),
+    targetGroup: session?.targetGroup || "all",
+    zones: safeZones(session?.zones),
+  });
+  return JSON.stringify({
+    am: getSlotSessions(day, "am", week).map(serializeSession),
+    pm: getSlotSessions(day, "pm", week).map(serializeSession),
+    gym: gymPlan
+      ? {
+          name: gymPlan.name || "",
+          targetGroup: gymPlan.targetGroup || "all",
+          exercises: (gymPlan.exercises || []).map((exercise) => ({
+            exId: exercise.exId,
+            sets: Number(exercise.sets || 0),
+            reps: Number(exercise.reps || 0),
+            pct: Number(exercise.pct || 0),
+            type: normalizeExerciseType(exercise.type || "weight"),
+            duration: Number(exercise.duration || 0),
+          })),
+        }
+      : null,
+  });
+};
+const collectChangedTargetGroups = (previousWeek, nextWeek, routines = []) => {
+  if (!previousWeek) return collectWeekTargetGroups(nextWeek, routines);
+  const targets = new Set();
+  DAYS_FULL.forEach((_, dayIndex) => {
+    const prevDay = previousWeek?.days?.[dayIndex] || {};
+    const nextDay = nextWeek?.days?.[dayIndex] || {};
+    const prevSignature = dayDiffSignature(prevDay, previousWeek, routines);
+    const nextSignature = dayDiffSignature(nextDay, nextWeek, routines);
+    if (prevSignature !== nextSignature) {
+      collectDayTargetGroups(prevDay, previousWeek, routines).forEach((target) => targets.add(target));
+      collectDayTargetGroups(nextDay, nextWeek, routines).forEach((target) => targets.add(target));
+    }
+  });
+  if (normalizeWeekType(previousWeek?.type) !== normalizeWeekType(nextWeek?.type)) {
+    collectWeekTargetGroups(previousWeek, routines).forEach((target) => targets.add(target));
+    collectWeekTargetGroups(nextWeek, routines).forEach((target) => targets.add(target));
+  }
+  return targets;
+};
 
 // ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
+const LOCAL_STORAGE_PREFIX = "trackflow_local_";
+const getLocalStorageKey = (key) => `${LOCAL_STORAGE_PREFIX}${key}`;
+const localRawGet = (key) => {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    return window.localStorage.getItem(getLocalStorageKey(key));
+  } catch {
+    return null;
+  }
+};
+const localRawSet = (key, value) => {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return;
+    window.localStorage.setItem(getLocalStorageKey(key), String(value));
+  } catch {}
+};
 const store = {
-  getRaw: async (k) => { try { const r = await window.storage.get(k); return r ? r.value : null; } catch { return null; } },
-  setRaw: async (k, v) => { try { await window.storage.set(k, String(v)); } catch {} },
-  get: async (k) => { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } },
-  set: async (k, v) => { try { await window.storage.set(k, JSON.stringify(v)); } catch {} },
+  getRaw: async (key) => {
+    try {
+      if (typeof window !== "undefined" && window.storage?.get) {
+        const remote = await window.storage.get(key);
+        if (remote?.value != null) {
+          localRawSet(key, remote.value);
+          return remote.value;
+        }
+      }
+    } catch {}
+    return localRawGet(key);
+  },
+  setRaw: async (key, value) => {
+    const text = String(value);
+    localRawSet(key, text);
+    try {
+      if (typeof window !== "undefined" && window.storage?.set) {
+        await window.storage.set(key, text);
+      }
+    } catch {}
+  },
+  get: async (key) => {
+    const raw = await store.getRaw(key);
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  },
+  set: async (key, value) => {
+    await store.setRaw(key, JSON.stringify(value));
+  },
 };
 
 // ─── CSV REGISTRY (usuarios) ──────────────────────────────────────────────────
 const ATHLETE_CSV_COLUMNS = [
-  "id","name","group","isHR","avatar","stravaConnected","maxW","weekKms","todayDone"
+  "id","name","group","groups","avatar","maxW","weekKms","todayDone","competitions","password","passwordChangedOnce"
 ];
 
 const csvEsc = (v) => {
@@ -1116,17 +1819,19 @@ const parseCsvLine = (line) => {
 
 const athletesToCsv = (athletes) => {
   const rows = [ATHLETE_CSV_COLUMNS.join(",")];
-  (athletes || []).forEach((a) => {
+  normalizeAthletes(athletes || []).forEach((a) => {
     const row = {
       id: a.id,
       name: a.name,
-      group: a.group,
-      isHR: a.isHR ? "1" : "0",
+      group: getAthletePrimaryGroup(a),
+      groups: JSON.stringify(getAthleteGroups(a)),
       avatar: a.avatar || "",
-      stravaConnected: a.stravaConnected ? "1" : "0",
       maxW: JSON.stringify(a.maxW || {}),
       weekKms: JSON.stringify(a.weekKms || []),
       todayDone: a.todayDone ? "1" : "0",
+      competitions: JSON.stringify(normalizeCompetitionList(a.competitions)),
+      password: String(a.password || "1234"),
+      passwordChangedOnce: a.passwordChangedOnce ? "1" : "0",
     };
     rows.push(ATHLETE_CSV_COLUMNS.map((c) => csvEsc(row[c])).join(","));
   });
@@ -1138,63 +1843,86 @@ const athletesFromCsv = (csvText) => {
   const lines = csvText.split(/\r?\n/).filter(Boolean);
   if (!lines.length) return null;
   const headers = parseCsvLine(lines[0]).map(h => h.trim());
-  const idx = Object.fromEntries(headers.map((h, i) => [h, i]));
-  if (!("id" in idx) || !("name" in idx)) return null;
+  const indexByHeader = Object.fromEntries(headers.map((h, i) => [h, i]));
+  if (!("id" in indexByHeader) || !("name" in indexByHeader)) return null;
 
-  return lines.slice(1).map((line) => {
+  return lines.slice(1).map((line, rowIndex) => {
     const cols = parseCsvLine(line);
-    const pick = (k, d = "") => (idx[k] == null ? d : (cols[idx[k]] ?? d));
+    const pick = (k, d = "") => (indexByHeader[k] == null ? d : (cols[indexByHeader[k]] ?? d));
     let maxW = {};
     let weekKms = [];
+    let groups = [];
+    let competitions = [];
     try { maxW = JSON.parse(pick("maxW", "{}")) || {}; } catch {}
     try { weekKms = JSON.parse(pick("weekKms", "[]")) || []; } catch {}
-    return {
+    try {
+      groups = JSON.parse(pick("groups", "[]")) || [];
+    } catch {
+      groups = String(pick("groups", "")).split("|").map((v) => v.trim()).filter(Boolean);
+    }
+    try {
+      competitions = JSON.parse(pick("competitions", "[]")) || [];
+    } catch {
+      competitions = [];
+    }
+    return normalizeAthleteRecord({
       id: pick("id"),
       name: pick("name"),
       group: pick("group", "por-asignar"),
-      isHR: pick("isHR", "0") === "1",
+      groups,
       avatar: pick("avatar") || pick("name","").split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2),
-      stravaConnected: pick("stravaConnected", "0") === "1",
       maxW,
       weekKms,
       todayDone: pick("todayDone", "0") === "1",
-    };
+      competitions,
+      password: pick("password", "1234"),
+      passwordChangedOnce: pick("passwordChangedOnce", "") === "1",
+    }, rowIndex);
   }).filter(a => a.id && a.name);
 };
 
 // ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
-function LoginScreen({ onLogin, athletes, groups }) {
+function LoginScreen({ onLogin, athletes }) {
   const [tab, setTab] = useState("athlete"); // "coach" | "athlete"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newGroup, setNewGroup] = useState("1500m");
   const [error, setError] = useState("");
-  const [registering, setRegistering] = useState(false);
-  const groupOptions = mergeGroupOptions(GROUPS, groups, athletes.map(a => a.group));
 
   const handleCoachLogin = () => {
-    if (username === COACH.name.split(" ")[0] || username === "coach" || username === "Jordi") {
-      if (password === COACH.password) { onLogin(COACH); setError(""); }
-      else setError("Contraseña incorrecta");
-    } else setError("Usuario no encontrado");
+    const normalized = String(username || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+    const coachUser = String(COACH.name || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+    if (normalized !== coachUser) {
+      setError("Usuario no encontrado");
+      return;
+    }
+    if (password === COACH.password) {
+      onLogin(COACH);
+      setError("");
+      return;
+    }
+    setError("Contraseña incorrecta");
   };
 
   const handleAthleteLogin = () => {
-    const found = athletes.find(a => a.name.toLowerCase().includes(username.toLowerCase()));
-    if (found) { onLogin({ ...found, role: "athlete" }); setError(""); }
-    else setError("Atleta no encontrado. ¿Tienes que registrarte?");
-  };
-
-  const handleAthleteRegister = () => {
-    if (!newName.trim()) { setError("Introduce tu nombre"); return; }
-    const newAth = {
-      id: newName.toLowerCase().replace(/\s+/g,"_") + Date.now(),
-      name: newName.trim(), group: newGroup, isHR: false,
-      avatar: newName.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2),
-      maxW: {}, stravaConnected: false, weekKms: [], role: "athlete"
-    };
-    onLogin(newAth, true);
+    const normalized = username.trim().toLowerCase();
+    const found = normalizeAthletes(athletes).find((a) => a.name.trim().toLowerCase() === normalized);
+    if (!found) {
+      setError("Atleta no encontrado. Contacta con tu entrenador.");
+      return;
+    }
+    const expectedPassword = String(found.password || "1234");
+    if (String(password || "") !== expectedPassword) {
+      setError("Contraseña incorrecta");
+      return;
+    }
+    onLogin({ ...found, role: "athlete" });
+    setError("");
   };
 
   return (
@@ -1203,7 +1931,6 @@ function LoginScreen({ onLogin, athletes, groups }) {
       <div className="login-bg" />
       <div className="login-card">
         <div className="login-logo">TRACK<span>FLOW</span></div>
-        <div className="login-sub">Centro de Alto Rendimiento · CAR</div>
 
         <div className="tab-sw">
           <button className={`tab-btn ${tab==="athlete"?"active":""}`} onClick={()=>{setTab("athlete");setError("")}}>🏃 Atleta</button>
@@ -1214,45 +1941,29 @@ function LoginScreen({ onLogin, athletes, groups }) {
           <>
             <div className="form-group">
               <label className="form-label">Usuario</label>
-              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Jordi" />
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Juan Carlos" />
             </div>
             <div className="form-group">
               <label className="form-label">Contraseña</label>
               <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleCoachLogin()} />
             </div>
             {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
-            <button className="login-btn" onClick={handleCoachLogin}>Entrar como Entrenador →</button>
-            <div className="login-hint">Contraseña: <strong>CAR2024</strong></div>
+            <button className="login-btn" onClick={handleCoachLogin}>Entrar →</button>
           </>
         )}
 
-        {tab === "athlete" && !registering && (
+        {tab === "athlete" && (
           <>
             <div className="form-group">
-              <label className="form-label">Tu nombre</label>
-              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Marc, Àlex, Marta..." onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} />
+              <label className="form-label">Usuario</label>
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Nombre del atleta" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Contraseña</label>
+              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} />
             </div>
             {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
             <button className="login-btn" onClick={handleAthleteLogin}>Entrar →</button>
-            <div className="login-hint" style={{cursor:"pointer",color:"var(--or)"}} onClick={()=>setRegistering(true)}>¿Primera vez? Regístrate aquí</div>
-          </>
-        )}
-
-        {tab === "athlete" && registering && (
-          <>
-            <div className="form-group">
-              <label className="form-label">Tu nombre completo</label>
-              <input className="input" value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Nombre Apellido" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Tu grupo</label>
-              <select className="select" value={newGroup} onChange={e=>setNewGroup(e.target.value)}>
-                {groupOptions.map(g=><option key={g} value={g}>{g}</option>)}
-              </select>
-            </div>
-            {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
-            <button className="login-btn" onClick={handleAthleteRegister}>Crear cuenta →</button>
-            <div className="login-hint" style={{cursor:"pointer",color:"var(--or)"}} onClick={()=>setRegistering(false)}>← Ya tengo cuenta</div>
           </>
         )}
       </div>
@@ -1263,31 +1974,16 @@ function LoginScreen({ onLogin, athletes, groups }) {
 // ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 function Sidebar({ user, page, setPage, onLogout, notifCount }) {
   const isCoach = user.role === "coach";
-  const coachNav = [
-    { id:"dashboard",  icon:"🏠", label:"Dashboard" },
-    { id:"semana",     icon:"📅", label:"Plan Semanal" },
-    { id:"gym",        icon:"🏋️",  label:"Creador Rutinas" },
-    { id:"grupos",     icon:"👥", label:"Grupos" },
-    { id:"atletas",    icon:"🏃", label:"Seguimiento", notif: notifCount },
-    { id:"volumen",    icon:"📈", label:"Volumen CAR" },
-    { id:"calendario", icon:"🗓️", label:"Calendario" },
-    { id:"historial",  icon:"📂", label:"Historial" },
-  ];
-  const athleteNav = [
-    { id:"hoy",        icon:"⚡",  label:"Hoy" },
-    { id:"semana",     icon:"📅",  label:"Mi Semana" },
-    { id:"gym",        icon:"🏋️",  label:"Mi Gym" },
-    { id:"calendario", icon:"🗓️",  label:"Mi Calendario" },
-    { id:"strava",     icon:"🟠",  label:"Strava" },
-    { id:"perfil",     icon:"👤",  label:"Mi Perfil" },
-  ];
-  const nav = isCoach ? coachNav : athleteNav;
+  const nav = getNavByRole(user.role);
+  const badgePage = isCoach ? "semana" : "hoy";
+  const homePage = nav[0]?.id || page;
 
   return (
     <div className="sidebar">
       <div className="sb-logo">
-        <div className="sb-logotype">TRACK<span>FLOW</span></div>
-        <div className="sb-tagline">CAR · Barcelona</div>
+        <button className="sb-home" onClick={() => setPage(homePage)}>
+          <div className="sb-logotype">TRACK<span>FLOW</span></div>
+        </button>
       </div>
 
       <div className="sb-section">
@@ -1296,7 +1992,7 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
           <button key={n.id} className={`nav-item ${page===n.id?"active":""}`} onClick={()=>setPage(n.id)}>
             <span className="ni">{n.icon}</span>
             {n.label}
-            {n.notif > 0 && <span className="sb-notif">{n.notif}</span>}
+            {n.id === badgePage && notifCount > 0 && <span className="sb-notif">{notifCount}</span>}
           </button>
         ))}
       </div>
@@ -1308,7 +2004,7 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
           </div>
           <div>
             <div className="u-name">{user.name.split(" ")[0]}</div>
-            <div className="u-role">{isCoach ? "Entrenador" : user.group}</div>
+            <div className="u-role">{isCoach ? "Entrenador" : getAthleteGroupsLabel(user)}</div>
           </div>
         </div>
         <button className="nav-item mt3" onClick={onLogout} style={{color:"var(--re)"}}>
@@ -1319,11 +2015,179 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
   );
 }
 
+function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
+  const isCoach = user.role === "coach";
+  const nav = getNavByRole(user.role);
+  const current = nav.find((item) => item.id === page) || nav[0];
+  const badgePage = isCoach ? "semana" : "hoy";
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [page, user.role]);
+
+  return (
+    <>
+      <header className="mobile-topbar">
+        <button className="mobile-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Abrir menú">☰</button>
+        <button className="mobile-brand" onClick={() => setPage(nav[0]?.id || page)}>
+          <span className="mobile-brand-main">TRACKFLOW</span>
+          <span className="mobile-brand-sub">{isCoach ? "Entrenador" : "Atleta"}</span>
+        </button>
+        <div className="mobile-current" title={current?.label || ""}>{current?.label || ""}</div>
+        <button className="mobile-logout" onClick={onLogout} aria-label="Cerrar sesión">🚪</button>
+      </header>
+
+      {menuOpen && (
+        <div className="mobile-menu-overlay" onClick={() => setMenuOpen(false)}>
+          <div className="mobile-menu-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="mobile-menu-head">
+              <div>
+                <div className="card-title" style={{margin:0}}>Menú</div>
+                <div className="text-sm text-mu">{isCoach ? "Entrenador" : "Atleta"} · {current?.label || ""}</div>
+              </div>
+              <button className="modal-close" onClick={() => setMenuOpen(false)}>✕</button>
+            </div>
+            <div className="mobile-menu-nav">
+              {nav.map((item) => (
+                <button
+                  key={`menu_${item.id}`}
+                  className={`mobile-menu-item ${page === item.id ? "active" : ""}`}
+                  onClick={() => {
+                    setPage(item.id);
+                    setMenuOpen(false);
+                  }}
+                >
+                  <span className="mobile-menu-icon">{item.icon}</span>
+                  <span className="mobile-menu-label">{item.label}</span>
+                  {item.id === badgePage && notifCount > 0 && <span className="mobile-menu-badge">{notifCount}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <nav
+        className="mobile-tabbar"
+        aria-label="Navegación móvil"
+        style={{ gridTemplateColumns:`repeat(${Math.max(nav.length, 1)}, minmax(0, 1fr))` }}
+      >
+        {nav.map((item) => (
+          <button
+            key={item.id}
+            className={`mobile-tab-btn ${page === item.id ? "active" : ""}`}
+            onClick={() => setPage(item.id)}
+          >
+            <span className="mt-icon">{item.icon}</span>
+            <span className="mt-label">{item.shortLabel || item.label}</span>
+            {item.id === badgePage && notifCount > 0 && <span className="mobile-notif">{notifCount}</span>}
+          </button>
+        ))}
+      </nav>
+    </>
+  );
+}
+
+function SingleSelect({ options = [], value = "", onChange, placeholder = "Selecciona", disabled = false }) {
+  return (
+    <select className="select" value={value} onChange={(e) => onChange?.(e.target.value)} disabled={disabled}>
+      {placeholder && <option value="">{placeholder}</option>}
+      {options.map((option) => {
+        const item = typeof option === "string" ? { value: option, label: option } : option;
+        return <option key={item.value} value={item.value}>{item.label}</option>;
+      })}
+    </select>
+  );
+}
+
+function MultiSelect({ options = [], values = [], onChange, placeholder = "Selecciona", disabled = false, searchable = true }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const rootRef = useRef(null);
+  const selected = collectGroupValues(values);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handleClickOutside = (event) => {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const normalizedOptions = mergeGroupOptions(options);
+  const filtered = normalizedOptions.filter((option) =>
+    String(option).toLowerCase().includes(search.toLowerCase())
+  );
+
+  const toggleOption = (value) => {
+    const normalized = normalizeGroupName(value);
+    if (!normalized) return;
+    const hasOption = selected.includes(normalized);
+    const next = hasOption
+      ? selected.filter((item) => item !== normalized)
+      : [...selected, normalized];
+    onChange?.(next);
+  };
+
+  return (
+    <div className={`multi-select ${disabled ? "disabled" : ""}`} ref={rootRef}>
+      <button
+        type="button"
+        className={`multi-select-trigger ${open ? "open" : ""}`}
+        onClick={() => setOpen((prev) => !prev)}
+        disabled={disabled}
+      >
+        <div className="multi-select-value">
+          {selected.length > 0
+            ? selected.map((group) => <span key={group} className="multi-chip">{group}</span>)
+            : <span className="multi-placeholder">{placeholder}</span>}
+        </div>
+        <span className="multi-arrow">{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div className="multi-panel">
+          {searchable && (
+            <input
+              className="input multi-search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar grupo..."
+            />
+          )}
+          {filtered.map((option) => {
+            const checked = selected.includes(option);
+            return (
+              <label key={option} className="multi-option">
+                <input type="checkbox" checked={checked} onChange={() => toggleOption(option)} />
+                <span className="multi-option-label">{option}</span>
+              </label>
+            );
+          })}
+          {!filtered.length && <div className="text-sm text-mu" style={{padding:"6px 4px"}}>Sin resultados</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── COACH: DASHBOARD ─────────────────────────────────────────────────────────
 function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
-  const hrAthletes = athletes.filter(a => a.isHR);
-  const done = hrAthletes.filter(a => a.todayDone).length;
-  const totalKms = hrAthletes.reduce((s,a) => s + (a.weekKms||[]).reduce((x,y)=>x+y,0), 0);
+  const team = normalizeAthletes(athletes);
+  const done = team.filter(a => a.todayDone).length;
+  const totalKms = team.reduce((s,a) => s + (a.weekKms||[]).reduce((x,y)=>x+y,0), 0);
   const todayI = todayIdx();
   const todayPlan = week.days[todayI];
 
@@ -1338,19 +2202,19 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
       {/* Stats */}
       <div className="g4 mb6">
         <div className="stat-card">
-          <div className="stat-label">Atletas Alto Rendimiento</div>
-          <div className="stat-val">{hrAthletes.length}<span className="stat-unit">ath</span></div>
-          <div className="stat-change">↑ Grupo de Alto Rendimiento CAR</div>
+          <div className="stat-label">Atletas activos</div>
+          <div className="stat-val">{team.length}<span className="stat-unit">ath</span></div>
+          <div className="stat-change">Equipo total en la plataforma</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Entrenos hoy</div>
-          <div className="stat-val">{done}<span className="stat-unit">/{hrAthletes.length}</span></div>
-          <div className="prog-bar mt3"><div className="prog-fill" style={{width:`${hrAthletes.length?done/hrAthletes.length*100:0}%`}} /></div>
+          <div className="stat-val">{done}<span className="stat-unit">/{team.length}</span></div>
+          <div className="prog-bar mt3"><div className="prog-fill" style={{width:`${team.length?done/team.length*100:0}%`}} /></div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Km totales semana</div>
           <div className="stat-val">{totalKms.toFixed(0)}<span className="stat-unit">km</span></div>
-          <div className="stat-change">↑ Grupo Alto Rendimiento esta semana</div>
+          <div className="stat-change">Suma semanal de todos los atletas</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Tipo de semana</div>
@@ -1443,7 +2307,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
     });
   };
 
-  const ensureInlineExerciseRow = (exId) => ({ exId, ...(DEFAULT_EXERCISE_LOAD_PROFILE[exId] || { sets:3, reps:8, pct:70 }) });
+  const ensureInlineExerciseRow = (exId) => ({ exId, ...(EXERCISE_LOAD_PROFILE[exId] || buildExerciseFallbackProfile(normalizeExerciseType(getExerciseByIdFull(exId).type))) });
 
   const toggleInlineExercise = (exId) => {
     setDraft(prev => {
@@ -1459,7 +2323,11 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
       ...prev,
       inlineRoutine: {
         ...(prev.inlineRoutine || {}),
-        exercises: (prev.inlineRoutine?.exercises || []).map(e => e.exId === exId ? { ...e, [field]: Number(value || 0) } : e),
+        exercises: (prev.inlineRoutine?.exercises || []).map((exercise) => {
+          if (exercise.exId !== exId) return exercise;
+          if (field === "type") return { ...exercise, type: value };
+          return { ...exercise, [field]: Number(value || 0) };
+        }),
       },
     }));
   };
@@ -1829,19 +2697,39 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
   );
 }
 
-function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTrainings, customExercises, exerciseImages }) {
+function CoachSemanaV2({
+  week,
+  setWeek,
+  routines,
+  trainings,
+  customExercises,
+  exerciseImages,
+  activeWeekNumber,
+  setActiveWeekNumber,
+  onPublishWeek,
+  seasonAnchorDate,
+}) {
   const [editing, setEditing] = useState(null);
   const [draft, setDraft] = useState(null);
   const [editorWeek, setEditorWeek] = useState(normalizeWeek(week, routines));
-  const [showTrainingForm, setShowTrainingForm] = useState(false);
-  const [trainingDraft, setTrainingDraft] = useState(buildEmptyTrainingForm());
+  const [exerciseSearch, setExerciseSearch] = useState("");
+  const [exercisePicker, setExercisePicker] = useState("");
   const targetGroups = SESSION_TARGET_GROUPS;
   const trainingCatalog = normalizeTrainingCatalog(trainings);
   const allExercises = getAllExercises(customExercises, exerciseImages);
   const canEditWeek = !editorWeek.published || editorWeek.isEditingPublished;
+  const currentWeekNumber = normalizeWeekNumber(
+    activeWeekNumber,
+    editorWeek.weekNumber || getTodaySeasonWeekNumber(seasonAnchorDate)
+  );
+  const weekTypeCatalog = trainingCatalog.filter((training) => isTrainingAvailableForWeekType(training, editorWeek.type));
 
   useEffect(() => {
     setEditorWeek(normalizeWeek(week, routines));
+    setEditing(null);
+    setDraft(null);
+    setExerciseSearch("");
+    setExercisePicker("");
   }, [week, routines]);
 
   const patchEditorWeek = (updater) => {
@@ -1850,6 +2738,12 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
       setWeek(nextWeek);
       return nextWeek;
     });
+  };
+
+  const moveWeek = (delta) => {
+    setEditing(null);
+    setDraft(null);
+    setActiveWeekNumber((prev) => Math.max(1, normalizeWeekNumber(prev, currentWeekNumber) + delta));
   };
 
   const buildInlineDraft = (day, index) => {
@@ -1877,24 +2771,35 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
   const openEdit = (index) => {
     setEditing(index);
     setDraft(buildDayDraft(editorWeek.days[index], index));
+    setExerciseSearch("");
+    setExercisePicker("");
   };
 
   const ensureInlineExerciseRow = (exId) => ({ exId, ...getDefaultExerciseLoad(exId, customExercises, exerciseImages) });
 
-  const toggleInlineExercise = (exId) => {
+  const addInlineExercise = (exId) => {
+    if (!exId) return;
     setDraft((prev) => {
       const list = prev.inlineRoutine?.exercises || [];
-      const exists = list.some((exercise) => exercise.exId === exId);
+      if (list.some((exercise) => exercise.exId === exId)) return prev;
       return {
         ...prev,
         inlineRoutine: {
           ...(prev.inlineRoutine || {}),
-          exercises: exists
-            ? list.filter((exercise) => exercise.exId !== exId)
-            : [...list, ensureInlineExerciseRow(exId)],
+          exercises: [...list, ensureInlineExerciseRow(exId)],
         },
       };
     });
+  };
+
+  const removeInlineExercise = (exId) => {
+    setDraft((prev) => ({
+      ...prev,
+      inlineRoutine: {
+        ...(prev.inlineRoutine || {}),
+        exercises: (prev.inlineRoutine?.exercises || []).filter((exercise) => exercise.exId !== exId),
+      },
+    }));
   };
 
   const updateInlineExercise = (exId, field, value) => {
@@ -1904,11 +2809,29 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
         ...(prev.inlineRoutine || {}),
         exercises: (prev.inlineRoutine?.exercises || []).map((exercise) => {
           if (exercise.exId !== exId) return exercise;
-          return { ...exercise, [field]: field === "type" ? value : Number(value || 0) };
+          if (field === "type") return { ...exercise, type: value };
+          return { ...exercise, [field]: Number(value || 0) };
         }),
       },
     }));
   };
+
+  const getSelectableTrainings = (selectedTrainingId = "") => {
+    const selected = getTrainingById(trainingCatalog, selectedTrainingId);
+    if (!selected) return weekTypeCatalog;
+    if (weekTypeCatalog.some((training) => training.id === selected.id)) return weekTypeCatalog;
+    return [...weekTypeCatalog, selected];
+  };
+
+  const sessionTemplate = (slot, targetGroup = editorWeek.targetGroup || "all") => ({
+    id: `session_${slot}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    slot,
+    trainingId: "",
+    name: "",
+    description: "",
+    targetGroup,
+    zones: emptyZones(),
+  });
 
   const setPrimaryTraining = (slot, trainingId) => {
     const training = getTrainingById(trainingCatalog, trainingId);
@@ -1923,6 +2846,42 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
     }));
   };
 
+  const updatePrimaryField = (slot, field, value) => {
+    setDraft((prev) => {
+      const current = prev.sessions?.[slot] || sessionTemplate(slot);
+      const nextSession = { ...current, [field]: value };
+      if (field === "name" || field === "description" || field === "zones") {
+        nextSession.trainingId = "";
+      }
+      const keepSession = String(nextSession.name || "").trim().length > 0 || String(nextSession.trainingId || "").trim().length > 0;
+      return {
+        ...prev,
+        sessions: {
+          ...(prev.sessions || {}),
+          [slot]: keepSession ? nextSession : null,
+        },
+      };
+    });
+  };
+
+  const updatePrimaryZone = (slot, zoneId, value) => {
+    setDraft((prev) => {
+      const current = prev.sessions?.[slot] || sessionTemplate(slot);
+      const nextSession = {
+        ...current,
+        trainingId: "",
+        zones: { ...(current.zones || emptyZones()), [zoneId]: value },
+      };
+      return {
+        ...prev,
+        sessions: {
+          ...(prev.sessions || {}),
+          [slot]: nextSession,
+        },
+      };
+    });
+  };
+
   const setPrimaryTarget = (slot, targetGroup) => {
     setDraft((prev) => ({
       ...prev,
@@ -1930,7 +2889,7 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
         ...(prev.sessions || {}),
         [slot]: prev.sessions?.[slot]
           ? { ...prev.sessions[slot], targetGroup }
-          : null,
+          : { ...sessionTemplate(slot, targetGroup), targetGroup },
       },
     }));
   };
@@ -1969,7 +2928,24 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
   const updateExtraField = (sessionId, field, value) => {
     setDraft((prev) => ({
       ...prev,
-      extraSessions: (prev.extraSessions || []).map((session) => session.id === sessionId ? { ...session, [field]: value } : session),
+      extraSessions: (prev.extraSessions || []).map((session) => {
+        if (session.id !== sessionId) return session;
+        if (field === "name" || field === "description") {
+          return { ...session, [field]: value, trainingId: "" };
+        }
+        return { ...session, [field]: value };
+      }),
+    }));
+  };
+
+  const updateExtraZone = (sessionId, zoneId, value) => {
+    setDraft((prev) => ({
+      ...prev,
+      extraSessions: (prev.extraSessions || []).map((session) => (
+        session.id === sessionId
+          ? { ...session, trainingId: "", zones: { ...(session.zones || emptyZones()), [zoneId]: value } }
+          : session
+      )),
     }));
   };
 
@@ -1979,6 +2955,27 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
       extraSessions: (prev.extraSessions || []).filter((session) => session.id !== sessionId),
     }));
   };
+
+  const normalizedExerciseSearch = exerciseSearch.trim().toLowerCase();
+  const filteredExerciseOptions = allExercises.filter((exercise) => {
+    if (!normalizedExerciseSearch) return true;
+    return (
+      String(exercise.name || "").toLowerCase().includes(normalizedExerciseSearch) ||
+      String(exercise.muscles || "").toLowerCase().includes(normalizedExerciseSearch) ||
+      String(exercise.category || "").toLowerCase().includes(normalizedExerciseSearch)
+    );
+  });
+
+  useEffect(() => {
+    if (editing == null) return;
+    if (!filteredExerciseOptions.length) {
+      if (exercisePicker) setExercisePicker("");
+      return;
+    }
+    if (!filteredExerciseOptions.some((exercise) => exercise.id === exercisePicker)) {
+      setExercisePicker(filteredExerciseOptions[0].id);
+    }
+  }, [editing, exercisePicker, filteredExerciseOptions]);
 
   const saveEdit = () => {
     if (!canEditWeek || editing == null || !draft) return;
@@ -2025,9 +3022,21 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
   };
 
   const publishWeek = () => {
+    const wasPublished = !!editorWeek.published;
+    const previousPublishedWeek = wasPublished ? resolvePublishedWeek(editorWeek, routines) : null;
     const committed = commitPublishedWeek(editorWeek, routines, editorWeek.publishedAt);
     setWeek(committed);
     setEditorWeek(committed);
+    if (typeof onPublishWeek === "function") {
+      const targetGroups = wasPublished
+        ? collectChangedTargetGroups(previousPublishedWeek, committed, routines)
+        : collectWeekTargetGroups(committed, routines);
+      onPublishWeek({
+        weekNumber: normalizeWeekNumber(committed.weekNumber, currentWeekNumber),
+        isUpdate: wasPublished,
+        targetGroups: Array.from(targetGroups),
+      });
+    }
   };
 
   const enableModifyMode = () => {
@@ -2050,24 +3059,6 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
     setWeek(restored);
     setEditing(null);
     setDraft(null);
-  };
-
-  const saveTraining = () => {
-    if (!trainingDraft.name.trim()) return;
-    const nextTraining = normalizeTraining({
-      id: `custom_training_${Date.now()}`,
-      name: trainingDraft.name,
-      description: trainingDraft.description,
-      zones: trainingDraft.zones,
-      source: "custom",
-    });
-    setTrainings((prev) => [...normalizeTrainingCatalog(prev), nextTraining]);
-    setTrainingDraft(buildEmptyTrainingForm());
-    setShowTrainingForm(false);
-  };
-
-  const deleteTraining = (trainingId) => {
-    setTrainings((prev) => normalizeTrainingCatalog(prev).filter((training) => training.id !== trainingId));
   };
 
   const currentGymPlan = draft?.gym
@@ -2109,7 +3100,7 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
         <div className="ph-row">
           <div>
             <div className="ph-title">PLAN <span>SEMANAL</span></div>
-            <div className="ph-sub">Semana por tipo, entrenos desde dataset, extras por grupo y rutina inline sin biblioteca.</div>
+            <div className="ph-sub">Crea y publica la semana. Si ya está publicada, entra en modo consulta o modifica y guarda cambios.</div>
           </div>
           <div className="flex ic g2r" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
             <span className={`badge ${editorWeek.published ? "b-gr" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
@@ -2132,111 +3123,22 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
         </div>
       </div>
 
-      <div className="g2 mb6">
-        <div className="wt-banner" style={{margin:0}}>
-          <div>
-            <div className="wt-label">Semana</div>
-            <div className="wt-val">{editorWeek.name || "Semana"}</div>
-          </div>
-          <input
-            className="input"
-            style={{marginLeft:"auto",maxWidth:260}}
-            value={editorWeek.name || ""}
-            onChange={(e) => patchEditorWeek((prev) => ({ ...prev, name:e.target.value }))}
-            placeholder="Nombre de semana"
-            disabled={!canEditWeek}
-          />
+      <div className="wt-banner mb6" style={{gap:14}}>
+        <button className="btn btn-ghost btn-sm" onClick={() => moveWeek(-1)}>← Semana anterior</button>
+        <div>
+          <div className="wt-label">Semana</div>
+          <div className="wt-val">Semana {currentWeekNumber}</div>
         </div>
-
-        <div className="wt-banner" style={{margin:0}}>
-          <div>
-            <div className="wt-label">Tipo de semana</div>
+        <div style={{marginLeft:"auto"}}>
+          <div className="wt-label">Tipo de semana</div>
+          <div className="flex ic g2r">
             <div className="wt-val" style={{fontSize:24}}>{editorWeek.type}</div>
+            <select className="select" value={editorWeek.type} onChange={(e) => patchEditorWeek((prev) => ({ ...prev, type:e.target.value }))} disabled={!canEditWeek} style={{minWidth:180}}>
+              {WEEK_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
           </div>
-          <select className="select" value={editorWeek.type} onChange={(e) => patchEditorWeek((prev) => ({ ...prev, type:e.target.value }))} disabled={!canEditWeek}>
-            {WEEK_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-          </select>
         </div>
-      </div>
-
-      <div className="card mb6">
-        <div className="flex ic jb mb4" style={{alignItems:"flex-start"}}>
-          <div>
-            <div className="card-title" style={{marginBottom:6}}>🏃 Dataset de Entrenos</div>
-            <div className="text-mu text-sm">Selecciona estos entrenos al montar la semana. Cada uno ya lleva sus kilómetros desagregados por zona.</div>
-          </div>
-          {canEditWeek && (
-            <button className="btn btn-or btn-sm" onClick={() => setShowTrainingForm((prev) => !prev)}>
-              {showTrainingForm ? "Cerrar creador" : "+ Crear entreno"}
-            </button>
-          )}
-        </div>
-
-        {showTrainingForm && (
-          <div className="card card-sm mb4">
-            <div className="g2">
-              <div className="form-group">
-                <label className="form-label">Nombre</label>
-                <input className="input" value={trainingDraft.name} onChange={(e) => setTrainingDraft({ ...trainingDraft, name:e.target.value })} placeholder="Ej: Series 6x300 a ritmo 1500" />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Descripción</label>
-                <input className="input" value={trainingDraft.description} onChange={(e) => setTrainingDraft({ ...trainingDraft, description:e.target.value })} placeholder="Notas del entreno" />
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Kilómetros por zona</label>
-              <div className="zone-inputs">
-                {ZONES.map((zone) => (
-                  <div key={zone.id} className="zone-input-wrap">
-                    <div className="zone-input-label">
-                      <span className="zone-dot" style={{background:zone.color}} />
-                      {zone.short}
-                    </div>
-                    <input
-                      type="number"
-                      className="input"
-                      min={0}
-                      step={0.5}
-                      value={trainingDraft.zones?.[zone.id] || ""}
-                      onChange={(e) => setTrainingDraft({ ...trainingDraft, zones:{ ...(trainingDraft.zones || emptyZones()), [zone.id]:e.target.value } })}
-                      placeholder="0"
-                      style={{padding:"6px 8px"}}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex ic jb">
-              <div className="text-sm text-mu">Total: <strong style={{color:"var(--or)"}}>{zonesTotal(trainingDraft.zones).toFixed(1)} km</strong></div>
-              <div className="flex ic g2r">
-                <button className="btn btn-ghost btn-sm" onClick={() => { setShowTrainingForm(false); setTrainingDraft(buildEmptyTrainingForm()); }}>Cancelar</button>
-                <button className="btn btn-or btn-sm" onClick={saveTraining}>Guardar entreno</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="ex-lib-grid">
-          {trainingCatalog.map((training) => (
-            <div key={training.id} className="ex-lib-card">
-              <div style={{fontWeight:700,fontSize:14,marginBottom:6}}>{training.name}</div>
-              {training.description && <div style={{fontSize:11,color:"var(--mu)",marginBottom:8}}>{training.description}</div>}
-              <div className="zone-total-row">
-                {ZONES.filter((zone) => Number(training.zones?.[zone.id] || 0) > 0).map((zone) => (
-                  <span key={zone.id} className="zone-pill" style={{background:`${zone.color}22`,color:zone.color}}>
-                    <span className="zone-dot" style={{background:zone.color}} />
-                    {zone.short} {Number(training.zones[zone.id]).toFixed(1)}
-                  </span>
-                ))}
-              </div>
-              <div className="text-sm text-mu mt3">Total {zonesTotal(training.zones).toFixed(1)} km</div>
-              {training.source === "custom" && canEditWeek && (
-                <button className="btn btn-danger btn-sm mt3" style={{width:"100%"}} onClick={() => deleteTraining(training.id)}>Eliminar</button>
-              )}
-            </div>
-          ))}
-        </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => moveWeek(1)}>Semana siguiente →</button>
       </div>
 
       <div className="week-grid">
@@ -2312,15 +3214,57 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
                     <div className="form-group">
                       <label className="form-label">{slot === "am" ? "🌅 Entreno principal AM" : "🌆 Entreno principal PM"}</label>
                       <select className="select" value={session?.trainingId || ""} onChange={(e) => setPrimaryTraining(slot, e.target.value)} disabled={!canEditWeek}>
-                        <option value="">Sin entreno</option>
-                        {trainingCatalog.map((training) => <option key={training.id} value={training.id}>{training.name}</option>)}
+                        <option value="">Escribir manualmente</option>
+                        {getSelectableTrainings(session?.trainingId || "").map((training) => <option key={training.id} value={training.id}>{training.name}</option>)}
                       </select>
                     </div>
                     <div className="form-group">
+                      <label className="form-label">Entreno manual</label>
+                      <input
+                        className="input"
+                        value={session?.name || ""}
+                        onChange={(e) => updatePrimaryField(slot, "name", e.target.value)}
+                        placeholder="Escribe el entreno o selecciona del dataset"
+                        disabled={!canEditWeek}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Descripción (opcional)</label>
+                      <input
+                        className="input"
+                        value={session?.description || ""}
+                        onChange={(e) => updatePrimaryField(slot, "description", e.target.value)}
+                        placeholder="Notas del entreno"
+                        disabled={!canEditWeek}
+                      />
+                    </div>
+                    <div className="form-group">
                       <label className="form-label">Grupo</label>
-                      <select className="select" value={session?.targetGroup || "all"} onChange={(e) => setPrimaryTarget(slot, e.target.value)} disabled={!canEditWeek || !session}>
+                      <select className="select" value={session?.targetGroup || "all"} onChange={(e) => setPrimaryTarget(slot, e.target.value)} disabled={!canEditWeek}>
                         {targetGroups.map((group) => <option key={group} value={group}>{groupLabel(group)}</option>)}
                       </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Kms por zona</label>
+                      <div className="zone-inputs">
+                        {ZONES.map((zone) => (
+                          <div key={`${slot}_${zone.id}`} className="zone-input-wrap">
+                            <div className="zone-input-label">
+                              <span className="zone-dot" style={{background:zone.color}} />
+                              {zone.short}
+                            </div>
+                            <input
+                              type="number"
+                              className="input"
+                              min={0}
+                              step={0.5}
+                              value={session?.zones?.[zone.id] || ""}
+                              onChange={(e) => updatePrimaryZone(slot, zone.id, e.target.value)}
+                              disabled={!canEditWeek}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                     {renderTrainingSummary(session, accent)}
                   </div>
@@ -2355,11 +3299,33 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
                       </select>
                     </div>
                     <div className="form-group">
-                      <label className="form-label">Entreno</label>
+                      <label className="form-label">Entreno desde dataset</label>
                       <select className="select" value={session.trainingId || ""} onChange={(e) => updateExtraTraining(session.id, e.target.value)} disabled={!canEditWeek}>
-                        <option value="">Selecciona un entreno</option>
-                        {trainingCatalog.map((training) => <option key={training.id} value={training.id}>{training.name}</option>)}
+                        <option value="">Escribir manualmente</option>
+                        {getSelectableTrainings(session.trainingId || "").map((training) => <option key={training.id} value={training.id}>{training.name}</option>)}
                       </select>
+                    </div>
+                  </div>
+                  <div className="g2">
+                    <div className="form-group">
+                      <label className="form-label">Entreno manual</label>
+                      <input
+                        className="input"
+                        value={session.name || ""}
+                        onChange={(e) => updateExtraField(session.id, "name", e.target.value)}
+                        placeholder="Escribe el entreno para esta franja"
+                        disabled={!canEditWeek}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Descripción (opcional)</label>
+                      <input
+                        className="input"
+                        value={session.description || ""}
+                        onChange={(e) => updateExtraField(session.id, "description", e.target.value)}
+                        placeholder="Notas del entreno"
+                        disabled={!canEditWeek}
+                      />
                     </div>
                   </div>
                   <div className="g2">
@@ -2374,6 +3340,28 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
                         <button className="btn btn-danger btn-sm" style={{width:"100%"}} onClick={() => removeExtraSession(session.id)}>Eliminar extra</button>
                       </div>
                     )}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Kms por zona</label>
+                    <div className="zone-inputs">
+                      {ZONES.map((zone) => (
+                        <div key={`${session.id}_${zone.id}`} className="zone-input-wrap">
+                          <div className="zone-input-label">
+                            <span className="zone-dot" style={{background:zone.color}} />
+                            {zone.short}
+                          </div>
+                          <input
+                            type="number"
+                            className="input"
+                            min={0}
+                            step={0.5}
+                            value={session?.zones?.[zone.id] || ""}
+                            onChange={(e) => updateExtraZone(session.id, zone.id, e.target.value)}
+                            disabled={!canEditWeek}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   {renderTrainingSummary(session, session.slot === "am" ? "var(--or)" : "var(--bl)")}
                 </div>
@@ -2409,15 +3397,38 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
 
                   <div className="form-group">
                     <label className="form-label">Ejercicios</label>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:8,maxHeight:180,overflowY:"auto"}}>
-                      {allExercises.map((exercise) => {
-                        const active = (draft.inlineRoutine?.exercises || []).some((row) => row.exId === exercise.id);
-                        return (
-                          <button type="button" key={exercise.id} className={`btn btn-sm ${active ? "btn-or" : "btn-ghost"}`} onClick={() => canEditWeek && toggleInlineExercise(exercise.id)} disabled={!canEditWeek}>
-                            {exercise.emoji} {exercise.name}
-                          </button>
-                        );
-                      })}
+                    <div className="g2">
+                      <input
+                        className="input"
+                        value={exerciseSearch}
+                        onChange={(e) => setExerciseSearch(e.target.value)}
+                        placeholder="Buscar ejercicio..."
+                        disabled={!canEditWeek}
+                      />
+                      <div className="flex ic g2r">
+                        <select
+                          className="select"
+                          value={exercisePicker}
+                          onChange={(e) => setExercisePicker(e.target.value)}
+                          disabled={!canEditWeek || !filteredExerciseOptions.length}
+                          style={{flex:1}}
+                        >
+                          {!filteredExerciseOptions.length && <option value="">Sin resultados</option>}
+                          {filteredExerciseOptions.map((exercise) => (
+                            <option key={exercise.id} value={exercise.id}>
+                              {exercise.emoji} {exercise.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          className="btn btn-or btn-sm"
+                          onClick={() => addInlineExercise(exercisePicker)}
+                          disabled={!canEditWeek || !exercisePicker}
+                        >
+                          Añadir
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -2425,22 +3436,27 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
                     <div className="card card-sm">
                       {(draft.inlineRoutine?.exercises || []).map((row) => {
                         const exercise = allExercises.find((item) => item.id === row.exId) || getExerciseByIdFull(row.exId, customExercises, exerciseImages);
-                        const exType = row.type || exercise.type || "weight";
+                        const exType = normalizeExerciseType(row.type || exercise.type || "weight");
                         return (
-                          <div key={row.exId} style={{display:"grid",gridTemplateColumns:"42px 1fr 80px 80px 80px auto",gap:8,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+                          <div key={row.exId} style={{display:"grid",gridTemplateColumns:"42px 1fr 100px 80px 80px 80px auto",gap:8,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
                             <div className="ex-emoji">{exercise.emoji || "🏋️"}</div>
                             <div>
                               <div className="ex-info-name">{exercise.name}</div>
                               <div className="ex-info-mu">{exercise.muscles}</div>
                             </div>
+                            <select className="select" value={exType} onChange={(e) => updateInlineExercise(row.exId, "type", e.target.value)} disabled={!canEditWeek}>
+                              <option value="weight">Peso</option>
+                              <option value="reps">Repeticiones</option>
+                              <option value="time_reps">Tiempo x Repeticiones</option>
+                            </select>
                             <input type="number" min={1} max={10} className="input" value={row.sets} onChange={(e) => updateInlineExercise(row.exId, "sets", e.target.value)} disabled={!canEditWeek} />
-                            {exType === "time"
-                              ? <input type="number" min={5} step={5} className="input" value={row.duration || 30} onChange={(e) => updateInlineExercise(row.exId, "duration", e.target.value)} disabled={!canEditWeek} />
-                              : <input type="number" min={1} max={40} className="input" value={row.reps} onChange={(e) => updateInlineExercise(row.exId, "reps", e.target.value)} disabled={!canEditWeek} />}
+                            <input type="number" min={1} max={40} className="input" value={row.reps} onChange={(e) => updateInlineExercise(row.exId, "reps", e.target.value)} disabled={!canEditWeek} title="Repeticiones" />
                             {exType === "weight"
-                              ? <input type="number" min={30} max={110} className="input" value={row.pct} onChange={(e) => updateInlineExercise(row.exId, "pct", e.target.value)} disabled={!canEditWeek} />
-                              : <div style={{textAlign:"center"}}><span className={`badge ${exType === "time" ? "b-pu" : "b-bl"}`}>{exType === "time" ? formatExDuration(row.duration) : "Reps"}</span></div>}
-                            {canEditWeek ? <button className="btn btn-danger btn-sm" onClick={() => toggleInlineExercise(row.exId)}>✕</button> : <div />}
+                              ? <input type="number" min={0} max={200} className="input" value={row.pct} onChange={(e) => updateInlineExercise(row.exId, "pct", e.target.value)} disabled={!canEditWeek} title="% de peso" />
+                              : exType === "time_reps"
+                                ? <input type="number" min={3} max={120} className="input" value={row.duration || 20} onChange={(e) => updateInlineExercise(row.exId, "duration", e.target.value)} disabled={!canEditWeek} title="Tiempo (segundos)" />
+                                : <div style={{textAlign:"center"}}><span className="badge b-bl">Reps</span></div>}
+                            {canEditWeek ? <button className="btn btn-danger btn-sm" onClick={() => removeInlineExercise(row.exId)}>✕</button> : <div />}
                           </div>
                         );
                       })}
@@ -2461,6 +3477,372 @@ function CoachSemanaV2({ week, setWeek, routines, groups, trainings, setTraining
             </div>
 
             {canEditWeek && <button className="btn btn-or mt4" style={{width:"100%"}} onClick={saveEdit}>Guardar día</button>}
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+function CoachTrainingsDataset({ trainings, setTrainings }) {
+  const [showTrainingForm, setShowTrainingForm] = useState(false);
+  const [trainingDraft, setTrainingDraft] = useState(buildEmptyTrainingForm());
+  const [datasetFilters, setDatasetFilters] = useState({
+    weekType:"all",
+    kmType:"all",
+    minKm:"",
+    maxKm:"",
+    minKmType:"",
+    maxKmType:"",
+  });
+  const [trainingDetailId, setTrainingDetailId] = useState(null);
+  const [trainingDetailDraft, setTrainingDetailDraft] = useState(null);
+  const [trainingDetailEditing, setTrainingDetailEditing] = useState(false);
+  const trainingCatalog = normalizeTrainingCatalog(trainings);
+
+  useEffect(() => {
+    if (!trainingDetailId) return;
+    const exists = trainingCatalog.some((training) => training.id === trainingDetailId);
+    if (!exists) {
+      setTrainingDetailId(null);
+      setTrainingDetailDraft(null);
+      setTrainingDetailEditing(false);
+    }
+  }, [trainingCatalog, trainingDetailId]);
+
+  const toggleDraftWeekType = (type) => {
+    setTrainingDraft((prev) => {
+      const current = normalizeTrainingWeekTypes(prev.weekTypes);
+      const next = current.includes(type)
+        ? current.filter((value) => value !== type)
+        : [...current, type];
+      return { ...prev, weekTypes: next.length ? next : [type] };
+    });
+  };
+
+  const saveTraining = () => {
+    if (!trainingDraft.name.trim()) return;
+    const nextTraining = normalizeTraining({
+      id: `custom_training_${Date.now()}`,
+      name: trainingDraft.name,
+      description: trainingDraft.description,
+      zones: trainingDraft.zones,
+      weekTypes: trainingDraft.weekTypes,
+      source: "custom",
+    });
+    setTrainings((prev) => [...normalizeTrainingCatalog(prev), nextTraining]);
+    setTrainingDraft(buildEmptyTrainingForm());
+    setShowTrainingForm(false);
+  };
+
+  const openTrainingDetail = (training) => {
+    setTrainingDetailId(training.id);
+    setTrainingDetailDraft({
+      id: training.id,
+      name: training.name,
+      description: training.description || "",
+      zones: safeZones(training.zones),
+      weekTypes: normalizeTrainingWeekTypes(training.weekTypes),
+      source: training.source || "dataset",
+    });
+    setTrainingDetailEditing(false);
+  };
+
+  const closeTrainingDetail = () => {
+    setTrainingDetailId(null);
+    setTrainingDetailDraft(null);
+    setTrainingDetailEditing(false);
+  };
+
+  const toggleDetailWeekType = (type) => {
+    setTrainingDetailDraft((prev) => {
+      const current = normalizeTrainingWeekTypes(prev?.weekTypes);
+      const next = current.includes(type)
+        ? current.filter((value) => value !== type)
+        : [...current, type];
+      return { ...prev, weekTypes: next.length ? next : [type] };
+    });
+  };
+
+  const saveTrainingDetail = () => {
+    if (!trainingDetailDraft?.name?.trim()) return;
+    const normalized = normalizeTraining(trainingDetailDraft);
+    setTrainings((prev) => normalizeTrainingCatalog(prev).map((training) => (
+      training.id === normalized.id ? normalized : training
+    )));
+    setTrainingDetailDraft(normalized);
+    setTrainingDetailEditing(false);
+  };
+
+  const deleteTraining = (trainingId) => {
+    setTrainings((prev) => normalizeTrainingCatalog(prev).filter((training) => training.id !== trainingId));
+    if (trainingDetailId === trainingId) closeTrainingDetail();
+  };
+
+  const selectedTraining = trainingDetailId ? getTrainingById(trainingCatalog, trainingDetailId) : null;
+  const minKm = datasetFilters.minKm === "" ? null : Number(datasetFilters.minKm);
+  const maxKm = datasetFilters.maxKm === "" ? null : Number(datasetFilters.maxKm);
+  const minKmType = datasetFilters.minKmType === "" ? null : Number(datasetFilters.minKmType);
+  const maxKmType = datasetFilters.maxKmType === "" ? null : Number(datasetFilters.maxKmType);
+  const filteredTrainingCatalog = trainingCatalog.filter((training) => {
+    const weekTypes = normalizeTrainingWeekTypes(training.weekTypes);
+    if (datasetFilters.weekType !== "all" && !weekTypes.includes(normalizeWeekType(datasetFilters.weekType))) return false;
+    const totalKm = zonesTotal(training.zones);
+    if (minKm != null && Number.isFinite(minKm) && totalKm < minKm) return false;
+    if (maxKm != null && Number.isFinite(maxKm) && totalKm > maxKm) return false;
+    if (datasetFilters.kmType !== "all") {
+      const zoneKm = Number(training.zones?.[datasetFilters.kmType] || 0);
+      const hasTypeRange =
+        (minKmType != null && Number.isFinite(minKmType)) ||
+        (maxKmType != null && Number.isFinite(maxKmType));
+      if (!hasTypeRange && zoneKm <= 0) return false;
+      if (minKmType != null && Number.isFinite(minKmType) && zoneKm < minKmType) return false;
+      if (maxKmType != null && Number.isFinite(maxKmType) && zoneKm > maxKmType) return false;
+    }
+    return true;
+  });
+
+  return (
+    <div>
+      <div className="ph">
+        <div className="ph-row">
+          <div>
+            <div className="ph-title">DATASET <span>ENTRENOS</span></div>
+            <div className="ph-sub">Listado compacto, filtros por tipo/kms/desagregado y edición con guardado.</div>
+          </div>
+          <div className="flex ic g2r">
+            <button className="btn btn-or btn-sm" onClick={() => setShowTrainingForm((prev) => !prev)}>
+              {showTrainingForm ? "Cerrar creador" : "+ Crear entreno"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        {showTrainingForm && (
+          <div className="card card-sm mb4">
+            <div className="g2">
+              <div className="form-group">
+                <label className="form-label">Nombre</label>
+                <input className="input" value={trainingDraft.name} onChange={(e) => setTrainingDraft({ ...trainingDraft, name:e.target.value })} placeholder="Ej: Series 6x300 a ritmo 1500" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Descripción</label>
+                <input className="input" value={trainingDraft.description} onChange={(e) => setTrainingDraft({ ...trainingDraft, description:e.target.value })} placeholder="Notas del entreno" />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tipos de semana</label>
+              <div className="flex ic g2r" style={{flexWrap:"wrap"}}>
+                {WEEK_TYPES.map((type) => {
+                  const active = normalizeTrainingWeekTypes(trainingDraft.weekTypes).includes(type);
+                  return (
+                    <button key={type} type="button" className={`btn btn-sm ${active ? "btn-or" : "btn-ghost"}`} onClick={() => toggleDraftWeekType(type)}>
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Kilómetros por zona</label>
+              <div className="zone-inputs">
+                {ZONES.map((zone) => (
+                  <div key={zone.id} className="zone-input-wrap">
+                    <div className="zone-input-label">
+                      <span className="zone-dot" style={{background:zone.color}} />
+                      {zone.short}
+                    </div>
+                    <input
+                      type="number"
+                      className="input"
+                      min={0}
+                      step={0.5}
+                      value={trainingDraft.zones?.[zone.id] || ""}
+                      onChange={(e) => setTrainingDraft({ ...trainingDraft, zones:{ ...(trainingDraft.zones || emptyZones()), [zone.id]:e.target.value } })}
+                      placeholder="0"
+                      style={{padding:"6px 8px"}}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex ic jb">
+              <div className="text-sm text-mu">Total: <strong style={{color:"var(--or)"}}>{zonesTotal(trainingDraft.zones).toFixed(1)} km</strong></div>
+              <div className="flex ic g2r">
+                <button className="btn btn-ghost btn-sm" onClick={() => { setShowTrainingForm(false); setTrainingDraft(buildEmptyTrainingForm()); }}>Cancelar</button>
+                <button className="btn btn-or btn-sm" onClick={saveTraining}>Guardar entreno</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="g2 mb4">
+          <div className="form-group">
+            <label className="form-label">Filtro tipo semana</label>
+            <select className="select" value={datasetFilters.weekType} onChange={(e) => setDatasetFilters((prev) => ({ ...prev, weekType:e.target.value }))}>
+              <option value="all">Todos</option>
+              {WEEK_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Filtro tipo de kms</label>
+            <select className="select" value={datasetFilters.kmType} onChange={(e) => setDatasetFilters((prev) => ({ ...prev, kmType:e.target.value }))}>
+              <option value="all">Todos</option>
+              {ZONES.map((zone) => <option key={zone.id} value={zone.id}>{zone.short}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="g2 mb4">
+          <div className="form-group">
+            <label className="form-label">Kms mínimos</label>
+            <input className="input" type="number" min={0} step={0.5} value={datasetFilters.minKm} onChange={(e) => setDatasetFilters((prev) => ({ ...prev, minKm:e.target.value }))} placeholder="0" />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Kms máximos</label>
+            <input className="input" type="number" min={0} step={0.5} value={datasetFilters.maxKm} onChange={(e) => setDatasetFilters((prev) => ({ ...prev, maxKm:e.target.value }))} placeholder="Sin límite" />
+          </div>
+        </div>
+
+        <div className="g2 mb4">
+          <div className="form-group">
+            <label className="form-label">Min km del tipo seleccionado</label>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              step={0.5}
+              value={datasetFilters.minKmType}
+              onChange={(e) => setDatasetFilters((prev) => ({ ...prev, minKmType:e.target.value }))}
+              placeholder={datasetFilters.kmType === "all" ? "Selecciona tipo kms" : "0"}
+              disabled={datasetFilters.kmType === "all"}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Max km del tipo seleccionado</label>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              step={0.5}
+              value={datasetFilters.maxKmType}
+              onChange={(e) => setDatasetFilters((prev) => ({ ...prev, maxKmType:e.target.value }))}
+              placeholder={datasetFilters.kmType === "all" ? "Selecciona tipo kms" : "Sin límite"}
+              disabled={datasetFilters.kmType === "all"}
+            />
+          </div>
+        </div>
+
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Entreno</th>
+              <th>Tipo semana</th>
+              <th>Kms</th>
+              <th>Tipos kms</th>
+              <th>Fuente</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTrainingCatalog.map((training) => (
+              <tr key={training.id} style={{cursor:"pointer"}} onClick={() => openTrainingDetail(training)}>
+                <td>
+                  <div style={{fontWeight:700}}>{training.name}</div>
+                  {training.description && <div style={{fontSize:11,color:"var(--mu)"}}>{training.description}</div>}
+                </td>
+                <td style={{fontSize:12}}>{normalizeTrainingWeekTypes(training.weekTypes).join(" · ")}</td>
+                <td style={{fontWeight:700}}>{zonesTotal(training.zones).toFixed(1)} km</td>
+                <td>
+                  <div className="zone-total-row">
+                    {ZONES.filter((zone) => Number(training.zones?.[zone.id] || 0) > 0).map((zone) => (
+                      <span key={zone.id} className="zone-pill" style={{background:`${zone.color}22`,color:zone.color}}>
+                        <span className="zone-dot" style={{background:zone.color}} />
+                        {zone.short} {Number(training.zones[zone.id]).toFixed(1)}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td>{training.source === "custom" ? <span className="badge b-or">Custom</span> : <span className="badge b-mu">Base</span>}</td>
+              </tr>
+            ))}
+            {filteredTrainingCatalog.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{textAlign:"center",color:"var(--mu)"}}>No hay entrenos con los filtros seleccionados.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {trainingDetailDraft && selectedTraining && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeTrainingDetail()}>
+          <div className="modal" style={{maxWidth:760}}>
+            <div className="flex ic jb mb4">
+              <div className="modal-title">{trainingDetailEditing ? "Editar entreno" : "Detalle entreno"}</div>
+              <button className="modal-close" onClick={closeTrainingDetail}>✕ Cerrar</button>
+            </div>
+            <div className="g2">
+              <div className="form-group">
+                <label className="form-label">Nombre</label>
+                <input className="input" value={trainingDetailDraft.name} onChange={(e) => setTrainingDetailDraft((prev) => ({ ...prev, name:e.target.value }))} disabled={!trainingDetailEditing} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Descripción</label>
+                <input className="input" value={trainingDetailDraft.description} onChange={(e) => setTrainingDetailDraft((prev) => ({ ...prev, description:e.target.value }))} disabled={!trainingDetailEditing} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tipos de semana</label>
+              <div className="flex ic g2r" style={{flexWrap:"wrap"}}>
+                {WEEK_TYPES.map((type) => {
+                  const active = normalizeTrainingWeekTypes(trainingDetailDraft.weekTypes).includes(type);
+                  return (
+                    <button key={type} type="button" className={`btn btn-sm ${active ? "btn-or" : "btn-ghost"}`} onClick={() => trainingDetailEditing && toggleDetailWeekType(type)} disabled={!trainingDetailEditing}>
+                      {type}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Kilómetros por zona</label>
+              <div className="zone-inputs">
+                {ZONES.map((zone) => (
+                  <div key={zone.id} className="zone-input-wrap">
+                    <div className="zone-input-label">
+                      <span className="zone-dot" style={{background:zone.color}} />
+                      {zone.short}
+                    </div>
+                    <input
+                      type="number"
+                      className="input"
+                      min={0}
+                      step={0.5}
+                      value={trainingDetailDraft.zones?.[zone.id] || ""}
+                      onChange={(e) => setTrainingDetailDraft((prev) => ({ ...prev, zones:{ ...(prev.zones || emptyZones()), [zone.id]:e.target.value } }))}
+                      disabled={!trainingDetailEditing}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex ic jb">
+              <div className="text-sm text-mu">Total: <strong style={{color:"var(--or)"}}>{zonesTotal(trainingDetailDraft.zones).toFixed(1)} km</strong></div>
+              <div className="flex ic g2r">
+                {!trainingDetailEditing && <button className="btn btn-ghost btn-sm" onClick={() => setTrainingDetailEditing(true)}>Editar</button>}
+                {trainingDetailEditing && (
+                  <>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openTrainingDetail(selectedTraining)}>Cancelar</button>
+                    <button className="btn btn-or btn-sm" onClick={saveTrainingDetail}>Guardar</button>
+                  </>
+                )}
+                {selectedTraining.source === "custom" && (
+                  <button className="btn btn-danger btn-sm" onClick={() => deleteTraining(selectedTraining.id)}>Eliminar</button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2508,7 +3890,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
       const exists = r.exercises.some(e => e.exId === exId);
       r.exercises = exists
         ? r.exercises.filter(e => e.exId !== exId)
-        : [...r.exercises, { exId, name: ex?.name || labelFromExId(exId), ...(DEFAULT_EXERCISE_LOAD_PROFILE[exId] || { sets:3, reps:8, pct:70, type: ex?.type || "weight", duration:30 }) }];
+        : [...r.exercises, { exId, name: ex?.name || labelFromExId(exId), ...(EXERCISE_LOAD_PROFILE[exId] || buildExerciseFallbackProfile(normalizeExerciseType(ex?.type || "weight"))) }];
       return r;
     });
   };
@@ -2558,7 +3940,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
       <div className="ph">
         <div className="ph-row">
           <div>
-            <div className="ph-title">RUTINAS <span>GYM</span></div>
+            <div className="ph-title">DATASET DE <span>EJERCICIOS</span></div>
             <div className="ph-sub">Gestiona ejercicios y crea rutinas asignadas a cada día.</div>
           </div>
           <div className="flex ic g3r">
@@ -2599,7 +3981,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                   <select className="select" value={newExForm.type} onChange={e=>setNewExForm({...newExForm,type:e.target.value})}>
                     <option value="weight">Peso (% 1RM → kg)</option>
                     <option value="reps">Repeticiones (sin peso)</option>
-                    <option value="time">Tiempo (segundos)</option>
+                    <option value="time_reps">Tiempo x Repeticiones</option>
                   </select>
                 </div>
               </div>
@@ -2633,8 +4015,8 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                   <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{ex.name}</div>
                   {ex.muscles && <div style={{fontSize:10,color:"var(--mu)",marginBottom:6}}>{ex.muscles}</div>}
                   <div className="flex ic g2r" style={{flexWrap:"wrap"}}>
-                    <span className={`ex-type-badge ex-type-${ex.type||"weight"}`}>
-                      {ex.type==="weight"?"Peso":ex.type==="time"?"Tiempo":"Reps"}
+                    <span className={`ex-type-badge ex-type-${normalizeExerciseType(ex.type||"weight")}`}>
+                      {exerciseTypeBadgeLabel(normalizeExerciseType(ex.type))}
                     </span>
                     {isCustom && <span className="badge b-pu" style={{fontSize:9}}>Custom</span>}
                   </div>
@@ -2727,7 +4109,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                   {(selected.exercises||[]).map(row => {
                     const ex = allExercises.find(e=>e.id===row.exId) || { emoji:"🏋️", name:row.exId, muscles:"" };
                     const imgSrc = exerciseImages[row.exId] || row.imageUrl || ex.imageUrl;
-                    const exType = row.type || ex.type || "weight";
+                    const exType = normalizeExerciseType(row.type || ex.type || "weight");
                     return (
                       <div key={row.exId} style={{display:"grid",gridTemplateColumns:"52px 1fr auto auto auto auto auto",gap:8,alignItems:"center",padding:"12px 0",borderBottom:"1px solid var(--border)"}}>
                         <div style={{textAlign:"center"}}>
@@ -2741,7 +4123,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                           <select className="select" value={exType} onChange={e=>updateExercise(row.exId,"type",e.target.value)} style={{marginTop:4,fontSize:11,padding:"2px 6px",height:"auto"}}>
                             <option value="weight">Peso (%1RM)</option>
                             <option value="reps">Repeticiones</option>
-                            <option value="time">Tiempo</option>
+                            <option value="time_reps">Tiempo x Repeticiones</option>
                           </select>
                         </div>
                         {/* Series */}
@@ -2749,30 +4131,28 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                           <div className="ex-lbl">Series</div>
                           <input type="number" className="input" style={{width:56,textAlign:"center",padding:"6px 4px"}} value={row.sets} min={1} max={10} onChange={e=>updateExercise(row.exId,"sets",e.target.value)} />
                         </div>
-                        {/* Reps or Duration */}
-                        {exType === "time" ? (
-                          <div style={{textAlign:"center"}}>
-                            <div className="ex-lbl">Seg.</div>
-                            <input type="number" className="input" style={{width:64,textAlign:"center",padding:"6px 4px"}} value={row.duration||30} min={5} step={5} onChange={e=>updateExercise(row.exId,"duration",e.target.value)} />
-                          </div>
-                        ) : (
-                          <div style={{textAlign:"center"}}>
-                            <div className="ex-lbl">Reps</div>
-                            <input type="number" className="input" style={{width:56,textAlign:"center",padding:"6px 4px"}} value={row.reps} min={1} max={50} onChange={e=>updateExercise(row.exId,"reps",e.target.value)} />
-                          </div>
-                        )}
+                        {/* Reps */}
+                        <div style={{textAlign:"center"}}>
+                          <div className="ex-lbl">Reps</div>
+                          <input type="number" className="input" style={{width:56,textAlign:"center",padding:"6px 4px"}} value={row.reps} min={1} max={50} onChange={e=>updateExercise(row.exId,"reps",e.target.value)} />
+                        </div>
                         {/* Pct (only for weight) */}
                         {exType === "weight" ? (
                           <div style={{textAlign:"center"}}>
                             <div className="ex-lbl">% 1RM</div>
                             <input type="number" className="input" style={{width:64,textAlign:"center",padding:"6px 4px"}} value={row.pct} min={30} max={110} onChange={e=>updateExercise(row.exId,"pct",e.target.value)} />
                           </div>
+                        ) : exType === "time_reps" ? (
+                          <div style={{textAlign:"center"}}>
+                            <div className="ex-lbl">Seg.</div>
+                            <input type="number" className="input" style={{width:64,textAlign:"center",padding:"6px 4px"}} value={row.duration||20} min={3} step={1} onChange={e=>updateExercise(row.exId,"duration",e.target.value)} />
+                          </div>
                         ) : <div />}
                         {/* Display badge */}
                         <div>
                           {exType === "weight" && <span className="badge b-or">{row.pct}%</span>}
                           {exType === "reps"   && <span className="badge b-bl">SIN PESO</span>}
-                          {exType === "time"   && <span className="badge b-pu">{formatExDuration(row.duration)}</span>}
+                          {exType === "time_reps" && <span className="badge b-ya">{row.reps} x {formatExDuration(row.duration)}</span>}
                         </div>
                         <button className="btn btn-danger btn-sm" style={{padding:"4px 8px"}} onClick={()=>toggleExercise(row.exId)}>✕</button>
                       </div>
@@ -2796,10 +4176,27 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
 function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setExerciseImages }) {
   const [newExForm, setNewExForm] = useState(null);
   const [imgUploadTarget, setImgUploadTarget] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  const [imageError, setImageError] = useState("");
   const allExercises = getAllExercises(customExercises, exerciseImages);
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const filteredExercises = allExercises.filter((exercise) => {
+    if (!normalizedSearch) return true;
+    return (
+      String(exercise.name || "").toLowerCase().includes(normalizedSearch) ||
+      String(exercise.muscles || "").toLowerCase().includes(normalizedSearch) ||
+      String(exercise.category || "").toLowerCase().includes(normalizedSearch) ||
+      String(exerciseTypeBadgeLabel(exercise.type || "weight")).toLowerCase().includes(normalizedSearch)
+    );
+  });
 
   const handleImageUpload = (exId, file) => {
     if (!file) return;
+    if (!isExerciseImageFileAllowed(file)) {
+      setImageError("Solo se permiten imágenes SVG, PNG, JPG o JPEG.");
+      return;
+    }
+    setImageError("");
     const reader = new FileReader();
     reader.onload = (event) => {
       setExerciseImages((prev) => ({ ...prev, [exId]: event.target.result }));
@@ -2807,9 +4204,26 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
     };
     reader.readAsDataURL(file);
   };
+  const handleNewExerciseImageFile = (file) => {
+    if (!file) {
+      setImageError("");
+      setNewExForm((prev) => prev ? { ...prev, imageFile:null } : prev);
+      return;
+    }
+    if (!isExerciseImageFileAllowed(file)) {
+      setImageError("Solo se permiten imágenes SVG, PNG, JPG o JPEG.");
+      return;
+    }
+    setImageError("");
+    setNewExForm((prev) => prev ? { ...prev, imageFile:file } : prev);
+  };
 
   const saveNewExercise = () => {
     if (!newExForm?.name?.trim()) return;
+    if (newExForm.imageFile && !isExerciseImageFileAllowed(newExForm.imageFile)) {
+      setImageError("Solo se permiten imágenes SVG, PNG, JPG o JPEG.");
+      return;
+    }
     const id = `custom_${Date.now()}`;
     const exercise = {
       id,
@@ -2825,6 +4239,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
       reader.onload = (event) => setExerciseImages((prev) => ({ ...prev, [id]: event.target.result }));
       reader.readAsDataURL(newExForm.imageFile);
     }
+    setImageError("");
     setNewExForm(null);
   };
 
@@ -2833,10 +4248,10 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
       <div className="ph">
         <div className="ph-row">
           <div>
-            <div className="ph-title">CREADOR DE <span>RUTINAS</span></div>
+            <div className="ph-title">DATASET DE <span>EJERCICIOS</span></div>
             <div className="ph-sub">Las rutinas se crean dentro de cada día del plan semanal. Aquí gestionas el catálogo completo de ejercicios.</div>
           </div>
-          <button className="btn btn-or" onClick={() => setNewExForm({ name:"", emoji:"🏋️", muscles:"", category:"custom", type:"weight", imageFile:null })}>+ Nuevo ejercicio</button>
+          <button className="btn btn-or" onClick={() => { setImageError(""); setNewExForm({ name:"", emoji:"🏋️", muscles:"", category:"custom", type:"weight", imageFile:null }); }}>+ Nuevo ejercicio</button>
         </div>
       </div>
 
@@ -2856,6 +4271,22 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
           </div>
         </div>
       </div>
+      <div className="card mb4">
+        <div className="form-group" style={{margin:0}}>
+          <label className="form-label">Buscar ejercicio</label>
+          <input
+            className="input"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Nombre, músculos o tipo…"
+          />
+        </div>
+      </div>
+      {imageError && (
+        <div className="card mb4" style={{borderColor:"rgba(248,113,113,.45)",background:"rgba(248,113,113,.09)"}}>
+          <div className="text-sm" style={{color:"var(--re)"}}>{imageError}</div>
+        </div>
+      )}
 
       {newExForm && (
         <div className="card mb4">
@@ -2881,7 +4312,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
               <select className="select" value={newExForm.type} onChange={(e) => setNewExForm({ ...newExForm, type:e.target.value })}>
                 <option value="weight">Peso</option>
                 <option value="reps">Repeticiones</option>
-                <option value="time">Tiempo</option>
+                <option value="time_reps">Tiempo x Repeticiones</option>
               </select>
             </div>
           </div>
@@ -2890,279 +4321,80 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
             <div className="img-upload-zone" onClick={() => document.getElementById("new-ex-img-v2").click()}>
               {newExForm.imageFile ? <div style={{fontSize:13,color:"var(--gr)"}}>✅ {newExForm.imageFile.name}</div> : <div style={{fontSize:13,color:"var(--mu)"}}>📷 Clic para subir imagen</div>}
             </div>
-            <input id="new-ex-img-v2" type="file" accept="image/*" style={{display:"none"}} onChange={(e) => setNewExForm({ ...newExForm, imageFile:e.target.files[0] || null })} />
+            <input
+              id="new-ex-img-v2"
+              type="file"
+              accept={ALLOWED_EXERCISE_IMAGE_ACCEPT}
+              style={{display:"none"}}
+              onChange={(e) => handleNewExerciseImageFile(e.target.files[0] || null)}
+            />
+            <div className="text-sm text-mu mt3">Formatos permitidos: SVG, PNG, JPG, JPEG.</div>
           </div>
           <div className="flex ic g2r">
-            <button className="btn btn-ghost" style={{flex:1}} onClick={() => setNewExForm(null)}>Cancelar</button>
+            <button className="btn btn-ghost" style={{flex:1}} onClick={() => { setImageError(""); setNewExForm(null); }}>Cancelar</button>
             <button className="btn btn-or" style={{flex:1}} onClick={saveNewExercise}>Guardar ejercicio</button>
           </div>
         </div>
       )}
 
-      <div className="ex-lib-grid">
-        {allExercises.map((exercise) => {
+      <div className="card">
+        <div className="flex ic jb mb3" style={{paddingBottom:10,borderBottom:"1px solid var(--border)"}}>
+          <div className="card-title" style={{margin:0}}>Listado compacto</div>
+          <span className="badge b-mu">{filteredExercises.length} ejercicios</span>
+        </div>
+        {filteredExercises.length === 0 && (
+          <div className="text-sm text-mu" style={{padding:"10px 0"}}>No hay ejercicios para ese filtro.</div>
+        )}
+        {filteredExercises.map((exercise) => {
           const isCustom = (customExercises || []).some((item) => item.id === exercise.id);
           const imgSrc = exerciseImages[exercise.id] || exercise.imageUrl;
           const isEditing = imgUploadTarget === exercise.id;
           return (
-            <div key={exercise.id} className="ex-lib-card">
-              {imgSrc ? <img src={imgSrc} alt={exercise.name} className="ex-lib-img" /> : <div className="ex-lib-emoji">{exercise.emoji}</div>}
-              <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>{exercise.name}</div>
-              {exercise.muscles && <div style={{fontSize:10,color:"var(--mu)",marginBottom:6}}>{exercise.muscles}</div>}
-              <div className="flex ic g2r" style={{flexWrap:"wrap"}}>
-                <span className={`ex-type-badge ex-type-${exercise.type || "weight"}`}>
-                  {exercise.type === "weight" ? "Peso" : exercise.type === "time" ? "Tiempo" : "Reps"}
-                </span>
-                {isCustom && <span className="badge b-pu" style={{fontSize:9}}>Custom</span>}
+            <div key={exercise.id} style={{display:"grid",gridTemplateColumns:"44px minmax(180px,1fr) minmax(130px,1fr) auto",gap:10,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+              <div style={{display:"flex",justifyContent:"center"}}>
+                {imgSrc
+                  ? <img src={imgSrc} alt={exercise.name} style={{width:34,height:34,objectFit:"cover",borderRadius:8,border:"1px solid var(--border2)"}} />
+                  : <span style={{fontSize:22}}>{exercise.emoji}</span>}
               </div>
-              {isEditing ? (
-                <div className="mt3">
-                  <input type="file" accept="image/*" style={{fontSize:11,width:"100%"}} onChange={(e) => { if (e.target.files[0]) handleImageUpload(exercise.id, e.target.files[0]); }} />
-                  <button className="btn btn-ghost btn-sm mt3" style={{width:"100%"}} onClick={() => setImgUploadTarget(null)}>Cancelar</button>
-                </div>
-              ) : (
-                <button className="btn btn-ghost btn-sm mt3" style={{width:"100%",fontSize:11}} onClick={() => setImgUploadTarget(exercise.id)}>
-                  {imgSrc ? "🔄 Cambiar imagen" : "📷 Añadir imagen"}
-                </button>
-              )}
-              {isCustom && (
-                <button className="btn btn-danger btn-sm mt3" style={{width:"100%",fontSize:11}} onClick={() => setCustomExercises((prev) => (prev || []).filter((item) => item.id !== exercise.id))}>
-                  Eliminar
-                </button>
-              )}
+              <div>
+                <div style={{fontWeight:700,fontSize:13}}>{exercise.name}</div>
+                <div className="text-sm text-mu">{exercise.muscles || "Sin grupo muscular"}</div>
+              </div>
+              <div className="flex ic g2r" style={{flexWrap:"wrap"}}>
+                <span className={`ex-type-badge ex-type-${normalizeExerciseType(exercise.type || "weight")}`}>
+                  {exerciseTypeBadgeLabel(normalizeExerciseType(exercise.type))}
+                </span>
+                {isCustom && <span className="badge b-pu">Custom</span>}
+              </div>
+              <div className="flex ic g2r" style={{justifyContent:"flex-end",flexWrap:"wrap"}}>
+                {isEditing ? (
+                  <>
+                    <input
+                      type="file"
+                      accept={ALLOWED_EXERCISE_IMAGE_ACCEPT}
+                      style={{fontSize:11,maxWidth:230}}
+                      onChange={(e) => { if (e.target.files[0]) handleImageUpload(exercise.id, e.target.files[0]); }}
+                    />
+                    <button className="btn btn-ghost btn-sm" onClick={() => setImgUploadTarget(null)}>Cancelar</button>
+                  </>
+                ) : (
+                  <button className="btn btn-ghost btn-sm" onClick={() => setImgUploadTarget(exercise.id)}>
+                    {imgSrc ? "Cambiar imagen" : "Añadir imagen"}
+                  </button>
+                )}
+                {isCustom && (
+                  <button
+                    className="btn btn-danger btn-sm"
+                    onClick={() => setCustomExercises((prev) => (prev || []).filter((item) => item.id !== exercise.id))}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
-    </div>
-  );
-}
-
-// ─── COACH: SEGUIMIENTO ATLETAS ───────────────────────────────────────────────
-function CoachAtletas({ athletes, setAthletes, week }) {
-  const [selectedAth, setSelectedAth] = useState(null);
-  const hrAthletes = athletes.filter(a => a.isHR);
-  const todayI = todayIdx();
-
-  const toggleDone = (athId) => {
-    setAthletes(athletes.map(a => a.id === athId ? { ...a, todayDone: !a.todayDone } : a));
-  };
-
-  return (
-    <div>
-      <div className="ph">
-        <div className="ph-title">SEGUIMIENTO <span>ATLETAS</span></div>
-        <div className="ph-sub">Control del grupo de Alto Rendimiento · CAR</div>
-      </div>
-
-      <div className="g2 mb6">
-        <div className="card">
-          <div className="card-title">✅ Estado de hoy — {DAYS_FULL[todayI]}</div>
-          {hrAthletes.map((a,i) => (
-            <div key={a.id} className="ath-track-row">
-              <div className={`check-dot ${a.todayDone?"done":"nd"}`}>{a.todayDone?"✓":"·"}</div>
-              <div className={`avatar ${avatarColor(i)}`} style={{width:30,height:30,fontSize:11}}>{a.avatar}</div>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:13}}>{a.name}</div>
-                <div style={{fontSize:11,color:"var(--mu)"}}>{a.group}</div>
-              </div>
-              <div>
-                {a.todayDone
-                  ? <span className="badge b-gr">Completado</span>
-                  : <span className="badge b-re">Pendiente</span>}
-              </div>
-              <button className="btn btn-ghost btn-sm" onClick={()=>setSelectedAth(a)}>Ver</button>
-            </div>
-          ))}
-        </div>
-
-        <div className="card">
-          <div className="card-title">⚖️ Pesos Máximos por Atleta</div>
-          <div style={{overflowX:"auto"}}>
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Atleta</th>
-                  <th>Sentadilla</th>
-                  <th>Peso Muerto</th>
-                  <th>Hip Thrust</th>
-                  <th>Press B.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hrAthletes.map(a => (
-                  <tr key={a.id}>
-                    <td><div style={{fontWeight:700}}>{a.name}</div><div style={{fontSize:11,color:"var(--mu)"}}>{a.group}</div></td>
-                    <td><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:700,color:"var(--or)"}}>{a.maxW?.sq||"—"}</span><span style={{fontSize:10,color:"var(--mu)"}}> kg</span></td>
-                    <td><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:700,color:"var(--or)"}}>{a.maxW?.dl||"—"}</span><span style={{fontSize:10,color:"var(--mu)"}}> kg</span></td>
-                    <td><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:700,color:"var(--or)"}}>{a.maxW?.ht||"—"}</span><span style={{fontSize:10,color:"var(--mu)"}}> kg</span></td>
-                    <td><span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:700,color:"var(--or)"}}>{a.maxW?.bp||"—"}</span><span style={{fontSize:10,color:"var(--mu)"}}> kg</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* Athlete detail modal */}
-      {selectedAth && (
-        <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setSelectedAth(null)}>
-          <div className="modal">
-            <div className="flex ic jb mb4">
-              <div>
-                <div className="modal-title">{selectedAth.name}</div>
-                <span className={`g-tag ${groupClass(selectedAth.group)}`}>{selectedAth.group}</span>
-              </div>
-              <button className="modal-close" onClick={()=>setSelectedAth(null)}>✕</button>
-            </div>
-            <div className="g3 mb4">
-              {GYM_EXERCISES.slice(0,6).map(ex => (
-                selectedAth.maxW?.[ex.id] ? (
-                  <div key={ex.id} style={{background:"var(--s2)",borderRadius:10,padding:"12px 14px"}}>
-                    <div style={{fontSize:10,color:"var(--mu)",letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>{ex.name}</div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900,color:"var(--or)",lineHeight:1}}>{selectedAth.maxW[ex.id]}<span style={{fontSize:12,color:"var(--mu)"}}>kg</span></div>
-                  </div>
-                ) : null
-              ))}
-            </div>
-            <div className="card-title">Volumen esta semana</div>
-            <div className="flex ic g2r">
-              {DAYS_SHORT.map((d,i) => (
-                <div key={i} style={{textAlign:"center",flex:1}}>
-                  <div style={{background:"var(--s2)",borderRadius:6,marginBottom:4,height:50,display:"flex",alignItems:"flex-end",justifyContent:"center",overflow:"hidden"}}>
-                    <div style={{width:"70%",background:"var(--or)",borderRadius:"4px 4px 0 0",opacity:.8,height:`${Math.max(0,(selectedAth.weekKms?.[i]||0)/20*100)}%`,minHeight:selectedAth.weekKms?.[i]>0?4:0,transition:"height .3s"}} />
-                  </div>
-                  <div style={{fontSize:10,color:"var(--mu)"}}>{d}</div>
-                  <div style={{fontSize:11,fontWeight:700}}>{selectedAth.weekKms?.[i]||0}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── COACH: VOLUMEN CAR ───────────────────────────────────────────────────────
-function CoachVolumen({ athletes, week }) {
-  const hrAthletes = athletes.filter(a => a.isHR);
-  const maxKm = Math.max(1, ...hrAthletes.flatMap(a => a.weekKms||[]).filter(Boolean));
-  const weekSummary = weekZoneSummary(week);
-  const [tab, setTab] = useState("zones"); // "zones" | "athletes"
-
-  return (
-    <div>
-      <div className="ph">
-        <div className="ph-title">VOLUMEN <span>CAR</span></div>
-        <div className="ph-sub">Kilómetros por zona de intensidad · Semana {week.type}</div>
-      </div>
-
-      <div className="tab-nav mb4">
-        <button className={`tab-nav-btn ${tab==="zones"?"active":""}`} onClick={()=>setTab("zones")}>📊 Por zonas</button>
-        <button className={`tab-nav-btn ${tab==="athletes"?"active":""}`} onClick={()=>setTab("athletes")}>🏃 Por atleta</button>
-      </div>
-
-      {tab === "zones" && (
-        <>
-          {/* Zone totals summary */}
-          <div className="g4 mb4">
-            {ZONES.map(z => (
-              <div key={z.id} className="stat-card" style={{"--accent":z.color}}>
-                <div style={{position:"absolute",top:0,left:0,right:0,height:2,background:z.color}} />
-                <div className="stat-label">{z.label}</div>
-                <div className="stat-val" style={{color:z.color,fontSize:40}}>
-                  {(weekSummary[z.id]||0).toFixed(1)}<span className="stat-unit">km</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="card mb4">
-            <div className="stat-card" style={{background:"transparent",border:"none",padding:0}}>
-              <div className="stat-label">TOTAL SEMANA</div>
-              <div className="stat-val">{(weekSummary.total||0).toFixed(1)}<span className="stat-unit">km</span></div>
-            </div>
-          </div>
-
-          {/* Per-day zone breakdown */}
-          <div className="card">
-            <div className="card-title">📅 Desglose por día</div>
-            <div style={{display:"grid",gridTemplateColumns:"80px repeat(7,1fr) 80px",gap:8,marginBottom:8}}>
-              <div style={{fontSize:10,color:"var(--mu)",letterSpacing:1,textTransform:"uppercase"}}>Zona</div>
-              {DAYS_SHORT.map(d=><div key={d} style={{textAlign:"center",fontSize:10,color:"var(--mu)",letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>{d}</div>)}
-              <div style={{textAlign:"right",fontSize:10,color:"var(--mu)",letterSpacing:1,textTransform:"uppercase"}}>TOTAL</div>
-            </div>
-            {ZONES.map(z => {
-              const dayVals = (week.days||[]).map((day) => Number(dayZoneSummary(day, week)[z.id] || 0));
-              const rowTotal = dayVals.reduce((s,v)=>s+v,0);
-              return (
-                <div key={z.id} style={{display:"grid",gridTemplateColumns:"80px repeat(7,1fr) 80px",gap:8,padding:"8px 0",borderBottom:"1px solid var(--border)",alignItems:"center"}}>
-                  <div className="flex ic g2r">
-                    <span className="zone-dot" style={{background:z.color,width:8,height:8}} />
-                    <span style={{fontSize:11,fontWeight:700,color:z.color}}>{z.short}</span>
-                  </div>
-                  {dayVals.map((v,i) => (
-                    <div key={i} style={{textAlign:"center"}}>
-                      {v > 0
-                        ? <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,color:z.color}}>{v.toFixed(1)}</span>
-                        : <span style={{color:"var(--border2)",fontSize:12}}>—</span>}
-                    </div>
-                  ))}
-                  <div style={{textAlign:"right",fontFamily:"'Barlow Condensed',sans-serif",fontSize:18,fontWeight:900,color:z.color}}>{rowTotal.toFixed(1)}</div>
-                </div>
-              );
-            })}
-            {/* Totals row */}
-            <div style={{display:"grid",gridTemplateColumns:"80px repeat(7,1fr) 80px",gap:8,padding:"10px 0",alignItems:"center"}}>
-              <div style={{fontSize:11,fontWeight:700,color:"var(--mu)"}}>TOTAL</div>
-              {(week.days||[]).map((d,i) => {
-                const t = dayZoneSummary(d).total;
-                return (
-                  <div key={i} style={{textAlign:"center"}}>
-                    {t > 0
-                      ? <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:16,fontWeight:700,color:"var(--or)"}}>{t.toFixed(1)}</span>
-                      : <span style={{color:"var(--border2)",fontSize:12}}>—</span>}
-                  </div>
-                );
-              })}
-              <div style={{textAlign:"right",fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:900,color:"var(--or)"}}>{(weekSummary.total||0).toFixed(1)}</div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {tab === "athletes" && (
-        <div className="card">
-          <div className="card-title">📊 Km por atleta esta semana</div>
-          <div className="flex ic mb3" style={{gap:12}}>
-            {DAYS_SHORT.map((d,i)=><div key={i} style={{flex:1,textAlign:"center",fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,color:"var(--mu)",letterSpacing:1,fontWeight:700}}>{d}</div>)}
-            <div style={{width:56,textAlign:"right",fontFamily:"'Barlow Condensed',sans-serif",fontSize:12,color:"var(--mu)",letterSpacing:1,fontWeight:700}}>TOTAL</div>
-          </div>
-          {hrAthletes.map((a,ai) => {
-            const total = (a.weekKms||[]).reduce((s,k)=>s+k,0);
-            const colors = ["var(--or)","var(--bl)","var(--gr)","var(--pu)","var(--am)","var(--or)","var(--bl)"];
-            return (
-              <div key={a.id} className="km-row">
-                <div className="km-name">{a.name.split(" ")[0]}</div>
-                <div className="km-bars">
-                  {DAYS_SHORT.map((_,i)=>{
-                    const km = a.weekKms?.[i]||0;
-                    const h = maxKm > 0 ? (km/maxKm)*40 : 0;
-                    return <div key={i} title={`${km} km`} className="km-bar" style={{height:h,background:colors[ai%colors.length],opacity:.75}} />;
-                  })}
-                </div>
-                <div className="km-total">{total}</div>
-              </div>
-            );
-          })}
-          <div className="divider" />
-          <div className="flex ic jb">
-            <div style={{fontSize:12,color:"var(--mu)"}}>📡 Datos sincronizados con Strava · {new Date().toLocaleDateString("es-ES")}</div>
-            <button className="btn btn-ghost btn-sm">🔄 Sincronizar Strava</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -3172,10 +4404,10 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
   const [creating, setCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [error, setError] = useState("");
-  const allGroups = mergeGroupOptions(GROUPS, groups, athletes.map(a => a.group));
+  const allGroups = mergeGroupOptions(GROUPS, groups, collectAthleteGroups(athletes));
 
   const changeGroup = (athId, nextGroup) => {
-    setAthletes(athletes.map(a => a.id===athId ? {...a, group:nextGroup} : a));
+    setAthletes(athletes.map((a, idx) => a.id===athId ? normalizeAthleteRecord({ ...a, groups:[nextGroup], group:nextGroup }, idx) : normalizeAthleteRecord(a, idx)));
   };
 
   const createGroup = () => {
@@ -3205,7 +4437,7 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
 
       <div className="g3 mb6">
         {allGroups.map(g => {
-          const members = athletes.filter(a=>a.group===g);
+          const members = athletes.filter(a => athleteBelongsToGroup(a, g));
           return (
             <div key={g} className="card">
               <div className="flex ic jb mb4">
@@ -3216,7 +4448,6 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
                 <div key={a.id} className="flex ic g3r mb3">
                   <div className="avatar" style={{width:28,height:28,fontSize:10}}>{a.avatar}</div>
                   <div style={{flex:1,fontSize:13,fontWeight:600}}>{a.name}</div>
-                  {a.isHR && <span className="badge b-ya">Alto Rend.</span>}
                 </div>
               ))}
               {members.length===0 && <div className="text-mu text-sm">Sin atletas</div>}
@@ -3233,12 +4464,11 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
             <div className="avatar" style={{width:30,height:30,fontSize:11}}>{a.avatar}</div>
             <div style={{minWidth:180}}>
               <div style={{fontSize:13,fontWeight:700}}>{a.name}</div>
-              <div style={{fontSize:11,color:"var(--mu)"}}>{a.group}</div>
+              <div style={{fontSize:11,color:"var(--mu)"}}>{getAthleteGroupsLabel(a)}</div>
             </div>
-            <select className="select" value={a.group} onChange={e=>changeGroup(a.id, e.target.value)} style={{maxWidth:220}}>
+            <select className="select" value={getAthletePrimaryGroup(a)} onChange={e=>changeGroup(a.id, e.target.value)} style={{maxWidth:220}}>
               {allGroups.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
-            {a.isHR && <span className="badge b-ya">Alto Rend.</span>}
           </div>
         ))}
       </div>
@@ -3267,85 +4497,175 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
 }
 
 // ─── COACH: CALENDARIO ────────────────────────────────────────────────────────
-function CoachCalendario({ week }) {
+function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnchorDate }) {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const [viewMonth, setViewMonth] = useState(month);
-  const firstDay = new Date(year, viewMonth, 1).getDay();
-  const daysInMonth = new Date(year, viewMonth+1, 0).getDate();
-  const today = now.getDate();
-  const offset = firstDay===0 ? 6 : firstDay-1;
-
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+  const [viewMonth, setViewMonth] = useState(now.getMonth());
+  const [selected, setSelected] = useState(null); // { dateIso }
   const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-  const weekTypeColors = {
-    "Adaptación":"var(--bl)",
-    "General":"var(--ya)",
-    "Preparatoria":"var(--or)",
-    "Inicial":"var(--or)",
-    "Volumen":"var(--ya)",
-    "Competitiva":"var(--re)",
-    "Recuperación":"var(--gr)",
-    "Transición":"var(--pu)"
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const offset = firstDow === 0 ? 6 : firstDow - 1;
+  const todayIso = toIsoDate();
+  const currentWeekNumber = normalizeWeekNumber(
+    activeWeekNumber,
+    week.weekNumber || getTodaySeasonWeekNumber(seasonAnchorDate)
+  );
+  const publishedWeek = resolvePublishedWeek(week, routines);
+  const calendarWeek = publishedWeek || null;
+  const weekPlansByDate = DAYS_FULL.reduce((acc, _day, dayIndex) => {
+    const dateIso = getDateIsoForWeekDay(currentWeekNumber, dayIndex, seasonAnchorDate);
+    acc[dateIso] = calendarWeek ? { dayIndex, dayPlan: calendarWeek.days?.[dayIndex] || {} } : null;
+    return acc;
+  }, {});
+  const weekSummary = calendarWeek ? weekZoneSummary(calendarWeek) : { ...emptyZones(), total:0 };
+
+  const historyByDate = {};
+  (history || []).forEach((row) => {
+    const key = row?.dateIso;
+    if (!key) return;
+    if (!historyByDate[key]) historyByDate[key] = [];
+    historyByDate[key].push(row);
+  });
+
+  const goMonth = (delta) => {
+    let nextMonth = viewMonth + delta;
+    let nextYear = viewYear;
+    if (nextMonth < 0) { nextMonth = 11; nextYear -= 1; }
+    if (nextMonth > 11) { nextMonth = 0; nextYear += 1; }
+    setViewMonth(nextMonth);
+    setViewYear(nextYear);
   };
+
+  const selectedInfo = (() => {
+    if (!selected) return null;
+    const mapped = weekPlansByDate[selected.dateIso] || null;
+    const dayPlan = mapped?.dayPlan || {};
+    return {
+      dayIndex: mapped?.dayIndex ?? null,
+      dayPlan,
+      am: mapped ? getSlotSessions(dayPlan, "am", calendarWeek) : [],
+      pm: mapped ? getSlotSessions(dayPlan, "pm", calendarWeek) : [],
+      gymPlan: mapped ? getDayResolvedGymPlan(dayPlan, routines) : null,
+      dayZones: mapped ? dayZoneSummary(dayPlan, calendarWeek) : { ...emptyZones(), total:0 },
+      records: historyByDate[selected.dateIso] || [],
+    };
+  })();
 
   return (
     <div>
       <div className="ph">
-        <div className="ph-title">CALENDARIO <span>MENSUAL</span></div>
-        <div className="ph-sub">Vista de todos los entrenamientos · {monthNames[viewMonth]} {year}</div>
+        <div className="ph-title">CALENDARIO <span>COACH</span></div>
+        <div className="ph-sub">
+          Semana {currentWeekNumber} · {calendarWeek ? "Haz clic en un día para ver entreno, gym, kms y estado." : "La semana aún no está publicada."}
+        </div>
       </div>
 
-      {/* Week type */}
-      <div className="wt-banner mb6">
-        <div style={{width:10,height:10,borderRadius:"50%",background:weekTypeColors[week.type]||"var(--or)"}} />
+      <div className="g2" style={{alignItems:"start"}}>
+        <div className="card">
+          <div className="flex ic jb mb4">
+            <button className="btn btn-ghost btn-sm" onClick={() => goMonth(-1)}>← Ant.</button>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700}}>{monthNames[viewMonth]} {viewYear}</div>
+            <button className="btn btn-ghost btn-sm" onClick={() => goMonth(1)}>Sig. →</button>
+          </div>
+          <div className="cal-grid" style={{marginBottom:8}}>
+            {DAYS_SHORT.map((d) => <div key={d} style={{textAlign:"center",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",fontWeight:700,padding:"6px 0"}}>{d}</div>)}
+          </div>
+          <div className="cal-grid">
+            {Array(offset).fill(null).map((_, i) => <div key={`empty_${i}`} />)}
+            {Array(daysInMonth).fill(null).map((_, i) => {
+              const day = i + 1;
+              const dateIso = `${String(viewYear).padStart(4, "0")}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const isToday = dateIso === todayIso;
+              const mapped = weekPlansByDate[dateIso] || null;
+              const dayPlan = mapped?.dayPlan || null;
+              const hasTrain = !!dayPlan && !!calendarWeek && (getSlotSessions(dayPlan, "am", calendarWeek).length > 0 || getSlotSessions(dayPlan, "pm", calendarWeek).length > 0);
+              const hasGym = !!dayPlan?.gym;
+              const records = historyByDate[dateIso] || [];
+              const isSelected = selected?.dateIso === dateIso;
+              return (
+                <div key={day} className={`cal-cell ${hasTrain ? "has-training" : ""} ${isToday ? "today-cell" : ""}`} style={isSelected ? {borderColor:"var(--or)",background:"rgba(255,107,26,.1)"} : {}} onClick={() => setSelected({ dateIso })}>
+                  <div className="cal-day-num" style={{color:isToday ? "var(--or)" : "var(--tx)"}}>{day}</div>
+                  {records.length > 0 && <span className="cal-dot" style={{background:"var(--gr)"}} />}
+                  {!records.length && hasTrain && <span className="cal-dot" style={{background:"var(--or)"}} />}
+                  {hasGym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
+                </div>
+              );
+            })}
+          </div>
+          <div className="divider" />
+          <div className="flex ic g4r" style={{flexWrap:"wrap"}}>
+            <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--gr)"}} /> Realizado</div>
+            <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> Plan</div>
+            <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--pu)"}} /> Gym</div>
+          </div>
+        </div>
+
         <div>
-          <div className="wt-label">Semana actual</div>
-          <div className="wt-val">{week.type}</div>
-        </div>
-        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
-          {WEEK_TYPES.map(t=>(
-            <div key={t} className="flex ic g2r" style={{fontSize:11,color:"var(--mu)"}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:weekTypeColors[t]}} />
-              {t}
+          <div className="card mb4">
+            <div className="card-title" style={{marginBottom:8}}>Resumen semanal</div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,color:"var(--or)"}}>{weekSummary.total.toFixed(1)}<span style={{fontSize:16,color:"var(--mu)"}}> km</span></div>
+            <div className="zone-total-row mt3">
+              {ZONES.map((zone) => (
+                <span key={zone.id} className="zone-pill" style={{background:`${zone.color}22`,color:zone.color}}>
+                  <span className="zone-dot" style={{background:zone.color}} />
+                  {zone.short} {Number(weekSummary[zone.id] || 0).toFixed(1)} km
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+            <div className="mt3" style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:8}}>
+              {ZONES.map((zone) => (
+                <div key={`wk_${zone.id}`} style={{background:"var(--s2)",border:"1px solid var(--border2)",borderRadius:10,padding:"8px 10px"}}>
+                  <div style={{fontSize:10,letterSpacing:1.4,textTransform:"uppercase",color:"var(--mu)",fontWeight:700}}>{zone.short}</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:900,color:zone.color,lineHeight:1.05}}>
+                    {Number(weekSummary[zone.id] || 0).toFixed(1)} <span style={{fontSize:11,color:"var(--mu2)",fontFamily:"'Nunito',sans-serif"}}>km</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-      <div className="card">
-        <div className="flex ic jb mb4">
-          <button className="btn btn-ghost btn-sm" onClick={()=>setViewMonth(v=>Math.max(0,v-1))}>← Ant.</button>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700}}>{monthNames[viewMonth]} {year}</div>
-          <button className="btn btn-ghost btn-sm" onClick={()=>setViewMonth(v=>Math.min(11,v+1))}>Sig. →</button>
-        </div>
+          {!selected && (
+            <div className="card" style={{textAlign:"center",padding:34}}>
+              <div style={{fontSize:34,marginBottom:8}}>📅</div>
+              <div style={{color:"var(--mu)"}}>Selecciona un día para ver el detalle.</div>
+            </div>
+          )}
 
-        <div className="cal-grid" style={{marginBottom:8}}>
-          {DAYS_SHORT.map(d=><div key={d} style={{textAlign:"center",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",fontWeight:700,padding:"6px 0"}}>{d}</div>)}
-        </div>
-
-        <div className="cal-grid">
-          {Array(offset).fill(null).map((_,i)=><div key={"e"+i} />)}
-          {Array(daysInMonth).fill(null).map((_,i)=>{
-            const day = i+1;
-            const isToday = viewMonth===month && day===today;
-            const dow = (offset+i) % 7;
-            const hasTrain = getSlotSessions(week.days[dow], "am", week).length > 0 || getSlotSessions(week.days[dow], "pm", week).length > 0;
-            const hasGym = !!week.days[dow]?.gym;
-            return (
-              <div key={day} className={`cal-cell ${hasTrain?"has-training":""} ${isToday?"today-cell":""}`}>
-                <div className="cal-day-num" style={{color:isToday?"var(--or)":"var(--tx)"}}>{day}</div>
-                {hasTrain && <span className="cal-dot" style={{background:"var(--or)"}} />}
-                {hasGym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
+          {selected && selectedInfo && (
+              <div className="card">
+                <div className="flex ic jb mb4">
+                  <div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900}}>{selectedInfo.dayIndex != null ? DAYS_FULL[selectedInfo.dayIndex] : "Sin planificación"} {selected.dateIso}</div>
+                    {selectedInfo.records.length > 0
+                      ? <span className="badge b-gr">Realizado · {selectedInfo.records.length} registro(s)</span>
+                      : selectedInfo.dayIndex == null
+                        ? <span className="badge b-mu">Sin plan semanal</span>
+                        : selected.dateIso <= todayIso
+                        ? <span className="badge b-re">Sin registro</span>
+                        : <span className="badge b-bl">Planificado</span>}
+                  </div>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>Cerrar</button>
               </div>
-            );
-          })}
-        </div>
-
-        <div className="divider" />
-        <div className="flex ic g4r" style={{flexWrap:"wrap"}}>
-          <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> Entrenamiento</div>
-          <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--pu)"}} /> Gym</div>
+              {selectedInfo.am.map((session, idx) => <div key={session.id || `am_${idx}`} className="session"><div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {groupLabel(session.targetGroup)}</div><div className="sess-txt">{session.name}</div></div>)}
+              {selectedInfo.pm.map((session, idx) => <div key={session.id || `pm_${idx}`} className="session pm"><div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {groupLabel(session.targetGroup)}</div><div className="sess-txt">{session.name}</div></div>)}
+              {selectedInfo.dayPlan?.gym && <div className="session gym"><div className="sess-lbl">🏋️ Gym</div><div className="sess-txt">{selectedInfo.gymPlan?.name || "Rutina"} · {getDayGymCount(selectedInfo.dayPlan, routines)} ejercicios</div></div>}
+              {!selectedInfo.am.length && !selectedInfo.pm.length && !selectedInfo.dayPlan?.gym && <div className="text-sm text-mu">Descanso</div>}
+              <div className="divider" />
+              <div className="card card-sm" style={{background:"var(--s2)"}}>
+                <div className="fw7" style={{marginBottom:8}}>Resumen diario de kms</div>
+                <div className="zone-total-row">
+                  {ZONES.map((zone) => (
+                    <span key={zone.id} className="zone-pill" style={{background:`${zone.color}22`,color:zone.color}}>
+                      <span className="zone-dot" style={{background:zone.color}} />
+                      {zone.short} {Number(selectedInfo.dayZones[zone.id] || 0).toFixed(1)} km
+                    </span>
+                  ))}
+                </div>
+                <div className="text-sm mt3">Total del día: <strong style={{color:"var(--or)"}}>{selectedInfo.dayZones.total.toFixed(1)} km</strong></div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -3353,30 +4673,548 @@ function CoachCalendario({ week }) {
 }
 
 // ─── COACH: HISTORIAL ─────────────────────────────────────────────────────────
-function CoachHistorial({ history }) {
-  const rows = Array.isArray(history) ? history : [];
+function CoachHistorial({
+  weekPlansByNumber,
+  routines,
+  history,
+  athletes,
+  setAthletes,
+  groups,
+  view = "history",
+  seasonAnchorDate,
+}) {
+  const [openWeekNumber, setOpenWeekNumber] = useState(null);
+  const [newAthleteName, setNewAthleteName] = useState("");
+  const [newAthleteGroups, setNewAthleteGroups] = useState(["por-asignar"]);
+  const [athleteError, setAthleteError] = useState("");
+  const [editingAthleteId, setEditingAthleteId] = useState(null);
+  const [editingMaxW, setEditingMaxW] = useState({});
+  const [showBulkWeightEditor, setShowBulkWeightEditor] = useState(false);
+  const [bulkWeightDraft, setBulkWeightDraft] = useState({});
+  const plans = normalizeWeekPlansByNumber(weekPlansByNumber, routines, seasonAnchorDate);
+  const roster = normalizeAthletes(athletes || []);
+  const allGroups = mergeGroupOptions(GROUPS, groups, collectAthleteGroups(roster));
+  const weightExercises = ALL_BUILTIN_GYM_EXERCISES.filter((exercise) => normalizeExerciseType(exercise.type) === "weight");
+  const isAthletesView = view === "athletes";
+  const publishedWeeks = Object.values(plans)
+    .map((week) => normalizeWeek(week, routines))
+    .filter((week) => week.published)
+    .sort((a, b) => normalizeWeekNumber(b.weekNumber, 0) - normalizeWeekNumber(a.weekNumber, 0));
+
+  useEffect(() => {
+    if (openWeekNumber == null) return;
+    const exists = publishedWeeks.some((week) => normalizeWeekNumber(week.weekNumber, 0) === openWeekNumber);
+    if (!exists) setOpenWeekNumber(null);
+  }, [openWeekNumber, publishedWeeks]);
+
+  const historyByDate = {};
+  (Array.isArray(history) ? history : []).forEach((row) => {
+    const key = row?.dateIso;
+    if (!key) return;
+    if (!historyByDate[key]) historyByDate[key] = [];
+    historyByDate[key].push(row);
+  });
+
+  const formatWeekRange = (week) => {
+    if (!week?.startDate || !week?.endDate) return "Sin rango de fechas";
+    return `${week.startDate} → ${week.endDate}`;
+  };
+  const parseSelectedGroups = (selectedValues) => {
+    const normalized = collectGroupValues(selectedValues);
+    return normalized.length ? normalized : ["por-asignar"];
+  };
+  const buildBulkWeightDraft = (list) => {
+    const draft = {};
+    normalizeAthletes(list).forEach((athlete) => {
+      draft[athlete.id] = {};
+      weightExercises.forEach((exercise) => {
+        const value = Number(athlete.maxW?.[exercise.id]);
+        draft[athlete.id][exercise.id] = Number.isFinite(value) && value > 0 ? String(value) : "";
+      });
+    });
+    return draft;
+  };
+  const handleCreateAthlete = () => {
+    const name = String(newAthleteName || "").trim();
+    if (!name) {
+      setAthleteError("Escribe el nombre del atleta.");
+      return;
+    }
+    const exists = roster.some((athlete) => athlete.name.trim().toLowerCase() === name.toLowerCase());
+    if (exists) {
+      setAthleteError("Ese atleta ya existe.");
+      return;
+    }
+    const groupsForNewAthlete = parseSelectedGroups(newAthleteGroups);
+    const created = normalizeAthleteRecord({
+      id: `ath_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      group: groupsForNewAthlete[0],
+      groups: groupsForNewAthlete,
+      avatar: name.split(" ").map((word) => word[0]).join("").toUpperCase().slice(0, 2),
+      maxW: {},
+      weekKms: [],
+      todayDone: false,
+    }, roster.length);
+    setAthletes((prev) => [...normalizeAthletes(prev), created]);
+    setNewAthleteName("");
+    setNewAthleteGroups(groupsForNewAthlete);
+    setAthleteError("");
+  };
+  const updateAthleteGroups = (athleteId, selectedValues) => {
+    const nextGroups = parseSelectedGroups(selectedValues);
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) =>
+      athlete.id === athleteId
+        ? normalizeAthleteRecord({ ...athlete, group:nextGroups[0], groups:nextGroups }, idx)
+        : normalizeAthleteRecord(athlete, idx)
+    ));
+  };
+  const openWeightEditor = (athlete) => {
+    setEditingAthleteId(athlete.id);
+    setEditingMaxW({ ...(athlete.maxW || {}) });
+  };
+  const closeWeightEditor = () => {
+    setEditingAthleteId(null);
+    setEditingMaxW({});
+  };
+  const saveWeights = () => {
+    if (!editingAthleteId) return;
+    const cleaned = Object.fromEntries(
+      Object.entries(editingMaxW || {})
+        .map(([exId, value]) => [exId, Number(value)])
+        .filter(([, value]) => Number.isFinite(value) && value > 0)
+    );
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) =>
+      athlete.id === editingAthleteId
+        ? normalizeAthleteRecord({ ...athlete, maxW: cleaned }, idx)
+        : normalizeAthleteRecord(athlete, idx)
+    ));
+    closeWeightEditor();
+  };
+  const openBulkWeightEditor = () => {
+    setBulkWeightDraft(buildBulkWeightDraft(roster));
+    setShowBulkWeightEditor(true);
+  };
+  const closeBulkWeightEditor = () => {
+    setShowBulkWeightEditor(false);
+    setBulkWeightDraft({});
+  };
+  const setBulkWeightCell = (athleteId, exerciseId, value) => {
+    setBulkWeightDraft((prev) => ({
+      ...prev,
+      [athleteId]: {
+        ...(prev[athleteId] || {}),
+        [exerciseId]: value,
+      },
+    }));
+  };
+  const saveBulkWeights = () => {
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) => {
+      const row = bulkWeightDraft[athlete.id] || {};
+      const nextMaxW = { ...(athlete.maxW || {}) };
+      weightExercises.forEach((exercise) => {
+        const rawValue = row[exercise.id];
+        const numeric = Number(rawValue);
+        if (rawValue == null || rawValue === "" || !Number.isFinite(numeric) || numeric <= 0) {
+          delete nextMaxW[exercise.id];
+          return;
+        }
+        nextMaxW[exercise.id] = numeric;
+      });
+      return normalizeAthleteRecord({ ...athlete, maxW: nextMaxW }, idx);
+    }));
+    closeBulkWeightEditor();
+  };
+  const editingAthlete = roster.find((athlete) => athlete.id === editingAthleteId) || null;
+
   return (
     <div>
-      <div className="ph"><div className="ph-title">HISTORIAL <span>DE ENTRENOS</span></div><div className="ph-sub">Registro de todas las sesiones completadas</div></div>
+      <div className="ph">
+        {isAthletesView
+          ? <div className="ph-title">GESTIÓN <span>ATLETAS</span></div>
+          : <div className="ph-title">HISTORIAL <span>SEMANAL</span></div>}
+        <div className="ph-sub">
+          {isAthletesView
+            ? "Alta de atletas, asignación multi-grupo y edición de pesos máximos (solo coach)."
+            : "Semanas publicadas en formato compacto. Clic para ver entrenos, gym, kms y estado diario."}
+        </div>
+      </div>
+
+      {isAthletesView && (
+        <div className="card mb4">
+          <div className="card-title">👥 Gestión de atletas</div>
+          <div className="text-sm text-mu mb3">Solo el entrenador puede crear perfiles, asignar grupos y editar pesos máximos.</div>
+          <div className="g2 mb3">
+            <div className="form-group" style={{margin:0}}>
+              <label className="form-label">Nombre del atleta</label>
+              <input
+                className="input"
+                value={newAthleteName}
+                onChange={(e) => setNewAthleteName(e.target.value)}
+                placeholder="Nombre y apellido"
+              />
+            </div>
+            <div className="form-group" style={{margin:0}}>
+              <label className="form-label">Grupos (multi-selección)</label>
+              <MultiSelect
+                options={allGroups}
+                values={newAthleteGroups}
+                onChange={setNewAthleteGroups}
+                placeholder="Selecciona grupos"
+              />
+            </div>
+          </div>
+          <div className="flex ic g2r" style={{justifyContent:"space-between",flexWrap:"wrap"}}>
+            <div className="text-sm text-mu">Puedes asignar uno o varios grupos por atleta.</div>
+            <div className="flex ic g2r" style={{marginLeft:"auto",flexWrap:"wrap"}}>
+              <button className="btn btn-ghost" onClick={openBulkWeightEditor}>⚖️ Modificar pesos generales</button>
+              <button className="btn btn-or" onClick={handleCreateAthlete}>+ Crear atleta</button>
+            </div>
+          </div>
+          {athleteError && <div className="text-sm mt3" style={{color:"var(--re)"}}>{athleteError}</div>}
+          <div className="divider" />
+          <div className="g2">
+            {roster.map((athlete) => (
+              <div key={athlete.id} className="card card-sm">
+                <div className="flex ic jb mb3">
+                  <div className="flex ic g3r">
+                    <div className="avatar" style={{width:34,height:34,fontSize:12}}>{athlete.avatar}</div>
+                    <div>
+                      <div style={{fontWeight:700}}>{athlete.name}</div>
+                      <div className="text-sm text-mu">Grupos: {getAthleteGroupsLabel(athlete)}</div>
+                    </div>
+                  </div>
+                  <button className="btn btn-ghost btn-sm" onClick={() => openWeightEditor(athlete)}>⚖️ Pesos</button>
+                </div>
+                <MultiSelect
+                  options={allGroups}
+                  values={getAthleteGroups(athlete)}
+                  onChange={(nextGroups) => updateAthleteGroups(athlete.id, nextGroups)}
+                  placeholder="Selecciona grupos"
+                />
+              </div>
+            ))}
+            {roster.length === 0 && <div className="text-sm text-mu">No hay atletas creados todavía.</div>}
+          </div>
+        </div>
+      )}
+
+      {!isAthletesView && publishedWeeks.length === 0 && (
+        <div className="card">
+          <div className="text-mu text-sm">Todavía no hay semanas publicadas en el historial.</div>
+        </div>
+      )}
+
+      {!isAthletesView && publishedWeeks.map((week) => {
+        const weekNumber = normalizeWeekNumber(week.weekNumber, getTodaySeasonWeekNumber(seasonAnchorDate));
+        const isOpen = openWeekNumber === weekNumber;
+        const summary = weekZoneSummary(week);
+        return (
+          <div key={week.id || `hist_week_${weekNumber}`} className="card mb3">
+            <button
+              className="btn btn-ghost"
+              style={{width:"100%",textAlign:"left",padding:0,border:"none",background:"transparent"}}
+              onClick={() => setOpenWeekNumber((prev) => prev === weekNumber ? null : weekNumber)}
+            >
+              <div className="flex ic jb" style={{alignItems:"flex-start",gap:16}}>
+                <div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:900}}>Semana {weekNumber}</div>
+                  <div className="text-sm text-mu">{week.type} · {formatWeekRange(week)}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div className="text-sm text-mu" style={{textTransform:"uppercase",letterSpacing:1}}>Resumen kms</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:34,fontWeight:900,color:"var(--or)"}}>
+                    {summary.total.toFixed(1)}<span style={{fontSize:14,color:"var(--mu)"}}> km</span>
+                  </div>
+                  <div className="zone-total-row" style={{justifyContent:"flex-end"}}>
+                    {ZONES.filter((zone) => Number(summary[zone.id] || 0) > 0).map((zone) => (
+                      <span key={zone.id} className="zone-pill" style={{background:`${zone.color}22`,color:zone.color}}>
+                        <span className="zone-dot" style={{background:zone.color}} />
+                        {zone.short} {Number(summary[zone.id]).toFixed(1)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </button>
+
+            {isOpen && (
+              <>
+                <div className="divider" />
+                <div className="g2">
+                  {DAYS_FULL.map((dayName, dayIndex) => {
+                    const day = week.days?.[dayIndex] || {};
+                    const amSessions = getSlotSessions(day, "am", week);
+                    const pmSessions = getSlotSessions(day, "pm", week);
+                    const gymPlan = getDayResolvedGymPlan(day, routines);
+                    const dayZones = dayZoneSummary(day, week);
+                    const dateIso = getDateIsoForWeekDay(weekNumber, dayIndex, seasonAnchorDate);
+                    const records = historyByDate[dateIso] || [];
+                    return (
+                      <div key={`${weekNumber}_${dayIndex}`} className="card card-sm">
+                        <div className="flex ic jb mb3">
+                          <div>
+                            <div style={{fontWeight:800}}>{dayName}</div>
+                            <div className="text-sm text-mu">{dateIso}</div>
+                          </div>
+                          {records.length > 0
+                            ? <span className="badge b-gr">Realizado ({records.length})</span>
+                            : dateIso <= toIsoDate()
+                              ? <span className="badge b-re">Sin registro</span>
+                              : <span className="badge b-bl">Planificado</span>}
+                        </div>
+                        {amSessions.map((session, idx) => (
+                          <div key={session.id || `hist_am_${dayIndex}_${idx}`} className="session">
+                            <div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {groupLabel(session.targetGroup)}</div>
+                            <div className="sess-txt">{session.name}</div>
+                          </div>
+                        ))}
+                        {pmSessions.map((session, idx) => (
+                          <div key={session.id || `hist_pm_${dayIndex}_${idx}`} className="session pm">
+                            <div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {groupLabel(session.targetGroup)}</div>
+                            <div className="sess-txt">{session.name}</div>
+                          </div>
+                        ))}
+                        {day.gym && (
+                          <div className="session gym">
+                            <div className="sess-lbl">🏋️ Gym</div>
+                            <div className="sess-txt">{gymPlan?.name || "Rutina"} · {getDayGymCount(day, routines)} ejercicios</div>
+                          </div>
+                        )}
+                        {!amSessions.length && !pmSessions.length && !day.gym && <div className="text-sm text-mu">Descanso</div>}
+                        <div className="divider" />
+                        <div className="text-sm">Kms día: <strong style={{color:"var(--or)"}}>{dayZones.total.toFixed(1)} km</strong></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+
+      {isAthletesView && editingAthlete && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeWeightEditor()}>
+          <div className="modal" style={{maxWidth:760}}>
+            <div className="flex ic jb mb4">
+              <div className="modal-title">Pesos máximos · {editingAthlete.name}</div>
+              <button className="modal-close" onClick={closeWeightEditor}>✕</button>
+            </div>
+            <div className="g3">
+              {weightExercises.map((exercise) => (
+                  <div key={exercise.id} className="form-group" style={{marginBottom:10}}>
+                    <label className="form-label">{exercise.emoji} {exercise.name}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="input"
+                      value={editingMaxW[exercise.id] ?? ""}
+                      onChange={(e) => setEditingMaxW((prev) => ({ ...prev, [exercise.id]: e.target.value }))}
+                      placeholder="kg"
+                    />
+                  </div>
+                ))}
+            </div>
+            <div className="flex ic g2r mt4">
+              <button className="btn btn-ghost" style={{flex:1}} onClick={closeWeightEditor}>Cancelar</button>
+              <button className="btn btn-or" style={{flex:1}} onClick={saveWeights}>Guardar pesos</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAthletesView && showBulkWeightEditor && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeBulkWeightEditor()}>
+          <div className="modal modal-no-scroll" style={{width:"96vw",maxWidth:1400}}>
+            <div className="flex ic jb mb4">
+              <div className="modal-title">Modificar Pesos Generales</div>
+              <button className="modal-close" onClick={closeBulkWeightEditor}>✕</button>
+            </div>
+            <div className="text-sm text-mu mb4">
+              Edita pesos máximos por atleta y ejercicio. Al guardar se aplicarán todas las modificaciones de la tabla.
+            </div>
+            <div style={{border:"1px solid var(--border)",borderRadius:12,overflow:"auto",maxHeight:"64vh",flex:1,minHeight:0}}>
+              <table className="tbl" style={{minWidth:Math.max(860, 260 + (weightExercises.length * 130)),margin:0}}>
+                <thead>
+                  <tr>
+                    <th style={{position:"sticky",left:0,zIndex:3,background:"var(--s2)"}}>Atleta</th>
+                    {weightExercises.map((exercise) => (
+                      <th key={exercise.id} style={{minWidth:130}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span>{exercise.emoji}</span>
+                          <span>{exercise.name}</span>
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {roster.map((athlete) => (
+                    <tr key={`bulk_weight_${athlete.id}`}>
+                      <td style={{position:"sticky",left:0,zIndex:2,background:"var(--s2)",fontWeight:700}}>
+                        {athlete.name}
+                      </td>
+                      {weightExercises.map((exercise) => (
+                        <td key={`${athlete.id}_${exercise.id}`}>
+                          <input
+                            type="number"
+                            min="0"
+                            className="input"
+                            style={{minWidth:96,padding:"8px 10px"}}
+                            value={bulkWeightDraft?.[athlete.id]?.[exercise.id] ?? ""}
+                            onChange={(e) => setBulkWeightCell(athlete.id, exercise.id, e.target.value)}
+                            placeholder="kg"
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex ic g2r mt4">
+              <button className="btn btn-ghost" style={{flex:1}} onClick={closeBulkWeightEditor}>Cancelar</button>
+              <button className="btn btn-or" style={{flex:1}} onClick={saveBulkWeights}>Guardar todos los pesos</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── COACH: TEMPORADAS ───────────────────────────────────────────────────────
+function CoachTemporadas({
+  currentSeasonId,
+  seasonWeekOneStartIso,
+  seasons,
+  onFinalizeSeason,
+}) {
+  const [nextSeasonId, setNextSeasonId] = useState(getNextSeasonId(currentSeasonId));
+  const [nextWeekOneStartIso, setNextWeekOneStartIso] = useState("");
+  const [error, setError] = useState("");
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    setNextSeasonId(getNextSeasonId(currentSeasonId));
+    const currentStart = parseIsoDateToLocalDate(seasonWeekOneStartIso) || SEASON_ANCHOR_DATE;
+    const nextStart = new Date(currentStart.getFullYear() + 1, currentStart.getMonth(), currentStart.getDate());
+    setNextWeekOneStartIso(toIsoDate(nextStart));
+    setError("");
+    setConfirming(false);
+  }, [currentSeasonId, seasonWeekOneStartIso]);
+
+  const archived = (Array.isArray(seasons) ? seasons : [])
+    .filter((season) => season?.id !== currentSeasonId && season?.finalizedAt)
+    .sort((a, b) => String(b.finalizedAt || "").localeCompare(String(a.finalizedAt || "")));
+
+  const handleFinalize = () => {
+    const normalizedNextSeason = normalizeSeasonId(nextSeasonId, getNextSeasonId(currentSeasonId));
+    const normalizedWeekStart = normalizeSeasonWeekOneStartIso(nextWeekOneStartIso, "");
+    if (!normalizedWeekStart) {
+      setError("Selecciona la fecha de inicio de la semana 1 para la nueva temporada.");
+      return;
+    }
+    if (normalizedNextSeason === normalizeSeasonId(currentSeasonId, DEFAULT_SEASON_ID)) {
+      setError("La nueva temporada debe ser distinta a la temporada activa.");
+      setConfirming(false);
+      return;
+    }
+    if (!confirming) {
+      setConfirming(true);
+      return;
+    }
+    onFinalizeSeason?.({
+      nextSeasonId: normalizedNextSeason,
+      nextWeekOneStartIso: normalizedWeekStart,
+    });
+    setConfirming(false);
+    setError("");
+  };
+
+  return (
+    <div>
+      <div className="ph">
+        <div className="ph-title">TEMPORADAS <span>COACH</span></div>
+        <div className="ph-sub">Gestiona cierres de temporada y reinicio de planificación</div>
+      </div>
+
+      <div className="card mb4">
+        <div className="card-title">Temporada activa</div>
+        <div className="g2">
+          <div>
+            <div className="form-label">Temporada</div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:900}}>{currentSeasonId}</div>
+          </div>
+          <div>
+            <div className="form-label">Semana 1 inicia</div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:900,color:"var(--or)"}}>
+              {seasonWeekOneStartIso}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card mb4">
+        <div className="card-title">Finalizar temporada</div>
+        <div className="text-sm text-mu mb4">
+          Al finalizar, se archiva todo el histórico de la temporada actual y se resetea la app para la nueva temporada.
+          Los pesos de los atletas se conservan.
+        </div>
+        <div className="g2">
+          <div className="form-group">
+            <label className="form-label">Nueva temporada</label>
+            <input
+              className="input"
+              value={nextSeasonId}
+              onChange={(e) => setNextSeasonId(e.target.value)}
+              placeholder="26/27"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Semana 1 (fecha inicio)</label>
+            <input
+              className="input"
+              type="date"
+              value={nextWeekOneStartIso}
+              onChange={(e) => setNextWeekOneStartIso(e.target.value)}
+            />
+          </div>
+        </div>
+        {error && <div className="text-sm" style={{color:"var(--re)"}}>{error}</div>}
+        <div className="flex ic g3r mt4" style={{flexWrap:"wrap"}}>
+          <button className={`btn ${confirming ? "btn-danger" : "btn-or"}`} onClick={handleFinalize}>
+            {confirming ? "Confirmar cierre de temporada" : `Finalizar ${currentSeasonId}`}
+          </button>
+          {confirming && (
+            <button className="btn btn-ghost" onClick={() => setConfirming(false)}>
+              Cancelar
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="card">
-        {rows.length === 0 ? (
-          <div className="text-mu text-sm">Aún no hay entrenos completados registrados.</div>
-        ) : (
+        <div className="card-title">Temporadas archivadas</div>
+        {archived.length === 0 && (
+          <div className="text-sm text-mu">Todavía no hay temporadas finalizadas.</div>
+        )}
+        {archived.length > 0 && (
           <table className="tbl">
-            <thead><tr><th>Fecha</th><th>Atleta</th><th>Grupo</th><th>AM</th><th>PM</th><th>Gym</th><th>Estado</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Temporada</th>
+                <th>Semana 1</th>
+                <th>Finalizada</th>
+              </tr>
+            </thead>
             <tbody>
-              {rows.map((h)=>(
-                <tr key={h.id}>
-                  <td style={{fontWeight:700}}>
-                    {h.dateLabel || h.date || h.dateIso || "—"}
-                    {h.time && <div style={{fontSize:11,color:"var(--mu)"}}>{h.time}</div>}
-                  </td>
-                  <td style={{fontWeight:700}}>{h.athlete || "—"}</td>
-                  <td><span className={`g-tag ${groupClass(h.group)}`}>{h.group || "—"}</span></td>
-                  <td style={{fontSize:12}}>{h.am||"—"}</td>
-                  <td style={{fontSize:12}}>{h.pm||"—"}</td>
-                  <td>{h.gym ? <span className="badge b-pu">Sí</span> : <span className="badge b-mu">No</span>}</td>
-                  <td>{h.completed !== false ? <span className="badge b-gr">Completado</span> : <span className="badge b-re">Pendiente</span>}</td>
+              {archived.map((season) => (
+                <tr key={season.id}>
+                  <td style={{fontWeight:700}}>{season.id}</td>
+                  <td>{season.weekOneStartIso}</td>
+                  <td>{String(season.finalizedAt || "").slice(0, 19).replace("T", " ")}</td>
                 </tr>
               ))}
             </tbody>
@@ -3388,15 +5226,53 @@ function CoachHistorial({ history }) {
 }
 
 // ─── ATHLETE: HOY ─────────────────────────────────────────────────────────────
-function AthleteHoy({ user, week, routines, onComplete, completed, customExercises, exerciseImages, isWeekPublished }) {
+function AthleteHoy({
+  user,
+  week,
+  routines,
+  history,
+  onToggleSlotCompletion,
+  onDismissNotification,
+  onClearNotifications,
+  customExercises,
+  exerciseImages,
+  isWeekPublished,
+  athleteNotifications,
+}) {
   const todayI = todayIdx();
+  const todayIso = toIsoDate();
   const rawTodayPlan = week.days[todayI] || {};
-  const visibleToday = getVisibleDayPlanForGroup(week, rawTodayPlan, user.group, routines);
+  const userGroups = getAthleteGroups(user);
+  const visibleToday = getVisibleDayPlanForGroup(week, rawTodayPlan, userGroups, routines);
   const hasAnyAssignedToday = getSlotSessions(rawTodayPlan, "am", week).length > 0 || getSlotSessions(rawTodayPlan, "pm", week).length > 0 || !!rawTodayPlan.gym;
+  const todayRecord = (history || []).find((row) => row?.athleteId === user.id && row?.dateIso === todayIso) || null;
+  const completion = getDayCompletionFromHistory(visibleToday, todayRecord);
+  const nextCompetition = getNextCompetitionCountdown(user.competitions || [], 90, todayIso);
   const [showGym, setShowGym] = useState(false);
 
   const gymExercises = visibleToday.gym ? getDayGymExercisesForAthlete(rawTodayPlan, routines, user, customExercises, exerciseImages) : [];
   const gymResolved = visibleToday.gym ? getDayResolvedGymPlan(rawTodayPlan, routines) : null;
+  const notifList = Array.isArray(athleteNotifications) ? athleteNotifications : [];
+  const completionLabel = completion.plannedSlots === 0
+    ? "Sin bloques planificados hoy"
+    : completion.status === "full"
+      ? "Todo completado"
+      : completion.status === "partial"
+        ? `Completado ${completion.doneSlots}/${completion.plannedSlots}`
+        : "Pendiente";
+
+  const toggleSlot = (slot) => {
+    if (typeof onToggleSlotCompletion !== "function") return;
+    if (slot === "am" && !completion.amPlanned) return;
+    if (slot === "pm" && !completion.pmPlanned) return;
+    if (slot === "gym" && !completion.gymPlanned) return;
+    const currentlyDone = slot === "am"
+      ? completion.amDone
+      : slot === "pm"
+        ? completion.pmDone
+        : completion.gymDone;
+    onToggleSlotCompletion(slot, !currentlyDone);
+  };
 
   return (
     <div>
@@ -3411,15 +5287,51 @@ function AthleteHoy({ user, week, routines, onComplete, completed, customExercis
           <div className="wt-val">{week.type}</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
-          <span className="badge b-bl" style={{fontSize:12,padding:"6px 12px"}}>Grupo: {user.group}</span>
+          <span className="badge b-bl" style={{fontSize:12,padding:"6px 12px"}}>Grupos: {userGroups.join(" · ")}</span>
           <span className={`badge ${isWeekPublished ? (visibleToday.hasContent ? "b-gr" : "b-mu") : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
-            {!isWeekPublished ? "Semana pendiente de publicar" : visibleToday.hasContent ? "Plan publicado para tu grupo" : "Sin plan para tu grupo hoy"}
+            {!isWeekPublished ? "Semana pendiente de publicar" : visibleToday.hasContent ? "Plan publicado para tus grupos" : "Sin plan para tus grupos hoy"}
           </span>
-          {completed
-            ? <span className="badge b-gr" style={{fontSize:13,padding:"6px 14px"}}>✓ Entrenamiento completado</span>
-            : <span className="badge b-mu" style={{fontSize:13,padding:"6px 14px"}}>Pendiente de marcar</span>}
+          <span className={`badge ${completion.status === "full" ? "b-gr" : completion.status === "partial" ? "b-ya" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
+            {completionLabel}
+          </span>
         </div>
       </div>
+
+      {nextCompetition && (
+        <div className="card mb4" style={{background:"linear-gradient(135deg,rgba(167,139,250,.16),rgba(167,139,250,.06))",borderColor:"rgba(167,139,250,.45)"}}>
+          <div className="flex ic jb">
+            <div>
+              <div className="card-title" style={{margin:0}}>🏁 Cuenta atrás competición</div>
+              <div className="text-sm text-mu mt3">{nextCompetition.name} · {nextCompetition.dateIso}</div>
+            </div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,color:"var(--pu)"}}>
+              {nextCompetition.diffDays}
+              <span style={{fontSize:14,color:"var(--mu)",marginLeft:6}}>días</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {notifList.length > 0 && (
+        <div className="card mb4">
+          <div className="flex ic jb mb4">
+            <div className="card-title" style={{margin:0}}>🔔 Notificaciones</div>
+            <button className="btn btn-ghost btn-sm" onClick={() => onClearNotifications?.()}>Limpiar todas</button>
+          </div>
+          {notifList.map((notification) => (
+            <div key={notification.id} className="notif" style={{background:"rgba(96,165,250,.08)",borderColor:"rgba(96,165,250,.28)",justifyContent:"space-between"}}>
+              <div className="flex ic g3r" style={{alignItems:"flex-start"}}>
+                <span style={{fontSize:18}}>📣</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13}}>{notification.title || "Actualización"}</div>
+                  <div style={{fontSize:12,color:"var(--mu2)"}}>{notification.message}</div>
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => onDismissNotification?.(notification.id)}>Quitar</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="g2 mb4">
         {visibleToday.am.length > 0 ? (
@@ -3431,11 +5343,18 @@ function AthleteHoy({ user, week, routines, onComplete, completed, customExercis
                 <span className={`badge ${index === 0 ? "b-or" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {groupLabel(session.targetGroup)}</span>
               </div>
             ))}
+            <button
+              className={`btn ${completion.amDone ? "btn-ghost" : "btn-or"} mt4`}
+              style={{width:"100%"}}
+              onClick={() => toggleSlot("am")}
+            >
+              {completion.amDone ? "✓ AM completado" : "Marcar AM como completado"}
+            </button>
           </div>
         ) : (
           <div className="card" style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:120}}>
             <span style={{color:"var(--mu)",fontSize:14}}>
-              {!isWeekPublished ? "La semana aún no está publicada" : hasAnyAssignedToday ? "No hay sesión AM para tu grupo" : "Sin sesión de mañana"}
+              {!isWeekPublished ? "La semana aún no está publicada" : hasAnyAssignedToday ? "No hay sesión AM para tus grupos" : "Sin sesión de mañana"}
             </span>
           </div>
         )}
@@ -3449,11 +5368,18 @@ function AthleteHoy({ user, week, routines, onComplete, completed, customExercis
                 <span className={`badge ${index === 0 ? "b-bl" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {groupLabel(session.targetGroup)}</span>
               </div>
             ))}
+            <button
+              className={`btn ${completion.pmDone ? "btn-ghost" : "btn-or"} mt4`}
+              style={{width:"100%"}}
+              onClick={() => toggleSlot("pm")}
+            >
+              {completion.pmDone ? "✓ PM completado" : "Marcar PM como completado"}
+            </button>
           </div>
         ) : (
           <div className="card" style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:120}}>
             <span style={{color:"var(--mu)",fontSize:14}}>
-              {!isWeekPublished ? "La semana aún no está publicada" : hasAnyAssignedToday ? "No hay sesión PM para tu grupo" : "Sin sesión de tarde"}
+              {!isWeekPublished ? "La semana aún no está publicada" : hasAnyAssignedToday ? "No hay sesión PM para tus grupos" : "Sin sesión de tarde"}
             </span>
           </div>
         )}
@@ -3466,42 +5392,59 @@ function AthleteHoy({ user, week, routines, onComplete, completed, customExercis
               <div className="card-title" style={{margin:0}}>🏋️ Gym hoy</div>
               <div className="text-mu text-sm">{gymResolved?.name || "Rutina"} · {groupLabel(gymResolved?.targetGroup || rawTodayPlan.gymTargetGroup || "all")}</div>
             </div>
-            <button className="gym-pill" onClick={()=>setShowGym(!showGym)}>
-              {showGym?"Ocultar":"Ver rutina"} {gymExercises.length} ejercicios
-            </button>
+            <div className="flex ic g2r">
+              <span className={`badge ${completion.gymDone ? "b-gr" : "b-re"}`}>{completion.gymDone ? "Gym hecho" : "Gym pendiente"}</span>
+              <button className="gym-pill" onClick={()=>setShowGym(!showGym)}>
+                {showGym?"Ocultar":"Ver rutina"} {gymExercises.length} ejercicios
+              </button>
+            </div>
           </div>
+          <button
+            className={`btn ${completion.gymDone ? "btn-ghost" : "btn-or"} mt4`}
+            style={{width:"100%"}}
+            onClick={() => toggleSlot("gym")}
+          >
+            {completion.gymDone ? "✓ Gym completado" : "Marcar Gym como completado"}
+          </button>
           {showGym && (
             <div className="mt4">
-              {gymExercises.map(ex => (
-                <div key={ex.id} className="ex-row">
-                  <div className="ex-emoji">{ex.emoji}</div>
-                  <div>
-                    <div className="ex-info-name">{ex.name}</div>
-                    <div className="ex-info-mu">{ex.muscles}</div>
-                  </div>
-                  <div style={{textAlign:"center"}}>
-                    <div className="ex-big">{ex.sets}</div>
-                    <div className="ex-lbl">series</div>
-                  </div>
-                  <div style={{textAlign:"center"}}>
-                    <div className="ex-big">{ex.type === "time" ? formatExDuration(ex.duration) : ex.reps}</div>
-                    <div className="ex-lbl">{ex.type === "time" ? "tiempo" : "reps"}</div>
-                  </div>
-                  {ex.type === "weight" && ex.kg ? (
-                    <div style={{textAlign:"center"}}>
-                      <div className="ex-big">{ex.kg}</div>
-                      <div className="ex-lbl">kg</div>
+              {gymExercises.map(ex => {
+                const exType = normalizeExerciseType(ex.type || "weight");
+                return (
+                  <div key={ex.id} className="ex-row">
+                    <div className="ex-emoji">{ex.emoji}</div>
+                    <div>
+                      <div className="ex-info-name">{ex.name}</div>
+                      <div className="ex-info-mu">{ex.muscles}</div>
                     </div>
-                  ) : (
-                    <div style={{textAlign:"center",color:"var(--mu)",fontSize:12}}>—</div>
-                  )}
-                  <div>
-                    {ex.type === "weight" && <span className="badge b-or">{ex.pct}% 1RM</span>}
-                    {ex.type === "reps" && <span className="badge b-bl">Reps</span>}
-                    {ex.type === "time" && <span className="badge b-pu">{formatExDuration(ex.duration)}</span>}
+                    <div style={{textAlign:"center"}}>
+                      <div className="ex-big">{ex.sets}</div>
+                      <div className="ex-lbl">series</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div className="ex-big">
+                        {exType === "time_reps"
+                          ? `${ex.reps}x${formatExDuration(ex.duration)}`
+                          : ex.reps}
+                      </div>
+                      <div className="ex-lbl">{exType === "time_reps" ? "reps x seg" : "reps"}</div>
+                    </div>
+                    {exType === "weight" && ex.kg ? (
+                      <div style={{textAlign:"center"}}>
+                        <div className="ex-big">{ex.kg}</div>
+                        <div className="ex-lbl">kg</div>
+                      </div>
+                    ) : (
+                      <div style={{textAlign:"center",color:"var(--mu)",fontSize:12}}>—</div>
+                    )}
+                    <div>
+                      {exType === "weight" && <span className="badge b-or">{ex.pct}% 1RM</span>}
+                      {exType === "reps" && <span className="badge b-bl">Reps</span>}
+                      {exType === "time_reps" && <span className="badge b-ya">{ex.reps} x {formatExDuration(ex.duration)}</span>}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -3517,16 +5460,10 @@ function AthleteHoy({ user, week, routines, onComplete, completed, customExercis
             {!isWeekPublished
               ? "El entrenador todavía no ha publicado la semana."
               : hasAnyAssignedToday
-                ? "Hoy hay trabajo para otros grupos, pero no para el tuyo."
+                ? "Hoy hay trabajo para otros grupos, pero no para los tuyos."
                 : "Recarga energías para mañana."}
           </div>
         </div>
-      )}
-
-      {user.isHR && isWeekPublished && visibleToday.hasContent && (
-        <button className={`complete-btn ${completed?"done":""}`} onClick={onComplete}>
-          {completed ? "✓ ENTRENAMIENTO COMPLETADO" : "MARCAR ENTRENAMIENTO COMO HECHO"}
-        </button>
       )}
     </div>
   );
@@ -3536,6 +5473,8 @@ function AthleteHoy({ user, week, routines, onComplete, completed, customExercis
 function AthleteSemana({ week, routines, user, customExercises, exerciseImages, isWeekPublished }) {
   const [gymDay, setGymDay] = useState(null);
   const todayI = todayIdx();
+  const userGroups = getAthleteGroups(user);
+  const userGroupsLabel = userGroups.join(" · ");
 
   const gymForDay = (i) => getDayGymExercisesForAthlete(week.days[i], routines, user, customExercises, exerciseImages);
 
@@ -3543,19 +5482,19 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
     <div>
       <div className="ph">
         <div className="ph-title">MI <span>SEMANA</span></div>
-        <div className="ph-sub">Plan completo · Semana {week.type} · Grupo {user.group}</div>
+        <div className="ph-sub">Plan completo · Semana {week.type} · Grupos {userGroupsLabel}</div>
       </div>
 
       <div className="wt-banner">
         <div><div className="wt-label">Tipo de semana</div><div className="wt-val">{week.type}</div></div>
-        <div style={{marginLeft:"auto"}}><span className={`badge ${isWeekPublished ? "b-bl" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>{isWeekPublished ? `Mostrando ${user.group} + Todos` : "Semana pendiente de publicar"}</span></div>
+        <div style={{marginLeft:"auto"}}><span className={`badge ${isWeekPublished ? "b-bl" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>{isWeekPublished ? `Mostrando ${userGroupsLabel} + Todos` : "Semana pendiente de publicar"}</span></div>
       </div>
 
       <div className="week-grid">
         {DAYS_FULL.map((day, i) => {
           const d = week.days[i];
           const isToday = i === todayI;
-          const visiblePlan = getVisibleDayPlanForGroup(week, d, user.group, routines);
+          const visiblePlan = getVisibleDayPlanForGroup(week, d, userGroups, routines);
           const hasAssignedForOthers = getSlotSessions(d, "am", week).length > 0 || getSlotSessions(d, "pm", week).length > 0 || !!d.gym;
           const gymCount = visiblePlan.gym ? getDayGymCount(d, routines) : 0;
           const gymResolved = visiblePlan.gym ? getDayResolvedGymPlan(d, routines) : null;
@@ -3570,7 +5509,7 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
               <div className="day-body">
                 {!isWeekPublished && <div style={{fontSize:11,color:"var(--mu)",textAlign:"center",padding:"8px 0"}}>Pendiente de publicar</div>}
                 {isWeekPublished && !visiblePlan.hasContent && (
-                  <div style={{fontSize:11,color:"var(--mu)",textAlign:"center",padding:"8px 0"}}>{hasAssignedForOthers ? "No asignado a tu grupo" : "Descanso"}</div>
+                  <div style={{fontSize:11,color:"var(--mu)",textAlign:"center",padding:"8px 0"}}>{hasAssignedForOthers ? "No asignado a tus grupos" : "Descanso"}</div>
                 )}
                 {visiblePlan.am.map((session, index) => <div key={session.id || `${session.name}_${index}`} className="session"><div className="sess-lbl">{index === 0 ? "🌅 AM" : "➕ Extra AM"}</div><div className="sess-txt">{session.name}</div></div>)}
                 {visiblePlan.pm.map((session, index) => <div key={session.id || `${session.name}_${index}`} className="session pm"><div className="sess-lbl">{index === 0 ? "🌆 PM" : "➕ Extra PM"}</div><div className="sess-txt">{session.name}</div></div>)}
@@ -3585,6 +5524,7 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
                 <div style={{padding:"0 10px 10px"}}>
                   {gymForDay(i).map(ex => {
                     const imgSrc = ex.imageUrl;
+                    const exType = normalizeExerciseType(ex.type || "weight");
                     return (
                       <div key={ex.id} style={{background:"var(--s2)",borderRadius:8,padding:"8px 10px",marginBottom:6}}>
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -3593,14 +5533,14 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
                             : <span style={{fontSize:18}}>{ex.emoji}</span>}
                           <div style={{flex:1}}>
                             <div style={{fontSize:12,fontWeight:700}}>{ex.name}</div>
-                            {ex.type==="time"
-                              ? <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets} × {formatExDuration(ex.duration)}</div>
-                              : <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets}×{ex.reps}{ex.type==="weight"?` — ${ex.pct}%`:""}</div>}
+                            {exType==="time_reps"
+                              ? <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets} × {ex.reps} × {formatExDuration(ex.duration)}</div>
+                              : <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets}×{ex.reps}{exType==="weight"?` — ${ex.pct}%`:""}</div>}
                           </div>
-                          {ex.type==="weight" && ex.kg
+                          {exType==="weight" && ex.kg
                             ? <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:900,color:"var(--or)"}}>{ex.kg}kg</div>
-                            : ex.type==="time"
-                              ? <span className="badge b-pu">{formatExDuration(ex.duration)}</span>
+                            : exType==="time_reps"
+                                ? <span className="badge b-ya">{ex.reps}x{formatExDuration(ex.duration)}</span>
                               : null}
                         </div>
                       </div>
@@ -3618,9 +5558,10 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
 
 // ─── ATHLETE: MI GYM ─────────────────────────────────────────────────────────
 function AthleteGym({ user, routines, week, customExercises, exerciseImages, isWeekPublished }) {
+  const userGroups = getAthleteGroups(user);
   const allDays = week.days
     .map((d, i) => ({ i, day: d }))
-    .filter(({ day }) => isGymVisibleForGroup(week, day, user.group, routines) && getDayGymCount(day, routines) > 0);
+    .filter(({ day }) => isGymVisibleForGroup(week, day, userGroups, routines) && getDayGymCount(day, routines) > 0);
 
   const [selectedDay, setSelectedDay] = useState(allDays[0]?.i ?? 0);
   useEffect(() => {
@@ -3634,7 +5575,7 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
     <div>
       <div className="ph">
         <div className="ph-title">MI <span>GYM</span></div>
-        <div className="ph-sub">Rutinas inline publicadas para tu grupo · pesos calculados según tu 1RM</div>
+        <div className="ph-sub">Rutinas inline publicadas para tus grupos · pesos calculados según tu 1RM</div>
       </div>
 
       {!isWeekPublished && (
@@ -3651,7 +5592,7 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
         ))}
       </div>}
 
-      {isWeekPublished && !allDays.length && <div className="card" style={{textAlign:"center",padding:40,color:"var(--mu)"}}>No hay rutinas de gym asignadas a tu grupo esta semana</div>}
+      {isWeekPublished && !allDays.length && <div className="card" style={{textAlign:"center",padding:40,color:"var(--mu)"}}>No hay rutinas de gym asignadas a tus grupos esta semana</div>}
 
       {isWeekPublished && allDays.length > 0 && selectedPlan && (
         <div className="card mb4">
@@ -3669,16 +5610,16 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
 
       {isWeekPublished && focusExercises.map(ex => {
         const max = user.maxW?.[ex.id];
-        const exType = ex.type || "weight";
+        const exType = normalizeExerciseType(ex.type || "weight");
         const imgSrc = ex.imageUrl;
         return (
           <div key={ex.id} className="card mb3">
-            <div style={{display:"grid",gridTemplateColumns:"64px 1fr repeat(3,90px)",gap:16,alignItems:"center"}}>
+            <div style={{display:"grid",gridTemplateColumns:"108px 1fr repeat(3,minmax(78px,90px))",gap:16,alignItems:"center"}}>
               <div style={{textAlign:"center"}}>
                 {imgSrc ? (
-                  <img src={imgSrc} alt={ex.name} style={{width:56,height:56,objectFit:"cover",borderRadius:10,border:"1px solid var(--border2)"}} />
+                  <img src={imgSrc} alt={ex.name} style={{width:92,height:92,objectFit:"cover",borderRadius:12,border:"1px solid var(--border2)"}} />
                 ) : (
-                  <div style={{fontSize:44,textAlign:"center"}}>{ex.emoji}</div>
+                  <div style={{fontSize:58,textAlign:"center"}}>{ex.emoji}</div>
                 )}
               </div>
               <div>
@@ -3689,17 +5630,17 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
                     ? <div style={{fontSize:11,color:"var(--mu)",marginTop:4}}>1RM: {max}kg · {ex.pct}%</div>
                     : <div style={{fontSize:11,color:"var(--re)",marginTop:4}}>⚠ Sin peso máximo definido</div>
                 )}
-                {exType==="time"   && <div style={{fontSize:11,color:"var(--pu)",marginTop:4}}>Ejercicio por tiempo</div>}
+                {exType==="time_reps" && <div style={{fontSize:11,color:"var(--ya)",marginTop:4}}>Tiempo x repeticiones</div>}
                 {exType==="reps"   && <div style={{fontSize:11,color:"var(--bl)",marginTop:4}}>Sin carga externa</div>}
               </div>
               <div style={{textAlign:"center"}}>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,lineHeight:1}}>{ex.sets}</div>
                 <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>series</div>
               </div>
-              {exType === "time" ? (
+              {exType === "time_reps" ? (
                 <div style={{textAlign:"center"}}>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:900,lineHeight:1,color:"var(--pu)"}}>{formatExDuration(ex.duration)}</div>
-                  <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>tiempo</div>
+                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900,lineHeight:1,color:"var(--ya)"}}>{ex.reps} x {formatExDuration(ex.duration)}</div>
+                  <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>reps x tiempo</div>
                 </div>
               ) : (
                 <div style={{textAlign:"center"}}>
@@ -3725,155 +5666,128 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
   );
 }
 
-// ─── ATHLETE: STRAVA ─────────────────────────────────────────────────────────
-function AthleteStrava({ user, setUser }) {
-  const weekTotal = (user.weekKms||[]).reduce((s,k)=>s+k,0);
-  const [connected, setConnected] = useState(user.stravaConnected || false);
-
-  const doConnect = () => { setConnected(true); setUser({...user, stravaConnected:true}); };
-
-  return (
-    <div>
-      <div className="ph">
-        <div className="ph-title">STRAVA <span>CONNECT</span></div>
-        <div className="ph-sub">Visualiza tu volumen semanal de kilómetros</div>
-      </div>
-
-      {!connected ? (
-        <div className="card strava-card" style={{textAlign:"center",padding:48}}>
-          <div style={{fontSize:64,marginBottom:16}}>🟠</div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:32,fontWeight:900,marginBottom:8}}>Conecta tu Strava</div>
-          <div style={{color:"var(--mu)",marginBottom:24,fontSize:14}}>Sincroniza tus actividades del CAR automáticamente</div>
-          <button className="strava-connect" style={{margin:"0 auto"}} onClick={doConnect}>
-            <span style={{fontSize:18}}>🟠</span> Conectar con Strava
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className="card strava-card mb4">
-            <div className="flex ic jb mb4">
-              <div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:800}}>Strava conectado ✓</div>
-                <div style={{fontSize:12,color:"var(--mu)"}}>Sincronización activa</div>
-              </div>
-              <button className="strava-connect btn-sm"><span>🟠</span> Sincronizar</button>
-            </div>
-
-            <div className="g4 mb4">
-              <div style={{background:"rgba(255,255,255,.04)",borderRadius:12,padding:"14px 16px"}}>
-                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",marginBottom:4}}>Esta semana</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,color:"#FC4C02",lineHeight:1}}>{weekTotal}<span style={{fontSize:16,color:"var(--mu)"}}>km</span></div>
-              </div>
-              <div style={{background:"rgba(255,255,255,.04)",borderRadius:12,padding:"14px 16px"}}>
-                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",marginBottom:4}}>Actividades</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,lineHeight:1}}>{(user.weekKms||[]).filter(k=>k>0).length}</div>
-              </div>
-              <div style={{background:"rgba(255,255,255,.04)",borderRadius:12,padding:"14px 16px"}}>
-                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",marginBottom:4}}>Mejor día</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,lineHeight:1,color:"var(--gr)"}}>{Math.max(...(user.weekKms||[0]))}<span style={{fontSize:16,color:"var(--mu)"}}>km</span></div>
-              </div>
-              <div style={{background:"rgba(255,255,255,.04)",borderRadius:12,padding:"14px 16px"}}>
-                <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",marginBottom:4}}>Avg/día</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,lineHeight:1}}>{weekTotal ? (weekTotal/(user.weekKms||[]).filter(k=>k>0).length).toFixed(1) : 0}<span style={{fontSize:16,color:"var(--mu)"}}>km</span></div>
-              </div>
-            </div>
-
-            {/* Bar chart */}
-            <div>
-              <div style={{display:"flex",gap:8,alignItems:"flex-end",height:80,marginBottom:6}}>
-                {DAYS_SHORT.map((d,i) => {
-                  const km = user.weekKms?.[i] || 0;
-                  const maxKm = Math.max(...(user.weekKms||[0]),1);
-                  const h = (km / maxKm) * 70;
-                  const isToday = i === todayIdx();
-                  return (
-                    <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                      <div style={{fontSize:11,fontWeight:700,color:km>0?"var(--tx)":"var(--mu)"}}>{km||""}</div>
-                      <div style={{width:"100%",height:h||3,background:isToday?"#FC4C02":"rgba(252,76,2,.5)",borderRadius:"4px 4px 0 0",minHeight:3,transition:"height .5s ease"}} />
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                {DAYS_SHORT.map((d,i)=><div key={i} style={{flex:1,textAlign:"center",fontSize:10,color:"var(--mu)",letterSpacing:1,fontWeight:700}}>{d}</div>)}
-              </div>
-            </div>
-          </div>
-
-          {/* Activities list */}
-          <div className="card">
-            <div className="card-title">📋 Actividades recientes</div>
-            {(user.weekKms||[]).map((km,i)=>km>0&&(
-              <div key={i} className="flex ic jb" style={{padding:"12px 0",borderBottom:"1px solid var(--border)"}}>
-                <div className="flex ic g3r">
-                  <div style={{fontSize:24}}>🏃</div>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:14}}>Rodaje {DAYS_FULL[i]}</div>
-                    <div style={{fontSize:12,color:"var(--mu)"}}>{DAYS_FULL[i]}, esta semana</div>
-                  </div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:900,color:"#FC4C02"}}>{km}km</div>
-                </div>
-              </div>
-            )).filter(Boolean)}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 // ─── ATHLETE: PERFIL ─────────────────────────────────────────────────────────
-function AthletePerfil({ user, setUser, athletes, groups }) {
-  const [group, setGroup] = useState(user.group);
-  const [editing, setEditing] = useState(false);
-  const [maxW, setMaxW] = useState({...user.maxW});
-  const groupOptions = mergeGroupOptions(GROUPS, groups, athletes.map(a => a.group));
+function AthletePerfil({ user, athletes, groups, onUpdateGroups, onUpdatePassword }) {
+  const athleteGroups = getAthleteGroups(user);
+  const roster = normalizeAthletes(athletes || []);
+  const groupOptions = mergeGroupOptions(GROUPS, groups, collectAthleteGroups(roster));
+  const showInitialPasswordHint = !user?.passwordChangedOnce;
+  const [passwordDraft, setPasswordDraft] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [passwordMsg, setPasswordMsg] = useState(null);
+  const maxEntries = GYM_EXERCISES.map((exercise) => {
+    const numeric = Number(user.maxW?.[exercise.id]);
+    const hasValue = Number.isFinite(numeric) && numeric > 0;
+    return {
+      ...exercise,
+      hasValue,
+      value: hasValue ? numeric : null,
+    };
+  });
 
-  const save = () => { setUser({...user,group,maxW}); setEditing(false); };
+  const savePassword = () => {
+    const nextPassword = String(passwordDraft || "").trim();
+    const confirmPassword = String(passwordConfirm || "").trim();
+    if (nextPassword.length < 4) {
+      setPasswordMsg({ ok:false, text:"La contraseña debe tener al menos 4 caracteres." });
+      return;
+    }
+    if (nextPassword !== confirmPassword) {
+      setPasswordMsg({ ok:false, text:"Las contraseñas no coinciden." });
+      return;
+    }
+    onUpdatePassword?.(nextPassword);
+    setPasswordMsg({ ok:true, text:"Contraseña actualizada." });
+    setPasswordDraft("");
+    setPasswordConfirm("");
+  };
 
   return (
-    <div>
-      <div className="ph"><div className="ph-title">MI <span>PERFIL</span></div></div>
-      <div className="g2">
-        <div className="card">
-          <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:24}}>
-            <div className="avatar blue" style={{width:64,height:64,fontSize:24,borderRadius:14}}>{user.avatar}</div>
-            <div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900}}>{user.name}</div>
-              <span className={`g-tag ${groupClass(user.group)}`}>{user.group}</span>
-              {user.isHR && <span className="badge b-ya" style={{marginLeft:6}}>Alto Rendimiento</span>}
+    <div className="athlete-profile-page">
+      <div className="profile-grid">
+        <div className="card profile-identity-card">
+          <div className="profile-hero">
+            <div className="avatar blue profile-avatar">{user.avatar}</div>
+            <div className="profile-hero-copy">
+              <div className="profile-kicker">Atleta</div>
+              <div className="profile-name">{user.name}</div>
+              <div className="profile-chip-row">
+                {athleteGroups.map((group) => <span key={group} className={`g-tag ${groupClass(group)}`}>{group}</span>)}
+              </div>
             </div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Cambiar grupo</label>
-            <select className="select" value={group} onChange={e=>setGroup(e.target.value)}>
-              {groupOptions.map(g=><option key={g} value={g}>{g}</option>)}
-            </select>
+
+          <div className="profile-group-panel">
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">Tus grupos</label>
+              <MultiSelect
+                options={groupOptions}
+                values={athleteGroups}
+                onChange={(nextGroups) => onUpdateGroups?.(nextGroups)}
+                placeholder="Selecciona tus grupos"
+              />
+              <div className="profile-group-hint">Puedes estar en uno o varios grupos a la vez.</div>
+            </div>
           </div>
-          <button className="btn btn-or" onClick={()=>setUser({...user,group})} style={{width:"100%"}}>Guardar cambios</button>
+
+          <div className="profile-group-panel mt3">
+            <div className="profile-password-grid">
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Nueva contraseña</label>
+                <input
+                  type="password"
+                  className="input"
+                  value={passwordDraft}
+                  onChange={(e) => setPasswordDraft(e.target.value)}
+                  placeholder="Mínimo 4 caracteres"
+                />
+              </div>
+              <div className="form-group" style={{marginBottom:0}}>
+                <label className="form-label">Confirmar contraseña</label>
+                <input
+                  type="password"
+                  className="input"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  placeholder="Repite la contraseña"
+                />
+              </div>
+            </div>
+            <div className="flex ic jb mt3" style={{flexWrap:"wrap",gap:8}}>
+              {showInitialPasswordHint && (
+                <div className="text-sm text-mu">Contraseña inicial: <strong style={{color:"var(--tx)"}}>1234</strong></div>
+              )}
+              <button className="btn btn-or btn-sm" onClick={savePassword}>Guardar contraseña</button>
+            </div>
+            {passwordMsg && (
+              <div className="text-sm mt3" style={{color: passwordMsg.ok ? "var(--gr)" : "var(--re)"}}>
+                {passwordMsg.text}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="card">
-          <div className="flex ic jb mb4">
-            <div className="card-title" style={{margin:0}}>⚖️ Mis máximos</div>
-            <button className="btn btn-ghost btn-sm" onClick={()=>setEditing(!editing)}>{editing?"Guardar":"Editar"}</button>
-          </div>
-          {GYM_EXERCISES.map(ex => (
-            <div key={ex.id} className="flex ic jb" style={{padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-              <div className="flex ic g3r">
-                <span style={{fontSize:18}}>{ex.emoji}</span>
-                <span style={{fontSize:13,fontWeight:600}}>{ex.name}</span>
+        <div className="card profile-max-card">
+          <div className="card-title">⚖️ Mis máximos</div>
+          <div className="text-sm text-mu mb4">Solo el entrenador puede modificar los pesos.</div>
+          <div className="max-list">
+            {maxEntries.map((exercise) => (
+              <div key={exercise.id} className="max-row">
+                <div className="max-left">
+                  <span className="max-emoji">{exercise.emoji}</span>
+                  <span className="max-name">{exercise.name}</span>
+                </div>
+                {exercise.hasValue ? (
+                  <div className="max-value">
+                    {exercise.value}
+                    <span className="max-unit">kg</span>
+                  </div>
+                ) : (
+                  <div className="max-value max-empty">—</div>
+                )}
               </div>
-              {editing ? (
-                <input type="number" className="input" style={{width:80,textAlign:"center"}} value={maxW[ex.id]||""} onChange={e=>setMaxW({...maxW,[ex.id]:Number(e.target.value)})} placeholder="kg" />
-              ) : (
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:900,color:"var(--or)"}}>{user.maxW?.[ex.id]||<span style={{fontSize:13,color:"var(--mu)"}}>—</span>}{user.maxW?.[ex.id]&&<span style={{fontSize:12,color:"var(--mu)"}}>kg</span>}</div>
-              )}
-            </div>
-          ))}
-          {editing && <button className="btn btn-or mt4" style={{width:"100%"}} onClick={save}>💾 Guardar pesos</button>}
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -3881,11 +5795,30 @@ function AthletePerfil({ user, setUser, athletes, groups }) {
 }
 
 // ─── ATHLETE: CALENDARIO ─────────────────────────────────────────────────────
-function AthleteCalendario({ user, week, routines, history, customExercises, exerciseImages, isWeekPublished }) {
+function AthleteCalendario({
+  user,
+  week,
+  routines,
+  history,
+  customExercises,
+  exerciseImages,
+  isWeekPublished,
+  onAddCompetition,
+  onRemoveCompetition,
+}) {
   const now = new Date();
   const [viewYear, setViewYear]   = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
   const [selected, setSelected]   = useState(null); // { dateIso, dayOfWeek }
+  const [competitionDate, setCompetitionDate] = useState("");
+  const [competitionName, setCompetitionName] = useState("");
+  const userGroups = getAthleteGroups(user);
+  const competitions = normalizeCompetitionList(user.competitions || []);
+  const competitionsByDate = competitions.reduce((acc, competition) => {
+    if (!acc[competition.dateIso]) acc[competition.dateIso] = [];
+    acc[competition.dateIso].push(competition);
+    return acc;
+  }, {});
 
   const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const firstDow  = new Date(viewYear, viewMonth, 1).getDay();
@@ -3901,116 +5834,189 @@ function AthleteCalendario({ user, week, routines, history, customExercises, exe
     setViewMonth(m); setViewYear(y);
   };
 
-  // Historial de este atleta
   const histMap = {};
-  (history||[]).filter(h=>h.athleteId===user.id).forEach(h=>{ histMap[h.dateIso]=h; });
+  (history||[]).filter((h) => h.athleteId===user.id).forEach((h) => { histMap[h.dateIso] = h; });
 
-  // Plan de la semana actual por día de semana (0=Lun)
   const weekDayForDate = (y,m,d) => {
     const dow = new Date(y,m,d).getDay();
     return dow === 0 ? 6 : dow - 1;
   };
 
+  const handleAddCompetition = () => {
+    if (!competitionDate || typeof onAddCompetition !== "function") return;
+    onAddCompetition({
+      id: `comp_${competitionDate}_${Date.now()}`,
+      dateIso: competitionDate,
+      name: competitionName.trim() || "Competición",
+    });
+    setCompetitionDate("");
+    setCompetitionName("");
+  };
+
   const getSelectedInfo = () => {
     if (!selected) return null;
-    const hist = histMap[selected.dateIso];
+    const hist = histMap[selected.dateIso] || null;
     const dow  = selected.dayOfWeek;
     const dayPlan = week.days[dow];
-    const visiblePlan = getVisibleDayPlanForGroup(week, dayPlan, user.group, routines);
+    const visiblePlan = getVisibleDayPlanForGroup(week, dayPlan, userGroups, routines);
+    const completion = getDayCompletionFromHistory(visiblePlan, hist);
     const gymExs  = visiblePlan.gym ? getDayGymExercisesForAthlete(dayPlan, routines, user, customExercises, exerciseImages) : [];
     const gymPlan = visiblePlan.gym ? getDayResolvedGymPlan(dayPlan, routines) : null;
-    return { hist, dayPlan, visiblePlan, gymExs, gymPlan, dow };
+    return {
+      hist,
+      dayPlan,
+      visiblePlan,
+      completion,
+      gymExs,
+      gymPlan,
+      dow,
+      competitions: competitionsByDate[selected.dateIso] || [],
+    };
   };
 
   const info = getSelectedInfo();
 
   return (
-    <div>
-      <div className="ph">
-        <div className="ph-title">MI <span>CALENDARIO</span></div>
-        <div className="ph-sub">Historial de entrenos y plan futuro</div>
-      </div>
-
-      <div className="g2" style={{alignItems:"start"}}>
-        <div className="card">
-          <div className="flex ic jb mb4">
-            <button className="week-nav-btn" onClick={()=>goMonth(-1)}>← Ant.</button>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:700}}>{monthNames[viewMonth]} {viewYear}</div>
-            <button className="week-nav-btn" onClick={()=>goMonth(1)}>Sig. →</button>
-          </div>
-
-          {/* Day headers */}
-          <div className="cal-grid" style={{marginBottom:6}}>
-            {DAYS_SHORT.map(d=><div key={d} style={{textAlign:"center",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",fontWeight:700,padding:"4px 0"}}>{d}</div>)}
-          </div>
-
-          <div className="cal-grid">
-            {Array(offset).fill(null).map((_,i)=><div key={"e"+i}/>)}
-            {Array(daysInM).fill(null).map((_,i) => {
-              const day    = i + 1;
-              const y = viewYear, m = viewMonth;
-              const dateIso = `${String(y).padStart(4,"0")}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-              const dow    = weekDayForDate(y, m, day);
-              const isToday = dateIso === todayIso;
-              const hist   = histMap[dateIso];
-              const hasTrain = getVisibleDayPlanForGroup(week, week.days[dow], user.group, routines).hasContent;
-              const selDate = selected?.dateIso === dateIso;
-              return (
-                <div key={day}
-                  className={`cal-cell ${hasTrain?"has-training":""} ${isToday?"today-cell":""}`}
-                  style={selDate?{borderColor:"var(--or)",background:"rgba(255,107,26,.1)"}:{}}
-                  onClick={()=>setSelected({ dateIso, dayOfWeek:dow })}
-                >
-                  <div className="cal-day-num" style={{color:isToday?"var(--or)":"var(--tx)"}}>{day}</div>
-                  {hist && <span className="cal-dot" style={{background:"var(--gr)"}} title="Completado" />}
-                  {hasTrain && !hist && <span className="cal-dot" style={{background:"var(--or)"}} />}
-                  {week.days[dow]?.gym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
+    <div className="athlete-calendar-page">
+      <div className="athlete-cal-grid">
+        <div className="athlete-cal-left">
+          <div className="card mb3">
+            <div className="card-title">🏁 Competiciones</div>
+            <div className="athlete-comp-form mb3">
+              <div className="form-group" style={{margin:0}}>
+                <label className="form-label">Fecha</label>
+                <input type="date" className="input" value={competitionDate} onChange={(e) => setCompetitionDate(e.target.value)} />
+              </div>
+              <div className="form-group" style={{margin:0}}>
+                <label className="form-label">Nombre (opcional)</label>
+                <input className="input" value={competitionName} onChange={(e) => setCompetitionName(e.target.value)} placeholder="Control 1500m, Campeonato..." />
+              </div>
+              <button className="btn btn-or" style={{height:42,whiteSpace:"nowrap"}} onClick={handleAddCompetition}>+ Añadir</button>
+            </div>
+            <div className="divider" style={{margin:"10px 0"}} />
+            <div className="athlete-comp-list">
+              {(competitions || []).length === 0 && <div className="text-sm text-mu">No hay competiciones añadidas.</div>}
+              {(competitions || []).map((competition) => (
+                <div key={competition.id} className="flex ic jb mb3">
+                  <div>
+                    <div style={{fontWeight:700,fontSize:13}}>{competition.name}</div>
+                    <div className="text-sm text-mu">{competition.dateIso}</div>
+                  </div>
+                  <button className="btn btn-ghost btn-sm" onClick={() => onRemoveCompetition?.(competition.id)}>Quitar</button>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
 
-          <div className="divider" />
-          <div className="flex ic g4r" style={{flexWrap:"wrap"}}>
-            <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--gr)"}} /> Completado</div>
-            <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> Plan</div>
-            <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--pu)"}} /> Gym</div>
+          <div className="card athlete-cal-month">
+            <div className="flex ic jb mb4">
+              <button className="week-nav-btn" onClick={()=>goMonth(-1)}>← Ant.</button>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700}}>{monthNames[viewMonth]} {viewYear}</div>
+              <button className="week-nav-btn" onClick={()=>goMonth(1)}>Sig. →</button>
+            </div>
+
+            <div className="cal-grid" style={{marginBottom:6}}>
+              {DAYS_SHORT.map(d=><div key={d} style={{textAlign:"center",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",fontWeight:700,padding:"4px 0"}}>{d}</div>)}
+            </div>
+
+            <div className="cal-grid athlete-cal-month-grid">
+              {Array(offset).fill(null).map((_,i)=><div key={"e"+i}/>)}
+              {Array(daysInM).fill(null).map((_,i) => {
+                const day    = i + 1;
+                const y = viewYear;
+                const m = viewMonth;
+                const dateIso = `${String(y).padStart(4,"0")}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+                const dow    = weekDayForDate(y, m, day);
+                const isToday = dateIso === todayIso;
+                const hist   = histMap[dateIso] || null;
+                const visiblePlan = getVisibleDayPlanForGroup(week, week.days[dow], userGroups, routines);
+                const completion = getDayCompletionFromHistory(visiblePlan, hist);
+                const hasTrain = visiblePlan.hasContent;
+                const isCompetitionDay = !!competitionsByDate[dateIso]?.length;
+                const selDate = selected?.dateIso === dateIso;
+                const isFuture = dateIso > todayIso;
+                const style = {
+                  ...(hasTrain ? getCompletionDayStyle(completion) : {}),
+                  ...(isFuture ? { background:"rgba(136,136,170,.15)", borderColor:"rgba(136,136,170,.45)" } : {}),
+                  ...(isCompetitionDay ? { boxShadow:"inset 0 0 0 1px rgba(167,139,250,.45)" } : {}),
+                  ...(selDate ? { borderColor:"var(--or)" } : {}),
+                };
+                return (
+                  <div key={day}
+                    className={`cal-cell ${hasTrain?"has-training":""} ${isToday?"today-cell":""}`}
+                    style={style}
+                    onClick={()=>setSelected({ dateIso, dayOfWeek:dow })}
+                  >
+                    <div className="cal-day-num" style={{color:isToday ? "var(--or)" : isFuture ? "var(--mu2)" : "var(--tx)"}}>{day}</div>
+                    {hasTrain && completion.status === "full" && <span className="cal-dot" style={{background:"var(--gr)"}} title="Completado todo" />}
+                    {hasTrain && completion.status === "partial" && <span className="cal-dot" style={{background:"var(--or)"}} title="Completado parcial" />}
+                    {hasTrain && completion.status === "none" && <span className="cal-dot" style={{background:"var(--re)"}} title="Sin completar" />}
+                    {week.days[dow]?.gym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
+                    {isCompetitionDay && <span className="cal-dot" style={{background:"#c084fc"}} title="Competición" />}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="divider" style={{margin:"12px 0"}} />
+            <div className="flex ic g4r athlete-cal-legend" style={{flexWrap:"wrap"}}>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--gr)"}} /> Día completo</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> Día parcial</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--re)"}} /> Sin completar</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--mu2)"}} /> Día futuro</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"#c084fc"}} /> Competición</div>
+            </div>
           </div>
         </div>
 
-        {/* Detail panel */}
-        <div>
+        <div className="athlete-cal-right">
           {!selected && (
-            <div className="card" style={{textAlign:"center",padding:40}}>
+            <div className="card athlete-cal-placeholder" style={{textAlign:"center"}}>
               <div style={{fontSize:36,marginBottom:12}}>📅</div>
               <div style={{color:"var(--mu)",fontSize:14}}>Selecciona un día para ver el detalle</div>
             </div>
           )}
 
           {selected && info && (
-            <div>
-              <div className="card mb3">
+            <div className="athlete-cal-detail-stack">
+              <div className="card athlete-cal-detail">
                 <div className="flex ic jb mb4">
                   <div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:900}}>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:900}}>
                       {DAYS_FULL[info.dow]} {selected.dateIso}
                     </div>
-                    {info.hist
-                      ? <span className="badge b-gr">✓ Entrenamiento completado</span>
-                      : selected.dateIso <= todayIso
-                        ? <span className="badge b-re">Sin registrar</span>
-                        : <span className="badge b-bl">Planificado</span>}
+                    {info.completion.plannedSlots > 0 && (
+                      <span className={`badge ${info.completion.status === "full" ? "b-gr" : info.completion.status === "partial" ? "b-ya" : "b-re"}`}>
+                        {info.completion.status === "full"
+                          ? "Completado todo"
+                          : info.completion.status === "partial"
+                            ? `Parcial (${info.completion.doneSlots}/${info.completion.plannedSlots})`
+                            : "Sin completar"}
+                      </span>
+                    )}
                   </div>
                   <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)}>✕</button>
                 </div>
 
+                {info.competitions.length > 0 && (
+                  <div className="card card-sm mb3" style={{background:"rgba(167,139,250,.12)",borderColor:"rgba(167,139,250,.35)"}}>
+                    <div className="fw7 mb3">🏁 Competiciones del día</div>
+                    {info.competitions.map((competition) => (
+                      <div key={competition.id} className="text-sm" style={{fontWeight:700}}>{competition.name}</div>
+                    ))}
+                  </div>
+                )}
+
                 {isWeekPublished && info.visiblePlan?.am?.length > 0 && (
                   <div className="mb3">
-                    <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--or)",fontWeight:700,marginBottom:4}}>🌅 Mañana AM</div>
+                    <div className="flex ic jb">
+                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--or)",fontWeight:700,marginBottom:4}}>🌅 Mañana AM</div>
+                      <span className={`badge ${info.completion.amDone ? "b-gr" : "b-re"}`}>{info.completion.amDone ? "Hecho" : "Pendiente"}</span>
+                    </div>
                     {info.visiblePlan.am.map((session, index) => (
-                      <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 10}}>
+                      <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 6}}>
                         <div style={{fontWeight:700}}>{session.name}</div>
-                        <div className="zone-total-row mt3">
+                        <div className="zone-total-row" style={{marginTop:6}}>
                           {ZONES.map((zone) => (session.zones?.[zone.id] || 0) > 0 ? (
                             <span key={zone.id} className="zone-pill" style={{background:`${zone.color}22`,color:zone.color}}>
                               <span className="zone-dot" style={{background:zone.color}} />
@@ -4024,11 +6030,14 @@ function AthleteCalendario({ user, week, routines, history, customExercises, exe
                 )}
                 {isWeekPublished && info.visiblePlan?.pm?.length > 0 && (
                   <div className="mb3">
-                    <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--bl)",fontWeight:700,marginBottom:4}}>🌆 Tarde PM</div>
+                    <div className="flex ic jb">
+                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--bl)",fontWeight:700,marginBottom:4}}>🌆 Tarde PM</div>
+                      <span className={`badge ${info.completion.pmDone ? "b-gr" : "b-re"}`}>{info.completion.pmDone ? "Hecho" : "Pendiente"}</span>
+                    </div>
                     {info.visiblePlan.pm.map((session, index) => (
-                      <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 10}}>
+                      <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 6}}>
                         <div style={{fontWeight:700}}>{session.name}</div>
-                        <div className="zone-total-row mt3">
+                        <div className="zone-total-row" style={{marginTop:6}}>
                           {ZONES.map((zone) => (session.zones?.[zone.id] || 0) > 0 ? (
                             <span key={zone.id} className="zone-pill" style={{background:`${zone.color}22`,color:zone.color}}>
                               <span className="zone-dot" style={{background:zone.color}} />
@@ -4040,9 +6049,17 @@ function AthleteCalendario({ user, week, routines, history, customExercises, exe
                     ))}
                   </div>
                 )}
-                {(!isWeekPublished || (!info.visiblePlan?.am?.length && !info.visiblePlan?.pm?.length)) && (
+                {isWeekPublished && info.visiblePlan?.gym && (
+                  <div className="mb3">
+                    <div className="flex ic jb">
+                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--pu)",fontWeight:700,marginBottom:4}}>🏋️ Gym</div>
+                      <span className={`badge ${info.completion.gymDone ? "b-gr" : "b-re"}`}>{info.completion.gymDone ? "Hecho" : "Pendiente"}</span>
+                    </div>
+                  </div>
+                )}
+                {(!isWeekPublished || (!info.visiblePlan?.am?.length && !info.visiblePlan?.pm?.length && !info.visiblePlan?.gym)) && (
                   <div style={{color:"var(--mu)",fontSize:14}}>
-                    {!isWeekPublished ? "La semana todavía no está publicada." : "Sin plan asignado a tu grupo para este día."}
+                    {!isWeekPublished ? "La semana todavía no está publicada." : "Sin plan asignado a tus grupos para este día."}
                   </div>
                 )}
               </div>
@@ -4052,6 +6069,7 @@ function AthleteCalendario({ user, week, routines, history, customExercises, exe
                   <div className="card-title" style={{marginBottom:12}}>🏋️ {info.gymPlan?.name || "Rutina gym"}</div>
                   {info.gymExs.map(ex => {
                     const imgSrc = ex.imageUrl;
+                    const exType = normalizeExerciseType(ex.type || "weight");
                     return (
                       <div key={ex.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
                         {imgSrc
@@ -4061,12 +6079,12 @@ function AthleteCalendario({ user, week, routines, history, customExercises, exe
                           <div style={{fontWeight:700,fontSize:13}}>{ex.name}</div>
                           <div style={{fontSize:11,color:"var(--mu)"}}>{ex.muscles}</div>
                           <div style={{fontSize:11,color:"var(--mu2)",marginTop:2}}>
-                            {ex.type==="time"
-                              ? `${ex.sets} × ${formatExDuration(ex.duration)}`
+                            {exType==="time_reps"
+                              ? `${ex.sets} × ${ex.reps} × ${formatExDuration(ex.duration)}`
                               : `${ex.sets} × ${ex.reps} reps`}
                           </div>
                         </div>
-                        {ex.type==="weight" && ex.kg && (
+                        {exType==="weight" && ex.kg && (
                           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900,color:"var(--or)"}}>{ex.kg}<span style={{fontSize:12,color:"var(--mu)"}}>kg</span></div>
                         )}
                       </div>
@@ -4086,18 +6104,44 @@ function AthleteCalendario({ user, week, routines, history, customExercises, exe
 export default function TrackFlow() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState("dashboard");
-  const [athletes, setAthletes] = useState(DEFAULT_ATHLETES);
+  const [page, setPage] = useState("semana");
+  const [athletes, setAthletes] = useState(normalizeAthletes(DEFAULT_ATHLETES));
   const [groups, setGroups] = useState([...GROUPS]);
-  const [week, setWeek] = useState(normalizeWeek(DEFAULT_WEEK, DEFAULT_ROUTINE_LIBRARY));
+  const [currentSeasonId, setCurrentSeasonId] = useState(DEFAULT_SEASON_ID);
+  const [seasonWeekOneStartIso, setSeasonWeekOneStartIso] = useState(DEFAULT_SEASON_WEEK_ONE_START_ISO);
+  const [seasons, setSeasons] = useState(() =>
+    normalizeSeasonCollection([], DEFAULT_SEASON_ID, DEFAULT_SEASON_WEEK_ONE_START_ISO)
+  );
+  const seasonAnchorDate = parseIsoDateToLocalDate(seasonWeekOneStartIso) || SEASON_ANCHOR_DATE;
+  const initialSeasonWeek = getTodaySeasonWeekNumber(seasonAnchorDate);
+  const [weekPlansByNumber, setWeekPlansByNumber] = useState(() => ({
+    [initialSeasonWeek]: createWeekForNumber(initialSeasonWeek, DEFAULT_ROUTINE_LIBRARY, {}, seasonAnchorDate),
+  }));
+  const [activeWeekNumber, setActiveWeekNumber] = useState(initialSeasonWeek);
   const [routines, setRoutines] = useState(normalizeRoutineLibrary(DEFAULT_ROUTINE_LIBRARY));
   const [trainings, setTrainings] = useState(normalizeTrainingCatalog(TRAINING_DATASET));
   const [notifications, setNotifications] = useState([]);
+  const [athleteNotificationsById, setAthleteNotificationsById] = useState({});
   const [history, setHistory] = useState([]);
   const [calendarWeeks, setCalendarWeeks] = useState([]);
   const [seedMeta, setSeedMeta] = useState(null);
   const [customExercises, setCustomExercises] = useState([]);
   const [exerciseImages, setExerciseImages] = useState({});
+  const week = normalizeWeek(
+    ensureWeekInPlans(weekPlansByNumber, activeWeekNumber, routines, seasonAnchorDate),
+    routines
+  );
+  const setWeek = useCallback((updater) => {
+    setWeekPlansByNumber((prev) => {
+      const current = ensureWeekInPlans(prev, activeWeekNumber, routines, seasonAnchorDate);
+      const nextRaw = typeof updater === "function" ? updater(current) : updater;
+      const nextWeek = withWeekMetadata(nextRaw, activeWeekNumber, routines, seasonAnchorDate);
+      return {
+        ...prev,
+        [activeWeekNumber]: nextWeek,
+      };
+    });
+  }, [activeWeekNumber, routines, seasonAnchorDate]);
 
   // Load persisted session
   useEffect(() => {
@@ -4105,10 +6149,16 @@ export default function TrackFlow() {
       const savedUser = await store.get("tf_user");
       const savedAthletes = await store.get("tf_athletes");
       const savedUsersCsv = await store.getRaw("tf_users_csv");
+      const savedCurrentSeasonId = await store.get("tf_current_season_id");
+      const savedSeasonWeekOneStart = await store.get("tf_season_week_one_start");
+      const savedSeasons = await store.get("tf_seasons");
       const savedWeek = await store.get("tf_week");
+      const savedWeekPlans = await store.get("tf_week_plans");
+      const savedActiveWeekNumber = await store.get("tf_active_week_number");
       const savedRoutines = await store.get("tf_routines");
       const savedTrainings = await store.get("tf_trainings");
       const savedNotifs = await store.get("tf_notifs");
+      const savedAthleteNotifs = await store.get("tf_athlete_notifs");
       const savedGroups = await store.get("tf_groups");
       const savedHistory = await store.get("tf_history");
       const savedCalendarWeeks = await store.get("tf_calendar_weeks");
@@ -4116,6 +6166,21 @@ export default function TrackFlow() {
       const savedPesasRaw = await store.get("tf_pesas_raw");
       const savedCustomEx = await store.get("tf_custom_exercises");
       const savedExImages = await store.get("tf_exercise_images");
+
+      const loadedCurrentSeasonId = normalizeSeasonId(savedCurrentSeasonId, DEFAULT_SEASON_ID);
+      const loadedSeasonWeekOneStartIso = normalizeSeasonWeekOneStartIso(
+        savedSeasonWeekOneStart,
+        DEFAULT_SEASON_WEEK_ONE_START_ISO
+      );
+      const loadedSeasonAnchorDate = parseIsoDateToLocalDate(loadedSeasonWeekOneStartIso) || SEASON_ANCHOR_DATE;
+      const loadedSeasons = normalizeSeasonCollection(
+        savedSeasons,
+        loadedCurrentSeasonId,
+        loadedSeasonWeekOneStartIso
+      );
+      setCurrentSeasonId(loadedCurrentSeasonId);
+      setSeasonWeekOneStartIso(loadedSeasonWeekOneStartIso);
+      setSeasons(loadedSeasons);
 
       const loadedRoutines = normalizeRoutineLibrary(savedRoutines || DEFAULT_ROUTINE_LIBRARY);
       setRoutines(loadedRoutines);
@@ -4131,18 +6196,60 @@ export default function TrackFlow() {
       if (savedExImages && typeof savedExImages === "object") setExerciseImages(savedExImages);
 
       const csvAthletes = athletesFromCsv(savedUsersCsv);
-      const loadedAthletes = csvAthletes?.length ? csvAthletes : (savedAthletes || DEFAULT_ATHLETES);
+      const loadedAthletes = normalizeAthletes(csvAthletes?.length ? csvAthletes : (savedAthletes || DEFAULT_ATHLETES));
       setAthletes(loadedAthletes);
-      setGroups(mergeGroupOptions(GROUPS, savedGroups, loadedAthletes.map(a => a.group)));
+      setGroups(mergeGroupOptions(GROUPS, savedGroups, collectAthleteGroups(loadedAthletes)));
 
-      if (savedWeek) {
-        setWeek(normalizeWeek(savedWeek, loadedRoutines));
-      } else {
+      const defaultWeekNumber = getTodaySeasonWeekNumber(loadedSeasonAnchorDate);
+      const loadedWeekPlans = normalizeWeekPlansByNumber(savedWeekPlans, loadedRoutines, loadedSeasonAnchorDate);
+      if (!Object.keys(loadedWeekPlans).length && savedWeek) {
+        const legacyWeekNumber = normalizeWeekNumber(savedWeek.weekNumber, defaultWeekNumber);
+        loadedWeekPlans[legacyWeekNumber] = withWeekMetadata(
+          savedWeek,
+          legacyWeekNumber,
+          loadedRoutines,
+          loadedSeasonAnchorDate
+        );
+      }
+      if (!Object.keys(loadedWeekPlans).length) {
         const activeCalendarWeek = pickActiveCalendarWeek(savedCalendarWeeks);
         const seededWeek = buildWeekFromCalendarSeed(activeCalendarWeek, loadedRoutines);
-        if (seededWeek) setWeek(normalizeWeek(seededWeek, loadedRoutines));
+        if (seededWeek) {
+          const seededWeekNumber = normalizeWeekNumber(seededWeek.weekNumber, defaultWeekNumber);
+          loadedWeekPlans[seededWeekNumber] = withWeekMetadata(
+            seededWeek,
+            seededWeekNumber,
+            loadedRoutines,
+            loadedSeasonAnchorDate
+          );
+        }
       }
+      if (!Object.keys(loadedWeekPlans).length) {
+        loadedWeekPlans[defaultWeekNumber] = createWeekForNumber(
+          defaultWeekNumber,
+          loadedRoutines,
+          {},
+          loadedSeasonAnchorDate
+        );
+      }
+      const firstLoadedWeek = Number(Object.keys(loadedWeekPlans)[0]);
+      const initialActiveWeek = normalizeWeekNumber(
+        savedActiveWeekNumber,
+        savedWeek?.weekNumber || firstLoadedWeek || defaultWeekNumber
+      );
+      if (!loadedWeekPlans[initialActiveWeek]) {
+        loadedWeekPlans[initialActiveWeek] = createWeekForNumber(
+          initialActiveWeek,
+          loadedRoutines,
+          {},
+          loadedSeasonAnchorDate
+        );
+      }
+      setWeekPlansByNumber(loadedWeekPlans);
+      setActiveWeekNumber(initialActiveWeek);
+
       if (savedNotifs) setNotifications(savedNotifs);
+      if (savedAthleteNotifs) setAthleteNotificationsById(normalizeAthleteNotificationsMap(savedAthleteNotifs));
       if (Array.isArray(savedHistory)) setHistory(savedHistory);
       setLoading(false);
     })();
@@ -4150,75 +6257,318 @@ export default function TrackFlow() {
 
   // Persist on change
   useEffect(() => { if(user) store.set("tf_user", user); }, [user]);
-  useEffect(() => { store.set("tf_athletes", athletes); store.setRaw("tf_users_csv", athletesToCsv(athletes)); }, [athletes]);
+  useEffect(() => {
+    const normalized = normalizeAthletes(athletes);
+    store.set("tf_athletes", normalized);
+    store.setRaw("tf_users_csv", athletesToCsv(normalized));
+  }, [athletes]);
   useEffect(() => {
     setGroups((prev) => {
-      const merged = mergeGroupOptions(GROUPS, prev, athletes.map(a => a.group));
+      const merged = mergeGroupOptions(GROUPS, prev, collectAthleteGroups(athletes));
       return merged.length === prev.length && merged.every((g, i) => g === prev[i]) ? prev : merged;
     });
   }, [athletes]);
+  useEffect(() => {
+    const safeWeekNumber = normalizeWeekNumber(activeWeekNumber, getTodaySeasonWeekNumber(seasonAnchorDate));
+    setWeekPlansByNumber((prev) => {
+      if (prev?.[safeWeekNumber]) return prev;
+      return {
+        ...prev,
+        [safeWeekNumber]: createWeekForNumber(safeWeekNumber, routines, {}, seasonAnchorDate),
+      };
+    });
+  }, [activeWeekNumber, routines, seasonAnchorDate]);
   useEffect(() => { store.set("tf_groups", groups); }, [groups]);
+  useEffect(() => {
+    store.set("tf_week_plans", normalizeWeekPlansByNumber(weekPlansByNumber, routines, seasonAnchorDate));
+  }, [weekPlansByNumber, routines, seasonAnchorDate]);
+  useEffect(() => {
+    store.set("tf_active_week_number", normalizeWeekNumber(activeWeekNumber, getTodaySeasonWeekNumber(seasonAnchorDate)));
+  }, [activeWeekNumber, seasonAnchorDate]);
   useEffect(() => { store.set("tf_week", normalizeWeek(week, routines)); }, [week, routines]);
   useEffect(() => { store.set("tf_routines", normalizeRoutineLibrary(routines)); }, [routines]);
   useEffect(() => { store.set("tf_trainings", normalizeTrainingCatalog(trainings)); }, [trainings]);
   useEffect(() => { store.set("tf_notifs", notifications); }, [notifications]);
+  useEffect(() => { store.set("tf_athlete_notifs", normalizeAthleteNotificationsMap(athleteNotificationsById)); }, [athleteNotificationsById]);
   useEffect(() => { store.set("tf_history", history); }, [history]);
-  useEffect(() => { if (Array.isArray(calendarWeeks) && calendarWeeks.length) store.set("tf_calendar_weeks", calendarWeeks); }, [calendarWeeks]);
-  useEffect(() => { if (seedMeta) store.set("tf_seed_meta", seedMeta); }, [seedMeta]);
+  useEffect(() => { store.set("tf_calendar_weeks", Array.isArray(calendarWeeks) ? calendarWeeks : []); }, [calendarWeeks]);
+  useEffect(() => { store.set("tf_seed_meta", seedMeta || null); }, [seedMeta]);
   useEffect(() => { store.set("tf_custom_exercises", customExercises); }, [customExercises]);
   useEffect(() => { store.set("tf_exercise_images", exerciseImages); }, [exerciseImages]);
+  useEffect(() => {
+    if (loading) return;
+    const normalized = normalizeSeasonCollection(seasons, currentSeasonId, seasonWeekOneStartIso);
+    store.set("tf_seasons", normalized);
+  }, [loading, seasons, currentSeasonId, seasonWeekOneStartIso]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_current_season_id", normalizeSeasonId(currentSeasonId, DEFAULT_SEASON_ID));
+  }, [loading, currentSeasonId]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_season_week_one_start", normalizeSeasonWeekOneStartIso(seasonWeekOneStartIso, DEFAULT_SEASON_WEEK_ONE_START_ISO));
+  }, [loading, seasonWeekOneStartIso]);
 
-  const handleLogin = (u, isNew = false) => {
+  const handleLogin = (u) => {
     setUser(u);
-    setPage(u.role === "coach" ? "dashboard" : "hoy");
-    if (isNew && u.role !== "coach") {
-      setAthletes(prev => {
-        const exists = prev.find(a=>a.id===u.id);
-        return exists ? prev : [...prev, u];
-      });
-    }
+    setPage(u.role === "coach" ? "semana" : "hoy");
   };
 
   const handleLogout = () => { setUser(null); store.set("tf_user", null); };
 
-  const handleComplete = (athlete) => {
-    if (!athlete) return;
-    const newCompleted = !athlete.todayDone;
+  const pushAthleteNotifications = (targetGroups, payload) => {
+    const targetSet = new Set(
+      (Array.isArray(targetGroups) ? targetGroups : [targetGroups])
+        .map((group) => String(group || "all").trim() || "all")
+    );
+    if (!targetSet.size) targetSet.add("all");
+    const createdAt = new Date().toISOString();
+    setAthleteNotificationsById((prev) => {
+      const next = { ...normalizeAthleteNotificationsMap(prev) };
+      normalizeAthletes(athletes).forEach((athlete) => {
+        const athleteGroups = getAthleteGroups(athlete);
+        const isTargeted = targetSet.has("all") || athleteGroups.some((group) => targetSet.has(group));
+        if (!isTargeted) return;
+        const entry = {
+          id: `notif_${athlete.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          title: payload?.title || "Actualización",
+          message: payload?.message || "",
+          weekNumber: payload?.weekNumber != null ? Number(payload.weekNumber) : null,
+          createdAt,
+        };
+        const list = Array.isArray(next[athlete.id]) ? next[athlete.id] : [];
+        next[athlete.id] = [entry, ...list].slice(0, 50);
+      });
+      return next;
+    });
+  };
+  const handlePublishWeek = ({ weekNumber, isUpdate, targetGroups }) => {
+    const hasTargets = Array.isArray(targetGroups) && targetGroups.length > 0;
+    if (isUpdate && !hasTargets) return;
+    const targets = hasTargets ? targetGroups : ["all"];
+    const safeWeekNumber = normalizeWeekNumber(
+      weekNumber,
+      activeWeekNumber || getTodaySeasonWeekNumber(seasonAnchorDate)
+    );
+    pushAthleteNotifications(targets, {
+      title: isUpdate ? `Semana ${safeWeekNumber} modificada` : `Semana ${safeWeekNumber} publicada`,
+      message: isUpdate
+        ? "Se ha actualizado tu plan semanal para alguno de tus grupos."
+        : "Tu nueva semana ya está publicada y disponible en calendario.",
+      weekNumber: safeWeekNumber,
+    });
+  };
+  const handleFinalizeSeason = ({ nextSeasonId, nextWeekOneStartIso }) => {
+    const safeNextSeasonIdRaw = normalizeSeasonId(nextSeasonId, getNextSeasonId(currentSeasonId));
+    const safeNextSeasonId = safeNextSeasonIdRaw === currentSeasonId
+      ? getNextSeasonId(currentSeasonId)
+      : safeNextSeasonIdRaw;
+    const safeNextWeekOneStartIso = normalizeSeasonWeekOneStartIso(nextWeekOneStartIso, "");
+    if (!safeNextWeekOneStartIso) return;
+
+    const nowIso = new Date().toISOString();
+    const archivedSnapshot = {
+      weekPlansByNumber: normalizeWeekPlansByNumber(weekPlansByNumber, routines, seasonAnchorDate),
+      activeWeekNumber: normalizeWeekNumber(activeWeekNumber, getTodaySeasonWeekNumber(seasonAnchorDate)),
+      history: Array.isArray(history) ? history : [],
+      notifications: Array.isArray(notifications) ? notifications : [],
+      athleteNotificationsById: normalizeAthleteNotificationsMap(athleteNotificationsById),
+      calendarWeeks: Array.isArray(calendarWeeks) ? calendarWeeks : [],
+      athletes: normalizeAthletes(athletes),
+      groups: mergeGroupOptions(groups),
+      trainings: normalizeTrainingCatalog(trainings),
+      routines: normalizeRoutineLibrary(routines),
+      customExercises: Array.isArray(customExercises) ? customExercises : [],
+      exerciseImages: exerciseImages && typeof exerciseImages === "object" ? exerciseImages : {},
+      seedMeta: seedMeta || null,
+      archivedAt: nowIso,
+    };
+
+    setSeasons((prev) => {
+      const normalized = normalizeSeasonCollection(prev, currentSeasonId, seasonWeekOneStartIso);
+      const withClosedCurrent = normalized.map((season) => (
+        season.id === currentSeasonId
+          ? buildSeasonRecord({
+              ...season,
+              id: currentSeasonId,
+              weekOneStartIso: seasonWeekOneStartIso,
+              finalizedAt: nowIso,
+              archived: archivedSnapshot,
+            })
+          : season
+      ));
+      const hasNext = withClosedCurrent.some((season) => season.id === safeNextSeasonId);
+      const withNext = hasNext
+        ? withClosedCurrent.map((season) => (
+            season.id === safeNextSeasonId
+              ? buildSeasonRecord({
+                  ...season,
+                  id: safeNextSeasonId,
+                  weekOneStartIso: safeNextWeekOneStartIso,
+                  finalizedAt: null,
+                  startedAt: season.startedAt || nowIso,
+                })
+              : season
+          ))
+        : [
+            ...withClosedCurrent,
+            buildSeasonRecord({
+              id: safeNextSeasonId,
+              weekOneStartIso: safeNextWeekOneStartIso,
+              startedAt: nowIso,
+              finalizedAt: null,
+              archived: null,
+            }),
+          ];
+      return normalizeSeasonCollection(withNext, safeNextSeasonId, safeNextWeekOneStartIso);
+    });
+
+    const nextAnchorDate = parseIsoDateToLocalDate(safeNextWeekOneStartIso) || SEASON_ANCHOR_DATE;
+    const resetAthletes = normalizeAthletes(athletes).map((athlete, idx) =>
+      normalizeAthleteRecord({
+        ...athlete,
+        weekKms: [],
+        todayDone: false,
+        competitions: [],
+      }, idx)
+    );
+
+    setCurrentSeasonId(safeNextSeasonId);
+    setSeasonWeekOneStartIso(safeNextWeekOneStartIso);
+    setWeekPlansByNumber({
+      1: createWeekForNumber(1, routines, {}, nextAnchorDate),
+    });
+    setActiveWeekNumber(1);
+    setHistory([]);
+    setNotifications([]);
+    setAthleteNotificationsById({});
+    setCalendarWeeks([]);
+    setSeedMeta(null);
+    setAthletes(resetAthletes);
+    setPage("semana");
+  };
+  const handleDismissAthleteNotification = (athleteId, notificationId) => {
+    if (!athleteId || !notificationId) return;
+    setAthleteNotificationsById((prev) => {
+      const next = { ...normalizeAthleteNotificationsMap(prev) };
+      const list = Array.isArray(next[athleteId]) ? next[athleteId] : [];
+      next[athleteId] = list.filter((item) => item.id !== notificationId);
+      if (!next[athleteId].length) delete next[athleteId];
+      return next;
+    });
+  };
+  const handleClearAthleteNotifications = (athleteId) => {
+    if (!athleteId) return;
+    setAthleteNotificationsById((prev) => {
+      const next = { ...normalizeAthleteNotificationsMap(prev) };
+      delete next[athleteId];
+      return next;
+    });
+  };
+  const handleUpdateAthleteGroups = (athleteId, selectedGroups) => {
+    if (!athleteId) return;
+    const nextGroups = collectGroupValues(selectedGroups);
+    const safeGroups = nextGroups.length ? nextGroups : ["por-asignar"];
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) =>
+      athlete.id === athleteId
+        ? normalizeAthleteRecord({ ...athlete, group:safeGroups[0], groups:safeGroups }, idx)
+        : normalizeAthleteRecord(athlete, idx)
+    ));
+    setUser((prev) => (prev && prev.id === athleteId
+      ? { ...prev, group:safeGroups[0], groups:safeGroups }
+      : prev
+    ));
+  };
+  const handleUpdateAthletePassword = (athleteId, nextPassword) => {
+    if (!athleteId) return;
+    const safePassword = String(nextPassword || "").trim() || "1234";
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) =>
+      athlete.id === athleteId
+        ? normalizeAthleteRecord({ ...athlete, password:safePassword, passwordChangedOnce:true }, idx)
+        : normalizeAthleteRecord(athlete, idx)
+    ));
+    setUser((prev) => (prev && prev.id === athleteId
+      ? { ...prev, password:safePassword, passwordChangedOnce:true }
+      : prev
+    ));
+  };
+  const handleAddCompetition = (athleteId, competition) => {
+    if (!athleteId || !competition) return;
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) => {
+      if (athlete.id !== athleteId) return normalizeAthleteRecord(athlete, idx);
+      const competitions = normalizeCompetitionList([...(athlete.competitions || []), competition]);
+      return normalizeAthleteRecord({ ...athlete, competitions }, idx);
+    }));
+  };
+  const handleRemoveCompetition = (athleteId, competitionId) => {
+    if (!athleteId || !competitionId) return;
+    setAthletes((prev) => normalizeAthletes(prev).map((athlete, idx) => {
+      if (athlete.id !== athleteId) return normalizeAthleteRecord(athlete, idx);
+      const competitions = normalizeCompetitionList((athlete.competitions || []).filter((competition) => competition.id !== competitionId));
+      return normalizeAthleteRecord({ ...athlete, competitions }, idx);
+    }));
+  };
+  const handleToggleSlotCompletion = (athlete, slot, nextDone) => {
+    if (!athlete || !["am", "pm", "gym"].includes(slot)) return;
     const todayI = todayIdx();
-    const publicWeek = resolvePublishedWeek(week, routines);
-    const rawTodayPlan = publicWeek?.days?.[todayI] || null;
-    const visibleToday = rawTodayPlan ? getVisibleDayPlanForGroup(publicWeek, rawTodayPlan, athlete.group, routines) : { am:[], pm:[], gym:false };
+    const todayIso = toIsoDate();
+    const publishedWeek = resolvePublishedWeek(week, routines);
+    const todayPlan = publishedWeek?.days?.[todayI] || {};
+    const visibleToday = getVisibleDayPlanForGroup(publishedWeek || week, todayPlan, getAthleteGroups(athlete), routines);
+    const slotPlan = getDaySlotPlanState(visibleToday);
+    if (slot === "am" && !slotPlan.amPlanned) return;
+    if (slot === "pm" && !slotPlan.pmPlanned) return;
+    if (slot === "gym" && !slotPlan.gymPlanned) return;
+
+    const existingRow = (history || []).find((row) => row?.athleteId === athlete.id && row?.dateIso === todayIso) || null;
+    const prevAmDone = slotPlan.amPlanned ? !!existingRow?.amDone : false;
+    const prevPmDone = slotPlan.pmPlanned ? !!existingRow?.pmDone : false;
+    const prevGymDone = slotPlan.gymPlanned ? !!existingRow?.gymDone : false;
+    const prevDoneSlots = Number(prevAmDone) + Number(prevPmDone) + Number(prevGymDone);
+    const prevCompleted = slotPlan.plannedSlots > 0 && prevDoneSlots >= slotPlan.plannedSlots;
+
+    const amDone = slotPlan.amPlanned ? (slot === "am" ? !!nextDone : prevAmDone) : false;
+    const pmDone = slotPlan.pmPlanned ? (slot === "pm" ? !!nextDone : prevPmDone) : false;
+    const gymDone = slotPlan.gymPlanned ? (slot === "gym" ? !!nextDone : prevGymDone) : false;
+    const doneSlots = Number(amDone) + Number(pmDone) + Number(gymDone);
+    const completed = slotPlan.plannedSlots > 0 && doneSlots >= slotPlan.plannedSlots;
+
+    setAthletes((prev) => prev.map((item) => item.id === athlete.id ? { ...item, todayDone: completed } : item));
+
     const now = new Date();
-    const dateIso = now.toISOString().slice(0, 10);
-    const historyId = `${dateIso}_${athlete.id}`;
-
-    setAthletes(prev => prev.map(a => a.id===athlete.id ? {...a, todayDone:newCompleted} : a));
-
-    if (newCompleted) {
-      const notif = {
+    const historyId = `${todayIso}_${athlete.id}`;
+    setHistory((prev) => {
+      const rest = (prev || []).filter((row) => !(row?.athleteId === athlete.id && row?.dateIso === todayIso));
+      if (doneSlots === 0) return rest;
+      const historyRow = {
+        id: historyId,
+        athleteId: athlete.id,
         athlete: athlete.name,
-        msg: `Ha completado el entrenamiento de ${DAYS_FULL[todayI]}`,
-        time: now.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})
+        group: getAthletePrimaryGroup(athlete),
+        groups: getAthleteGroups(athlete),
+        dateIso: todayIso,
+        dateLabel: now.toLocaleDateString("es-ES",{weekday:"short",day:"2-digit",month:"short",year:"numeric"}),
+        time: now.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}),
+        am: (visibleToday.am || []).map((session) => session.name).join(" · "),
+        pm: (visibleToday.pm || []).map((session) => session.name).join(" · "),
+        gym: !!visibleToday.gym,
+        amDone,
+        pmDone,
+        gymDone,
+        completed,
       };
-      setNotifications(prev => [notif, ...prev].slice(0,10));
-      setHistory(prev => [
+      return [historyRow, ...rest].slice(0, 500);
+    });
+
+    if (!prevCompleted && completed) {
+      setNotifications((prev) => [
         {
-          id: historyId,
-          athleteId: athlete.id,
           athlete: athlete.name,
-          group: athlete.group,
-          dateIso,
-          dateLabel: now.toLocaleDateString("es-ES",{weekday:"short",day:"2-digit",month:"short",year:"numeric"}),
+          msg: `Ha completado los entrenos del día (${DAYS_FULL[todayI]})`,
           time: now.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}),
-          am: (visibleToday.am || []).map((session) => session.name).join(" · "),
-          pm: (visibleToday.pm || []).map((session) => session.name).join(" · "),
-          gym: !!visibleToday.gym,
-          completed: true,
         },
-        ...prev.filter(h => h.id !== historyId),
-      ].slice(0,500));
-    } else {
-      setHistory(prev => prev.filter(h => h.id !== historyId));
+        ...(Array.isArray(prev) ? prev : []),
+      ].slice(0, 20));
     }
   };
 
@@ -4232,39 +6582,45 @@ export default function TrackFlow() {
     </div>
   );
 
-  if (!user) return <LoginScreen onLogin={handleLogin} athletes={athletes} groups={groups} />;
+  if (!user) return <LoginScreen onLogin={handleLogin} athletes={athletes} />;
 
   const isCoach = user.role === "coach";
+  const isDatasetPage = isCoach && (page === "gym" || page === "dataset");
+  const isAthleteGymPage = !isCoach && page === "gym";
+  const allowPageScroll = isDatasetPage || isAthleteGymPage;
+  const mainAreaClass = `main-area ${allowPageScroll ? "main-area-scroll" : "main-area-fit"}`;
+  const pageShellClass = `page-shell ${allowPageScroll ? "page-shell-scroll" : "page-shell-fit"}`;
   const publishedWeek = resolvePublishedWeek(week, routines);
+  const currentAthlete = !isCoach ? normalizeAthleteRecord(athletes.find((athlete) => athlete.id === user.id) || user) : null;
   const athleteWeek = publishedWeek || normalizeWeek({
     id: "week_unpublished",
     name: week.name || "Semana pendiente",
     type: week.type || "Inicial",
     days: DAYS_FULL.map(() => ({ })),
   }, routines);
+  const athleteNotifications = currentAthlete ? (athleteNotificationsById[currentAthlete.id] || []) : [];
 
   const renderPage = () => {
     if (isCoach) {
       switch(page) {
-        case "dashboard":  return <CoachDashboard athletes={athletes} notifications={notifications} week={week} onClearNotif={()=>setNotifications([])} />;
-        case "semana":     return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} groups={groups} trainings={trainings} setTrainings={setTrainings} customExercises={customExercises} exerciseImages={exerciseImages} />;
+        case "semana":     return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
+        case "calendario": return <CoachCalendario week={week} routines={routines} history={history} activeWeekNumber={activeWeekNumber} seasonAnchorDate={seasonAnchorDate} />;
+        case "calendario_semanal": return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} view="history" seasonAnchorDate={seasonAnchorDate} />;
         case "gym":        return <CoachGymV2 customExercises={customExercises} setCustomExercises={setCustomExercises} exerciseImages={exerciseImages} setExerciseImages={setExerciseImages} />;
-        case "grupos":     return <CoachGrupos athletes={athletes} setAthletes={setAthletes} groups={groups} setGroups={setGroups} />;
-        case "atletas":    return <CoachAtletas athletes={athletes} setAthletes={setAthletes} week={week} />;
-        case "volumen":    return <CoachVolumen athletes={athletes} week={week} />;
-        case "calendario": return <CoachCalendario week={week} />;
-        case "historial":  return <CoachHistorial history={history} />;
-        default: return null;
+        case "dataset":    return <CoachTrainingsDataset trainings={trainings} setTrainings={setTrainings} />;
+        case "athletes":   return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} view="athletes" seasonAnchorDate={seasonAnchorDate} />;
+        case "temporadas": return <CoachTemporadas currentSeasonId={currentSeasonId} seasonWeekOneStartIso={seasonWeekOneStartIso} seasons={seasons} onFinalizeSeason={handleFinalizeSeason} />;
+        default:           return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
       }
     } else {
-      const currentUser = athletes.find(a=>a.id===user.id) || user;
+      const currentUser = currentAthlete;
+      if (!currentUser) return null;
       switch(page) {
-        case "hoy":        return <AthleteHoy user={currentUser} week={athleteWeek} routines={routines} onComplete={()=>handleComplete(currentUser)} completed={!!currentUser.todayDone} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
+        case "hoy":        return <AthleteHoy user={currentUser} week={athleteWeek} routines={routines} history={history} onToggleSlotCompletion={(slot, done) => handleToggleSlotCompletion(currentUser, slot, done)} onDismissNotification={(notificationId) => handleDismissAthleteNotification(currentUser?.id, notificationId)} onClearNotifications={() => handleClearAthleteNotifications(currentUser?.id)} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} athleteNotifications={athleteNotifications} />;
         case "semana":     return <AthleteSemana week={athleteWeek} routines={routines} user={currentUser} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
         case "gym":        return <AthleteGym user={currentUser} routines={routines} week={athleteWeek} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
-        case "strava":     return <AthleteStrava user={currentUser} setUser={u=>setUser(u)} />;
-        case "perfil":     return <AthletePerfil user={currentUser} setUser={u=>{setUser(u);setAthletes(prev=>prev.map(a=>a.id===u.id?u:a))}} athletes={athletes} groups={groups} />;
-        case "calendario": return <AthleteCalendario user={currentUser} week={athleteWeek} routines={routines} history={history} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
+        case "perfil":     return <AthletePerfil user={currentUser} athletes={athletes} groups={groups} onUpdateGroups={(nextGroups) => handleUpdateAthleteGroups(currentUser?.id, nextGroups)} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} />;
+        case "calendario": return <AthleteCalendario user={currentUser} week={athleteWeek} routines={routines} history={history} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} onAddCompetition={(competition) => handleAddCompetition(currentUser.id, competition)} onRemoveCompetition={(competitionId) => handleRemoveCompetition(currentUser.id, competitionId)} />;
         default: return null;
       }
     }
@@ -4278,10 +6634,19 @@ export default function TrackFlow() {
         page={page}
         setPage={setPage}
         onLogout={handleLogout}
-        notifCount={notifications.length}
+        notifCount={isCoach ? notifications.length : athleteNotifications.length}
       />
-      <div className="main-area">
-        {renderPage()}
+      <MobileNavigation
+        user={user}
+        page={page}
+        setPage={setPage}
+        onLogout={handleLogout}
+        notifCount={isCoach ? notifications.length : athleteNotifications.length}
+      />
+      <div className={mainAreaClass}>
+        <div className={pageShellClass}>
+          {renderPage()}
+        </div>
       </div>
     </div>
   );

@@ -118,8 +118,10 @@ async function main() {
   if (!appStorageSeedObj || typeof appStorageSeedObj !== "object") {
     throw new Error("app_storage.seed.json no es JSON valido");
   }
-  if (!("tf_week" in appStorageSeedObj) || !("tf_routines" in appStorageSeedObj)) {
-    throw new Error("app_storage.seed.json no contiene tf_week/tf_routines");
+  const hasLegacyWeek = "tf_week" in appStorageSeedObj;
+  const hasWeekPlans = "tf_week_plans" in appStorageSeedObj && "tf_active_week_number" in appStorageSeedObj;
+  if ((!hasLegacyWeek && !hasWeekPlans) || !("tf_routines" in appStorageSeedObj)) {
+    throw new Error("app_storage.seed.json no contiene semana (tf_week o tf_week_plans/tf_active_week_number) y tf_routines");
   }
 
   printValidationSummary(usersSeedCsv, appStorageSeedObj);

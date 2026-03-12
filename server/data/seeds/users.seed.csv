@@ -1,24 +1,23 @@
-id,name,group,isHR,avatar,stravaConnected,maxW,weekKms,todayDone
-nuria,Nuria,por-asignar,0,N,0,"{""custom_cargada"":50,""custom_arrancada"":30,""bp"":40,""ht_4"":100,""sq_2"":90,""dl_2"":70,""pm"":35,""row_2"":50,""calf_2"":100}",[],0
-ona,Ona,por-asignar,0,O,0,{},[],0
-marina,Marina,por-asignar,0,M,0,"{""custom_cargada"":40,""custom_arrancada"":25,""bp"":30,""ht_4"":85,""sq_2"":70,""dl_2"":55,""pm"":25,""row_2"":40,""calf_2"":9}",[],0
-marina_sanchez,Marina Sanchez,por-asignar,0,MS,0,"{""bp"":25,""ht_4"":80,""sq_2"":60,""dl_2"":55,""pm"":20,""row_2"":40,""calf_2"":80}",[],0
-eric,Eric,por-asignar,0,E,0,"{""custom_cargada"":60,""custom_arrancada"":45,""bp"":60,""ht_4"":120,""sq_2"":115,""dl_2"":100,""pm"":50,""row_2"":60,""calf_2"":100}",[],0
-pelayo,Pelayo,por-asignar,0,P,0,"{""custom_cargada"":60,""bp"":70,""ht_4"":120,""sq_2"":120,""dl_2"":100,""pm"":45,""row_2"":60,""calf_2"":100}",[],0
-marcal,Marçal,por-asignar,0,M,0,"{""custom_cargada"":50,""custom_arrancada"":60,""bp"":45,""ht_4"":120,""sq_2"":125,""dl_2"":75,""pm"":40,""row_2"":50,""calf_2"":100}",[],0
-teo,Teo,por-asignar,0,T,0,"{""custom_cargada"":55,""custom_arrancada"":55,""bp"":50,""ht_4"":135,""sq_2"":130,""dl_2"":90,""pm"":55,""row_2"":50,""calf_2"":120}",[],0
-pablo_colau,Pablo Colau,por-asignar,0,PC,0,"{""custom_cargada"":50,""custom_arrancada"":40,""bp"":60,""ht_4"":100,""sq_2"":90,""dl_2"":85,""pm"":40,""row_2"":65,""calf_2"":100}",[],0
-marti,Marti,por-asignar,0,M,0,"{""custom_cargada"":50,""custom_arrancada"":40,""bp"":60,""ht_4"":55,""sq_2"":100,""dl_2"":80,""pm"":30,""row_2"":50,""calf_2"":100}",[],0
-pol_fernandez,Pol Fernandez,por-asignar,0,PF,0,"{""custom_cargada"":60,""custom_arrancada"":40,""bp"":70,""ht_4"":125,""sq_2"":105,""dl_2"":110,""pm"":45,""row_2"":75,""calf_2"":150}",[],0
-pol_serra,Pol Serra,por-asignar,0,PS,0,"{""custom_cargada"":35,""custom_arrancada"":35,""bp"":50,""ht_4"":90,""sq_2"":100,""dl_2"":70,""pm"":35,""row_2"":45,""calf_2"":90}",[],0
-aram,Aram,por-asignar,0,A,0,"{""custom_cargada"":40,""custom_arrancada"":42,""bp"":60,""ht_4"":80,""sq_2"":90,""dl_2"":90,""pm"":45,""row_2"":60,""calf_2"":100}",[],0
-gerard,Gerard,por-asignar,0,G,0,"{""custom_cargada"":23.5,""custom_arrancada"":21,""bp"":21,""ht_4"":58,""sq_2"":26,""dl_2"":36,""pm"":21,""row_2"":31,""calf_2"":51}",[],0
-pablo,Pablo,por-asignar,0,P,0,"{""custom_cargada"":35,""custom_arrancada"":27.5,""bp"":40,""ht_4"":85,""sq_2"":90,""dl_2"":80,""pm"":35,""row_2"":45,""calf_2"":90}",[],0
-jan,Jan,por-asignar,0,J,0,"{""custom_cargada"":50,""custom_arrancada"":37.5,""bp"":45,""ht_4"":100,""sq_2"":90,""dl_2"":80,""pm"":35,""row_2"":50,""calf_2"":100}",[],0
-leo,Leo,por-asignar,0,L,0,"{""custom_cargada"":35,""custom_arrancada"":30,""bp"":40,""ht_4"":80,""sq_2"":80,""dl_2"":50,""pm"":25,""row_2"":35,""calf_2"":90}",[],0
-ot,Ot,por-asignar,0,O,0,"{""custom_cargada"":35,""custom_arrancada"":32.5,""bp"":40,""ht_4"":90,""sq_2"":90,""dl_2"":80,""pm"":35,""row_2"":45,""calf_2"":100}",[],0
-enric,Enric,por-asignar,0,E,0,"{""custom_cargada"":35,""custom_arrancada"":30,""bp"":50,""ht_4"":80,""sq_2"":65,""dl_2"":65,""pm"":35,""row_2"":45,""calf_2"":70}",[],0
-roma,Roma,por-asignar,0,R,0,"{""custom_cargada"":45,""custom_arrancada"":50,""bp"":75,""ht_4"":90,""sq_2"":65,""dl_2"":70,""pm"":45,""row_2"":45,""calf_2"":70}",[],0
-pau,Pau,por-asignar,0,P,0,"{""custom_cargada"":30,""custom_arrancada"":35,""bp"":30,""ht_4"":55,""sq_2"":70,""dl_2"":60,""pm"":35,""row_2"":45,""calf_2"":65}",[],0
-mar,Mar,por-asignar,0,M,0,"{""custom_cargada"":23.5,""custom_arrancada"":21,""bp"":21,""ht_4"":58,""sq_2"":26,""dl_2"":36,""pm"":21,""row_2"":31,""calf_2"":51}",[],0
-janna,Janna,por-asignar,0,J,0,"{""custom_cargada"":23,""custom_arrancada"":21,""bp"":21,""ht_4"":58,""sq_2"":26,""dl_2"":36,""pm"":21,""row_2"":31,""calf_2"":51}",[],0
+id,name,group,groups,avatar,maxW,weekKms,todayDone,competitions,password
+ath_nuria,Nuria,por-asignar,"[""por-asignar""]",NU,{},[],0,[],1234
+ath_ona,Ona,por-asignar,"[""por-asignar""]",ON,{},[],0,[],1234
+ath_marina,Marina,por-asignar,"[""por-asignar""]",MA,{},[],0,[],1234
+ath_eric,Eric,por-asignar,"[""por-asignar""]",ER,{},[],0,[],1234
+ath_pelayo,Pelayo,por-asignar,"[""por-asignar""]",PE,{},[],0,[],1234
+ath_marcal,Marçal,por-asignar,"[""por-asignar""]",MA,{},[],0,[],1234
+ath_teo,Teo,por-asignar,"[""por-asignar""]",TE,{},[],0,[],1234
+ath_pablo_col,Pablo Col,por-asignar,"[""por-asignar""]",PC,{},[],0,[],1234
+ath_marti,Martí,por-asignar,"[""por-asignar""]",MA,{},[],0,[],1234
+ath_pol_ferran,Pol Ferran,por-asignar,"[""por-asignar""]",PF,{},[],0,[],1234
+ath_pol_serra,Pol Serra,por-asignar,"[""por-asignar""]",PS,{},[],0,[],1234
+ath_aram,Aram,por-asignar,"[""por-asignar""]",AR,{},[],0,[],1234
+ath_gerard,Gerard,por-asignar,"[""por-asignar""]",GE,{},[],0,[],1234
+ath_pablo,Pablo,por-asignar,"[""por-asignar""]",PA,{},[],0,[],1234
+ath_jan,Jan,por-asignar,"[""por-asignar""]",JA,{},[],0,[],1234
+ath_leo,Leo,por-asignar,"[""por-asignar""]",LE,{},[],0,[],1234
+ath_ot,Ot,por-asignar,"[""por-asignar""]",OT,{},[],0,[],1234
+ath_enric,Enric,por-asignar,"[""por-asignar""]",EN,{},[],0,[],1234
+ath_roma,Roma,por-asignar,"[""por-asignar""]",RO,{},[],0,[],1234
+ath_pau,Pau,por-asignar,"[""por-asignar""]",PA,{},[],0,[],1234
+ath_mar,Mar,por-asignar,"[""por-asignar""]",MA,{},[],0,[],1234
+ath_janna,Janna,por-asignar,"[""por-asignar""]",JA,{},[],0,[],1234

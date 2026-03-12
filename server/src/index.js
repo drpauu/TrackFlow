@@ -11,7 +11,7 @@ import {
   writeTextFile
 } from './utils/fs.js';
 
-const DEFAULT_USERS_CSV_HEADER = 'id,name,group,isHR,avatar,stravaConnected,maxW,weekKms,todayDone\n';
+const DEFAULT_USERS_CSV_HEADER = 'id,name,group,groups,avatar,maxW,weekKms,todayDone,competitions\n';
 
 function isUsersCsvEmpty(csvText) {
   if (!csvText || !csvText.trim()) return true;
