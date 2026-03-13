@@ -14,6 +14,7 @@ export default function createStorageRouter({ storage }) {
 
   router.get('/storage/changes', async (req, res, next) => {
     try {
+      res.set('Cache-Control', 'no-store');
       const since = Math.max(toFiniteInt(req.query?.since, 0), 0);
       const limit = Math.min(Math.max(toFiniteInt(req.query?.limit, 200), 1), 500);
       const clientId = String(req.query?.clientId || req.get('x-trackflow-client-id') || '').trim() || null;
@@ -32,6 +33,7 @@ export default function createStorageRouter({ storage }) {
 
   router.get('/storage/:key', async (req, res, next) => {
     try {
+      res.set('Cache-Control', 'no-store');
       const { key } = req.params;
       const value = await storage.get(key);
       return res.json({ key, value: value == null ? null : value, storage: storage?.name || 'unknown' });

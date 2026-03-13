@@ -2,7 +2,7 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 
 const CLIENT_ID_KEY = 'trackflow_client_id';
 const LAST_SEQ_KEY = 'trackflow_last_seq';
-const DEFAULT_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_STORAGE_SYNC_INTERVAL_MS || 2500);
+const DEFAULT_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_STORAGE_SYNC_INTERVAL_MS || 700);
 const DEFAULT_SYNC_LIMIT = Number(import.meta.env.VITE_STORAGE_SYNC_LIMIT || 200);
 
 let syncStarted = false;
@@ -23,9 +23,25 @@ function localGet(key) {
   }
 }
 
+function sessionGet(key) {
+  try {
+    return { value: window.sessionStorage.getItem(key) };
+  } catch {
+    return { value: null };
+  }
+}
+
 function localSet(key, value) {
   try {
     window.localStorage.setItem(key, String(value));
+  } catch {
+    // ignore quota/privacy mode issues
+  }
+}
+
+function sessionSet(key, value) {
+  try {
+    window.sessionStorage.setItem(key, String(value));
   } catch {
     // ignore quota/privacy mode issues
   }
@@ -48,14 +64,16 @@ function safeRandomId() {
 
 function getClientId() {
   if (clientIdCache) return clientIdCache;
-  const existing = localGet(CLIENT_ID_KEY).value;
+  // Keep client id scoped per browser tab/session so different tabs
+  // receive each other's changes through /changes polling.
+  const existing = sessionGet(CLIENT_ID_KEY).value;
   if (existing && String(existing).trim()) {
     clientIdCache = String(existing).trim();
     return clientIdCache;
   }
   const next = safeRandomId();
   clientIdCache = next;
-  localSet(CLIENT_ID_KEY, next);
+  sessionSet(CLIENT_ID_KEY, next);
   return next;
 }
 
@@ -76,6 +94,7 @@ function setLastSeq(value) {
 async function fetchKeyFromApi(key) {
   const res = await fetch(apiUrl(`/api/storage/${encodeURIComponent(key)}`), {
     method: 'GET',
+    cache: 'no-store',
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -101,6 +120,7 @@ async function pollChangesOnce() {
     });
     const res = await fetch(apiUrl(`/api/storage/changes?${params.toString()}`), {
       method: 'GET',
+      cache: 'no-store',
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -156,7 +176,7 @@ function startSyncLoop() {
   if (syncStarted || typeof window === 'undefined') return;
   syncStarted = true;
   pollChangesOnce();
-  syncTimer = window.setInterval(pollChangesOnce, Math.max(DEFAULT_SYNC_INTERVAL_MS, 1000));
+  syncTimer = window.setInterval(pollChangesOnce, Math.max(DEFAULT_SYNC_INTERVAL_MS, 300));
   window.addEventListener('focus', pollChangesOnce);
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) pollChangesOnce();
