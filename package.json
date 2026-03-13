@@ -15,7 +15,8 @@
     "start": "npm run start --workspace server",
     "check": "npm run build --workspace frontend",
     "sync:pesas": "node scripts/sync-pesas-db.mjs",
-    "seed:apply": "node scripts/seed-apply.mjs --prime"
+    "seed:apply": "node scripts/seed-apply.mjs --prime",
+    "ingest:supabase": "node scripts/ingest-supabase.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -1,4 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import {
+  hydrateStorageWriteAccess,
+  signInSupabaseAdmin,
+  signOutStorageSession,
+} from "../../lib/storageClient.js";
 
 // ─── ZONES (km por intensidad) ─────────────────────────────────────────────────
 const ZONES = [
@@ -1979,8 +1984,10 @@ function LoginScreen({ onLogin, athletes }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
-  const handleCoachLogin = () => {
+  const handleCoachLogin = async () => {
+    if (authLoading) return;
     const normalized = String(username || "")
       .trim()
       .replace(/\s+/g, " ")
@@ -1994,14 +2001,30 @@ function LoginScreen({ onLogin, athletes }) {
       return;
     }
     if (password === COACH.password) {
-      onLogin(COACH);
-      setError("");
+      setAuthLoading(true);
+      try {
+        const result = await onLogin(
+          COACH,
+          {
+            coachLoginInput: username,
+            coachPassword: password,
+          }
+        );
+        if (result?.ok === false) {
+          setError(result.error || "No se pudo iniciar sesión como entrenador.");
+          return;
+        }
+        setError("");
+      } finally {
+        setAuthLoading(false);
+      }
       return;
     }
     setError("Contraseña incorrecta");
   };
 
-  const handleAthleteLogin = () => {
+  const handleAthleteLogin = async () => {
+    if (authLoading) return;
     const normalized = username.trim().toLowerCase();
     const found = normalizeAthletes(athletes).find((a) => a.name.trim().toLowerCase() === normalized);
     if (!found) {
@@ -2013,8 +2036,17 @@ function LoginScreen({ onLogin, athletes }) {
       setError("Contraseña incorrecta");
       return;
     }
-    onLogin({ ...found, role: "athlete" });
-    setError("");
+    setAuthLoading(true);
+    try {
+      const result = await onLogin({ ...found, role: "athlete" });
+      if (result?.ok === false) {
+        setError(result.error || "No se pudo iniciar sesión.");
+        return;
+      }
+      setError("");
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   return (
@@ -2033,14 +2065,16 @@ function LoginScreen({ onLogin, athletes }) {
           <>
             <div className="form-group">
               <label className="form-label">Usuario</label>
-              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Juan Carlos" />
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Juan Carlos o email admin" disabled={authLoading} />
             </div>
             <div className="form-group">
               <label className="form-label">Contraseña</label>
-              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleCoachLogin()} />
+              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleCoachLogin()} disabled={authLoading} />
             </div>
             {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
-            <button className="login-btn" onClick={handleCoachLogin}>Entrar →</button>
+            <button className="login-btn" onClick={handleCoachLogin} disabled={authLoading}>
+              {authLoading ? "Validando..." : "Entrar →"}
+            </button>
           </>
         )}
 
@@ -2048,14 +2082,16 @@ function LoginScreen({ onLogin, athletes }) {
           <>
             <div className="form-group">
               <label className="form-label">Usuario</label>
-              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Nombre del atleta" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} />
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Nombre del atleta" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
             </div>
             <div className="form-group">
               <label className="form-label">Contraseña</label>
-              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} />
+              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
             </div>
             {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
-            <button className="login-btn" onClick={handleAthleteLogin}>Entrar →</button>
+            <button className="login-btn" onClick={handleAthleteLogin} disabled={authLoading}>
+              {authLoading ? "Validando..." : "Entrar →"}
+            </button>
           </>
         )}
       </div>
@@ -6589,6 +6625,7 @@ export default function TrackFlow() {
   // Load persisted session
   useEffect(() => {
     (async () => {
+      await hydrateStorageWriteAccess();
       const savedUser = await store.get("tf_user");
       const savedAthletes = await store.get("tf_athletes");
       const savedUsersCsv = await store.getRaw("tf_users_csv");
@@ -6629,7 +6666,12 @@ export default function TrackFlow() {
       setRoutines(loadedRoutines);
       setTrainings(normalizeTrainingCatalog(savedTrainings || TRAINING_DATASET));
 
-      if (savedUser) setUser(savedUser);
+      if (savedUser) {
+        setUser(savedUser);
+        if (savedUser.role !== "coach") {
+          await signOutStorageSession();
+        }
+      }
       if (Array.isArray(savedCalendarWeeks)) setCalendarWeeks(savedCalendarWeeks);
       if (savedSeedMeta) setSeedMeta(savedSeedMeta);
       if (savedPesasRaw && typeof window !== "undefined") {
@@ -6752,12 +6794,37 @@ export default function TrackFlow() {
     store.set("tf_season_week_one_start", normalizeSeasonWeekOneStartIso(seasonWeekOneStartIso, DEFAULT_SEASON_WEEK_ONE_START_ISO));
   }, [loading, seasonWeekOneStartIso]);
 
-  const handleLogin = (u) => {
+  const handleLogin = async (u, authMeta = null) => {
+    if (u?.role === "coach") {
+      const fallbackEmail = String(authMeta?.coachLoginInput || "").trim();
+      const configuredAdminEmail = String(import.meta.env.VITE_SUPABASE_ADMIN_EMAIL || "").trim();
+      const adminEmail = configuredAdminEmail || fallbackEmail;
+      if (!adminEmail || !adminEmail.includes("@")) {
+        return {
+          ok:false,
+          error:"Configura VITE_SUPABASE_ADMIN_EMAIL (email del entrenador en Supabase Auth) o inicia con ese email.",
+        };
+      }
+      const authResult = await signInSupabaseAdmin({
+        email: adminEmail,
+        password: String(authMeta?.coachPassword || ""),
+      });
+      if (!authResult?.ok) {
+        return { ok:false, error: authResult?.error || "No se pudo validar el rol de entrenador en Supabase." };
+      }
+    } else {
+      await signOutStorageSession();
+    }
     setUser(u);
     setPage(u.role === "coach" ? "semana" : "hoy");
+    return { ok:true };
   };
 
-  const handleLogout = () => { setUser(null); store.set("tf_user", null); };
+  const handleLogout = async () => {
+    setUser(null);
+    await signOutStorageSession();
+    store.set("tf_user", null);
+  };
 
   const pushAthleteNotifications = (targets, payload) => {
     const rawTargets = Array.isArray(targets) ? targets : [targets];
