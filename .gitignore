@@ -3,6 +3,8 @@ node_modules/
 
 # builds
 frontend/dist/
+.next/
+out/
 
 # env
 .env
@@ -16,6 +18,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 *.log
+qa-frontend.log
+test-results/
 
 # OS/editor
 .DS_Store

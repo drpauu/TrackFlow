@@ -12,7 +12,16 @@ import {
 } from './trackflowRepository.js';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
-const STORAGE_MODE = hasSupabaseRepository() ? 'supabase' : 'legacy_api';
+const STORAGE_MODE_OVERRIDE = String(import.meta.env.VITE_STORAGE_MODE || '').trim().toLowerCase();
+const STORAGE_MODE = (() => {
+  if (STORAGE_MODE_OVERRIDE === 'api' || STORAGE_MODE_OVERRIDE === 'legacy_api') {
+    return 'legacy_api';
+  }
+  if (STORAGE_MODE_OVERRIDE === 'supabase') {
+    return hasSupabaseRepository() ? 'supabase' : 'legacy_api';
+  }
+  return 'legacy_api';
+})();
 
 const CLIENT_ID_KEY = 'trackflow_client_id';
 const LAST_SEQ_KEY = 'trackflow_last_seq';
@@ -745,6 +754,13 @@ function handleSupabaseDelete(row) {
 
 async function refreshWriteAccessFromSession() {
   if (STORAGE_MODE !== 'supabase') {
+    if (STORAGE_MODE === 'legacy_api') {
+      try {
+        await fetchLegacyAuthUser();
+      } catch {
+        // Auth en modo API puede ser opcional.
+      }
+    }
     writeEnabled = true;
     updateSyncStatus({ writeEnabled: true });
     return writeEnabled;
@@ -790,6 +806,7 @@ async function fetchKeyFromApi(key) {
   const res = await fetch(apiUrl(`/api/storage/${encodeURIComponent(key)}`), {
     method: 'GET',
     cache: 'no-store',
+    credentials: 'include',
     headers: { Accept: 'application/json' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -801,6 +818,22 @@ async function fetchKeyFromApi(key) {
     localSet(key, value);
   }
   return value;
+}
+
+async function fetchLegacyAuthUser() {
+  const res = await fetch(apiUrl('/api/auth/me'), {
+    method: 'GET',
+    cache: 'no-store',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  try {
+    const payload = await res.json();
+    return payload?.user || null;
+  } catch {
+    return null;
+  }
 }
 
 async function pollChangesOnce() {
@@ -816,6 +849,7 @@ async function pollChangesOnce() {
     const res = await fetch(apiUrl(`/api/storage/changes?${params.toString()}`), {
       method: 'GET',
       cache: 'no-store',
+      credentials: 'include',
       headers: { Accept: 'application/json' },
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -955,10 +989,58 @@ export function getStorageSyncSnapshot() {
   return { ...syncStatus };
 }
 
-export async function signInSupabaseAdmin({ email, password }) {
+export async function signInSupabaseAdmin({ email, password, role = 'coach', coachId = '' }) {
+  const normalizedRole = String(role || 'coach').trim().toLowerCase() === 'athlete' ? 'athlete' : 'coach';
+  if (STORAGE_MODE === 'legacy_api') {
+    const usernameOrEmail = String(email || '').trim();
+    const safePassword = String(password || '');
+    if (!usernameOrEmail || !safePassword) {
+      return { ok: false, error: 'Usuario/email y contraseña son obligatorios.' };
+    }
+    try {
+      const res = await fetch(apiUrl('/api/auth/login'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          role: normalizedRole,
+          coachId: String(coachId || '').trim() || undefined,
+          usernameOrEmail,
+          password: safePassword,
+        }),
+      });
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        return {
+          ok: false,
+          error: payload?.error || `Error ${res.status} autenticando ${normalizedRole === 'coach' ? 'entrenador' : 'atleta'}.`,
+        };
+      }
+      writeEnabled = true;
+      updateSyncStatus({ writeEnabled: true, state: 'synced', lastError: null });
+      return { ok: true, mode: STORAGE_MODE };
+    } catch (error) {
+      return { ok: false, error: error?.message || 'No se pudo autenticar con la API.' };
+    }
+  }
+
   if (STORAGE_MODE !== 'supabase') {
     writeEnabled = true;
     updateSyncStatus({ writeEnabled: true });
+    return { ok: true, mode: STORAGE_MODE };
+  }
+
+  if (normalizedRole !== 'coach') {
+    try {
+      await signOutCurrentSession();
+    } catch {
+      // keep athlete mode read-only in supabase
+    }
+    writeEnabled = false;
+    updateSyncStatus({ writeEnabled: false, state: 'readonly' });
     return { ok: true, mode: STORAGE_MODE };
   }
   try {
@@ -990,6 +1072,22 @@ export async function signInSupabaseAdmin({ email, password }) {
 }
 
 export async function signOutStorageSession() {
+  if (STORAGE_MODE === 'legacy_api') {
+    try {
+      await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+    } catch {
+      // keep logout best-effort
+    } finally {
+      writeEnabled = true;
+      updateSyncStatus({ writeEnabled: true });
+    }
+    return;
+  }
+
   if (STORAGE_MODE !== 'supabase') {
     writeEnabled = true;
     updateSyncStatus({ writeEnabled: true });
@@ -1050,6 +1148,7 @@ export function installWindowStorageShim() {
     try {
       const res = await fetch(apiUrl(`/api/storage/${encodeURIComponent(key)}`), {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
@@ -1058,8 +1157,11 @@ export function installWindowStorageShim() {
         body: JSON.stringify({ value: stringValue }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch {
-      // keep local value as fallback when backend is unavailable
+    } catch (error) {
+      updateSyncStatus({
+        state: 'error',
+        lastError: error?.message || `Error guardando ${key} en API`,
+      });
     }
   };
 

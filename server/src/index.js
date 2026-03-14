@@ -12,6 +12,11 @@ async function main() {
       console.log(`App storage: ${config.appStorageFile}`);
       return;
     }
+    if (storageProvider.name === 'mongo') {
+      console.log(`Mongo DB: ${config.mongoDbName}`);
+      console.log(`Mongo default coach: ${config.defaultCoachId}`);
+      return;
+    }
     console.log(`Supabase URL: ${config.supabaseUrl}`);
     console.log(`Supabase schema/table: ${config.supabaseSchema}.${config.supabaseKvTable}`);
   });

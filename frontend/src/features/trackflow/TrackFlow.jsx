@@ -1636,7 +1636,14 @@ function LoginScreen({ onLogin, athletes }) {
     }
     setAuthLoading(true);
     try {
-      const result = await onLogin({ ...found, role: "athlete" });
+      const result = await onLogin(
+        { ...found, role: "athlete" },
+        {
+          athleteLoginInput: username,
+          athletePassword: password,
+          athleteId: found.id,
+        }
+      );
       if (result?.ok === false) {
         setError(result.error || "No se pudo iniciar sesión.");
         return;
@@ -6535,22 +6542,25 @@ export default function TrackFlow() {
     if (u?.role === "coach") {
       const fallbackEmail = String(authMeta?.coachLoginInput || "").trim();
       const configuredAdminEmail = String(import.meta.env.VITE_SUPABASE_ADMIN_EMAIL || "").trim();
-      const adminEmail = configuredAdminEmail || fallbackEmail;
-      if (!adminEmail || !adminEmail.includes("@")) {
-        return {
-          ok:false,
-          error:"Configura VITE_SUPABASE_ADMIN_EMAIL (email del entrenador en Supabase Auth) o inicia con ese email.",
-        };
-      }
+      const adminEmail = configuredAdminEmail || fallbackEmail || String(COACH?.name || "").trim();
       const authResult = await signInSupabaseAdmin({
         email: adminEmail,
         password: String(authMeta?.coachPassword || ""),
       });
       if (!authResult?.ok) {
-        return { ok:false, error: authResult?.error || "No se pudo validar el rol de entrenador en Supabase." };
+        return { ok:false, error: authResult?.error || "No se pudo validar la sesión del entrenador." };
+      }
+    } else if (u?.role === "athlete") {
+      const authResult = await signInSupabaseAdmin({
+        email: String(authMeta?.athleteLoginInput || u?.name || "").trim(),
+        password: String(authMeta?.athletePassword || u?.password || ""),
+        role: "athlete",
+      });
+      if (!authResult?.ok) {
+        return { ok:false, error: authResult?.error || "No se pudo validar la sesión del atleta." };
       }
     } else {
-      await signOutStorageSession();
+      return { ok:false, error: "Rol de usuario no válido." };
     }
     setUser(u);
     setPage(u.role === "coach" ? "semana" : "hoy");

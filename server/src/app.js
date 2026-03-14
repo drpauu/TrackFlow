@@ -2,6 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import { config } from './config.js';
 import createStorageRouter from './routes/storage.js';
+import createAuthRouter from './routes/auth.js';
+import createDomainRouter from './routes/domain.js';
+import { attachRequestContext } from './middleware/requestContext.js';
 import { createStorageProvider } from './storage/provider.js';
 import {
   ensureDir,
@@ -91,13 +94,19 @@ export async function buildTrackFlowApp() {
 
   const app = express();
   app.disable('x-powered-by');
-  app.use(cors({ origin: config.corsOrigin, credentials: false }));
+  app.use(cors({ origin: config.corsOrigin, credentials: true }));
   app.use(express.json({ limit: '2mb' }));
+  app.use(attachRequestContext);
   app.use('/api', createStorageRouter({ storage: storageProvider }));
+  if (storageProvider?.name === 'mongo') {
+    app.use('/api/auth', createAuthRouter({ storage: storageProvider }));
+    app.use('/api', createDomainRouter({ storage: storageProvider }));
+  }
 
   app.use((err, _req, res, _next) => {
     console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    const statusCode = Number(err?.statusCode || 500);
+    res.status(statusCode).json({ error: err?.message || 'Internal server error' });
   });
 
   return { app, storageProvider, isLocalMode };

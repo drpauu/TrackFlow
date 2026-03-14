@@ -18,6 +18,7 @@
     "qa:visual": "playwright test -c playwright.visual.config.mjs",
     "sync:pesas": "node scripts/sync-pesas-db.mjs",
     "seed:apply": "node scripts/seed-apply.mjs --prime",
+    "migrate:mongo": "node scripts/migrate-to-mongo.mjs",
     "ingest:supabase": "node scripts/ingest-supabase.mjs",
     "ingest:supabase:relational": "node scripts/ingest-relational-supabase.mjs"
   },

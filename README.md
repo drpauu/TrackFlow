@@ -1,177 +1,169 @@
 # TrackFlow
 
-TrackFlow es una app React (Vite) con persistencia centralizada en Supabase.
+TrackFlow es una app React (Vite) + API Express con persistencia en **MongoDB** como fuente unica de datos.
 
-La persistencia de negocio actual se modela por slices `tf_*` y ahora se guarda en Postgres (`public.app_kv`) con:
-- RLS (solo entrenador/admin escribe)
-- Realtime (`postgres_changes`) para que todos los clientes vean cambios al instante
-- resolución determinista de eventos con `version` + `updated_at` (last write wins)
+## Estado actual (marzo 2026)
 
-## Stack detectado
+- Frontend: `frontend/` (React + Vite)
+- Backend/API: `server/` (Express)
+- Deploy: Vercel (`frontend` estatico + `/api/*` serverless)
+- Persistencia activa: `STORAGE_PROVIDER=mongo`
+- Compatibilidad UI actual: se mantiene contrato `tf_*` via `state_cache`
 
-- Frontend: React 18 + Vite (`frontend/`)
-- Backend legacy: Express (`server/`) para modo antiguo API/polling
-- Supabase:
-  - SQL: [`supabase/migrations/20260312220749_trackflow_init.sql`](supabase/migrations/20260312220749_trackflow_init.sql)
-  - SQL espejo: [`server/sql/supabase_schema.sql`](server/sql/supabase_schema.sql)
+## Arquitectura de datos (Mongo)
 
-## Mapa UI -> operación de datos -> efecto esperado
+### Capa canonica
 
-| UI / acción | Operación de datos | Efecto |
-|---|---|---|
-| Editar semana, sesiones AM/PM, gym, asignaciones | `upsert app_kv(key='tf_week_plans'/'tf_week', value=...)` | Plan guardado y visible en todos los clientes |
-| Publicar/modificar semana | `upsert app_kv(key='tf_week_plans')` + `upsert app_kv(key='tf_athlete_notifs')` | Semana publicada/actualizada y notificaciones sincronizadas |
-| Guardar rutinas | `upsert app_kv(key='tf_routines')` | Biblioteca de rutinas compartida |
-| Guardar dataset entrenos | `upsert app_kv(key='tf_trainings')` | Dataset compartido en tiempo real |
-| Crear/editar/eliminar atleta, contraseña, grupos | `upsert app_kv(key='tf_athletes')` + `upsert app_kv(key='tf_users_csv')` + `upsert app_kv(key='tf_groups')` | Catálogo de atletas consistente |
-| Añadir/eliminar competiciones de atleta | `upsert app_kv(key='tf_athletes')` | Calendario de competición sincronizado |
-| Finalizar temporada | `upsert app_kv(keys='tf_seasons','tf_current_season_id','tf_season_week_one_start',...)` | Cierre y arranque de temporada consistente |
-| Guardar historial/check diario | `upsert app_kv(key='tf_history')` | Historial compartido |
-| Guardar calendario semanal | `upsert app_kv(key='tf_calendar_weeks')` | Calendario compartido |
-| Guardar ejercicios personalizados e imágenes | `upsert app_kv(key='tf_custom_exercises'/'tf_exercise_images')` | Dataset gym sincronizado |
-| Eliminar una key (operación DAL) | `delete app_kv where key = ...` | Key eliminada en todos los clientes |
-| Login actual de sesión | `localStorage key='tf_user'` (privada/local) | No se comparte entre clientes |
+- `users`
+- `groups`
+- `athletes`
+- `gym_exercises`
+- `trainings`
+- `seasons`
+- `week_plans`
+- `athlete_day_plans`
+- `athlete_day_status`
+- `competitions`
 
-## Esquema de base de datos (Supabase / Postgres)
+### Capa de compatibilidad
 
-Modelo persistente en `public`:
+- `state_cache`:
+  - guarda claves `tf_*` usadas por la UI actual
+  - cada cambio incrementa `syncVersion`
+- `sync_counters`:
+  - contador monotono por `coachId`
 
-- `app_profiles`
-  - `id uuid` (FK a `auth.users`)
-  - `is_admin boolean` (entrenador admin supremo)
-  - `email`, `display_name`, timestamps
-- `app_kv`
-  - `key text PK`
-  - `value text`
-  - `is_public boolean`
-  - `position integer` (soporte orden manual estable)
-  - `version bigint` (incremental por trigger)
-  - `updated_at`, `updated_by`, timestamps
+## Flujo de escritura y sync incremental
 
-Índices principales:
-- `idx_app_kv_public_updated (is_public, updated_at desc)`
-- `idx_app_kv_position (position) where position is not null`
-- `idx_app_kv_updated_by (updated_by, updated_at desc)`
+1. UI escribe en `PUT /api/storage/:key` (clave `tf_*`).
+2. Se actualiza `state_cache` y sube `syncVersion`.
+3. Se proyecta a modelo canonico (colecciones Mongo).
+4. Clientes hacen polling de `GET /api/storage/changes?since=<n>`.
+5. Si hay cambios, refrescan solo claves afectadas.
 
-SQL listo:
-- [`supabase/migrations/20260312220749_trackflow_init.sql`](supabase/migrations/20260312220749_trackflow_init.sql)
-- [`server/sql/supabase_schema.sql`](server/sql/supabase_schema.sql)
+Respuesta de cambios:
 
-## Seguridad (RLS)
+- `latestSeq` (compat legacy)
+- `latestSyncVersion` (nuevo)
+- `changes[]` con `{ key, syncVersion, changedAt }`
 
-Políticas activas:
+## Reglas de negocio implementadas
 
-- Lectura:
-  - `anon/authenticated`: pueden leer `app_kv` donde `is_public = true`
-  - admin: puede leer todo
-- Escritura:
-  - `insert/update/delete` en `app_kv`: solo `authenticated` con `public.is_admin_user() = true`
+- Multi-tenant estricto por `coachId`.
+- Sin historico de versiones: siempre se mantiene estado actual.
+- Publicar semana:
+  - `week_plans.status = published`
+  - refresco de `tf_week_plans` en `state_cache`
+  - recomputo de `athlete_day_plans` y `athlete_day_status`
+- Color del calendario atleta:
+  - futuro: `gray`
+  - sin plan: `green` (descanso)
+  - plan con 0 completados: `red`
+  - parcial: `orange`
+  - completo: `green`
 
-Mecanismo de rol implementado: **Opción B** (`app_profiles.is_admin` + `auth.uid()`).
+## Auth propia (Mongo)
 
-## Realtime global
+Endpoints:
 
-Frontend suscrito a `postgres_changes` sobre `public.app_kv`:
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 
-- `INSERT`: inserta/actualiza local si evento es más nuevo
-- `UPDATE`: reemplaza por `key` si evento es más nuevo
-- `DELETE`: elimina por `key` si evento es más nuevo
+Detalles:
 
-Control anti-eventos fuera de orden:
-- se compara `version` (prioridad)
-- desempate por `updated_at`
-
-## Capa de datos en frontend
-
-Archivos nuevos/actualizados:
-
-- [`frontend/src/lib/supabaseClient.js`](frontend/src/lib/supabaseClient.js)
-  - cliente único Supabase (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
-- [`frontend/src/lib/trackflowRepository.js`](frontend/src/lib/trackflowRepository.js)
-  - DAL: `list/get/create/update/upsert/delete` + auth admin + suscripción realtime
-- [`frontend/src/lib/storageClient.js`](frontend/src/lib/storageClient.js)
-  - shim `window.storage` migrado a Supabase (con fallback legacy API)
-  - `tf_user` se mantiene local/privado
+- hash de password con `scrypt` (salt por usuario)
+- sesion con token firmado HS256 en cookie `HttpOnly`
+- roles: `coach` y `athlete`
+- rate limit basico en login
+- activacion via `MONGO_REQUIRE_AUTH=true`
 
 ## Variables de entorno
 
-Referencia: [`.env.example`](.env.example)
-
-Mínimas:
+### Minimas para Mongo (server)
 
 ```bash
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-VITE_SUPABASE_ADMIN_EMAIL=coach@example.com
+STORAGE_PROVIDER=mongo
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
+MONGODB_DB=trackflow
+DEFAULT_COACH_ID=coach_default
+APP_TIMEZONE=Europe/Madrid
 ```
 
-Opcional server-only:
+### Auth (recomendado)
 
 ```bash
-SUPABASE_SERVICE_ROLE_KEY=YOUR_SUPABASE_SERVICE_ROLE_KEY
+MONGO_REQUIRE_AUTH=false
+AUTH_JWT_SECRET=change_this_super_secret
+AUTH_JWT_TTL_SEC=1209600
+AUTH_COOKIE_NAME=tf_session
+AUTH_COOKIE_SECURE=true
 ```
 
-No exponer `SUPABASE_SERVICE_ROLE_KEY` en cliente.
+### Frontend
 
-## Arranque local
+```bash
+VITE_STORAGE_MODE=api
+VITE_API_BASE_URL=
+VITE_STORAGE_SYNC_INTERVAL_MS=2500
+VITE_STORAGE_SYNC_LIMIT=200
+```
+
+## Migracion unica a Mongo (cutover)
+
+1. Verificar variables (`MONGODB_URI`, `MONGODB_DB`, `STORAGE_PROVIDER=mongo`).
+2. Dry run:
+
+```bash
+npm run migrate:mongo -- --dry-run
+```
+
+3. Ejecutar migracion:
+
+```bash
+npm run migrate:mongo
+```
+
+Opcionales:
+
+- `--from-seeds` para usar `server/data/seeds`
+- `--coach-id=<id>` para migrar a otro tenant
+
+El script migra `tf_*` -> `state_cache` y proyecta a colecciones canonicas. Al final imprime conteos por entidad.
+
+## Desarrollo local
 
 ```bash
 npm install
 npm run dev
 ```
 
-Frontend: `http://localhost:5173`  
-Backend legacy API: `http://localhost:8787`
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:8787`
+- Health: `GET /api/health`
 
-## QA automatizado
+## Build
 
 ```bash
-# build de frontend
 npm run build --workspace frontend
-
-# flujos críticos (E2E)
-npm run qa:e2e
-
-# matriz visual (360x800, 390x844, 412x915, 768x1024, 1366x768, 1440x900)
-npm run qa:visual
 ```
 
-## Preparación Supabase (una vez)
+## Deploy en Vercel
 
-1. Ejecuta SQL del esquema:
-   - `supabase/migrations/20260312220749_trackflow_init.sql`
-2. Crea usuario entrenador en Supabase Auth (email/password).
-3. Marca entrenador como admin:
-
-```sql
-insert into public.app_profiles (id, email, display_name, is_admin)
-values ('<AUTH_USER_ID>', 'coach@example.com', 'Entrenador', true)
-on conflict (id) do update
-set is_admin = true,
-    email = excluded.email,
-    display_name = excluded.display_name;
-```
-
-## Despliegue en Vercel
-
-1. Importa el repo en Vercel.
-2. Configura variables:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-   - `VITE_SUPABASE_ADMIN_EMAIL`
+1. Importar repo.
+2. Definir env vars:
+   - `STORAGE_PROVIDER=mongo`
+   - `MONGODB_URI`
+   - `MONGODB_DB`
+   - `DEFAULT_COACH_ID`
+   - `APP_TIMEZONE=Europe/Madrid`
+   - `VITE_STORAGE_MODE=api`
 3. Build command: `npm run build`
 4. Output directory: `frontend/dist`
 
-`vercel.json` ya está preparado para SPA y ruta `/api/*`.
+## Notas de compatibilidad
 
-## Verificación rápida
-
-1. Abre dos navegadores/sesiones.
-2. Entra como entrenador en una sesión.
-3. Modifica semana/rutina/atletas y guarda.
-4. Verifica que la otra sesión recibe actualización en directo sin recargar manualmente.
-
-Indicador de sync en UI:
-- `Guardando...`: hay escritura en curso.
-- `Pendiente de sincronizar`: hay cola pendiente/reintentos.
-- `Sin conexión`: navegador offline.
+- La UI actual sigue leyendo/escribiendo `tf_*`.
+- No hace falta reescribir pantallas para activar Mongo.
+- `VITE_STORAGE_MODE` ahora usa `api` por defecto (Mongo).
+- `supabase` queda solo como modo legacy/manual.
