@@ -130,6 +130,23 @@ export async function upsertStateEntry(entry) {
   return normalizeRow(data);
 }
 
+export async function upsertStateEntries(entries = []) {
+  assertSupabaseConfigured();
+  const payloads = (Array.isArray(entries) ? entries : [])
+    .map((entry) => buildStatePayload(entry || {}))
+    .filter((entry) => entry?.key);
+
+  if (!payloads.length) return [];
+
+  const { data, error } = await supabase
+    .from(STATE_TABLE)
+    .upsert(payloads, { onConflict: 'key' })
+    .select(STATE_SELECT_COLUMNS);
+
+  if (error) throw createRepositoryError('No se pudieron guardar registros en lote', error);
+  return (Array.isArray(data) ? data : []).map((row) => normalizeRow(row)).filter(Boolean);
+}
+
 export async function deleteStateEntry(key) {
   assertSupabaseConfigured();
   const safeKey = normalizeKey(key);
@@ -141,6 +158,30 @@ export async function deleteStateEntry(key) {
     .maybeSingle();
   if (error) throw createRepositoryError(`No se pudo eliminar la key ${safeKey}`, error);
   return normalizeRow(data);
+}
+
+export async function deleteStateEntries(keys = []) {
+  assertSupabaseConfigured();
+  const safeKeys = (Array.isArray(keys) ? keys : [])
+    .map((key) => {
+      try {
+        return normalizeKey(key);
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+
+  if (!safeKeys.length) return [];
+
+  const { data, error } = await supabase
+    .from(STATE_TABLE)
+    .delete()
+    .in('key', safeKeys)
+    .select(STATE_SELECT_COLUMNS);
+
+  if (error) throw createRepositoryError('No se pudieron eliminar registros en lote', error);
+  return (Array.isArray(data) ? data : []).map((row) => normalizeRow(row)).filter(Boolean);
 }
 
 export function subscribeToStateChanges(handlers = {}) {
@@ -162,13 +203,16 @@ export function subscribeToStateChanges(handlers = {}) {
       { event: 'DELETE', schema: 'public', table: STATE_TABLE },
       (payload) => handlers?.onDelete?.(normalizeRow(payload?.old), payload)
     )
-    .subscribe((status) => {
-      if (status === 'CHANNEL_ERROR') {
-        handlers?.onError?.(new Error('Error de canal Realtime para app_kv'));
+    .subscribe((status, error) => {
+      handlers?.onStatus?.(status, error || null);
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        const fallbackError = new Error(`Error de canal Realtime para app_kv (${status})`);
+        handlers?.onError?.(error || fallbackError);
       }
     });
 
   return {
+    channel,
     unsubscribe: async () => {
       await supabase.removeChannel(channel);
     },
@@ -218,4 +262,3 @@ export async function isCurrentUserAdmin() {
   if (error) throw createRepositoryError('No se pudo validar rol admin', error);
   return data?.is_admin === true;
 }
-

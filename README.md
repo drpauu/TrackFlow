@@ -123,6 +123,19 @@ npm run dev
 Frontend: `http://localhost:5173`  
 Backend legacy API: `http://localhost:8787`
 
+## QA automatizado
+
+```bash
+# build de frontend
+npm run build --workspace frontend
+
+# flujos críticos (E2E)
+npm run qa:e2e
+
+# matriz visual (360x800, 390x844, 412x915, 768x1024, 1366x768, 1440x900)
+npm run qa:visual
+```
+
 ## Preparación Supabase (una vez)
 
 1. Ejecuta SQL del esquema:
@@ -158,3 +171,7 @@ set is_admin = true,
 3. Modifica semana/rutina/atletas y guarda.
 4. Verifica que la otra sesión recibe actualización en directo sin recargar manualmente.
 
+Indicador de sync en UI:
+- `Guardando...`: hay escritura en curso.
+- `Pendiente de sincronizar`: hay cola pendiente/reintentos.
+- `Sin conexión`: navegador offline.

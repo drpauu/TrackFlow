@@ -14,11 +14,15 @@
     "build": "npm run build --workspace frontend",
     "start": "npm run start --workspace server",
     "check": "npm run build --workspace frontend",
+    "qa:e2e": "playwright test -c playwright.e2e.config.mjs",
+    "qa:visual": "playwright test -c playwright.visual.config.mjs",
     "sync:pesas": "node scripts/sync-pesas-db.mjs",
     "seed:apply": "node scripts/seed-apply.mjs --prime",
-    "ingest:supabase": "node scripts/ingest-supabase.mjs"
+    "ingest:supabase": "node scripts/ingest-supabase.mjs",
+    "ingest:supabase:relational": "node scripts/ingest-relational-supabase.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "concurrently": "^9.1.2",
     "xlsx": "^0.18.5"
   },

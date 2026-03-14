@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   hydrateStorageWriteAccess,
+  getStorageSyncSnapshot,
   signInSupabaseAdmin,
   signOutStorageSession,
 } from "../../lib/storageClient.js";
+
+import './trackflow.css';
 
 // ─── ZONES (km por intensidad) ─────────────────────────────────────────────────
 const ZONES = [
@@ -445,412 +448,7 @@ const PESAS_DB_SOURCE = { file: "pesas2024_hardcoded_db.js", workbook: "PESAS202
 const HARDCODED_PESAS_DB = (typeof window !== "undefined" && window.PESAS2024_HARDCODED_DB) ? window.PESAS2024_HARDCODED_DB : null;
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
-const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800;900&family=Nunito:wght@300;400;500;600;700&display=swap');
 
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#080811;--s1:#0D0D1C;--s2:#12122A;--s3:#181830;
-  --border:#1E1E3A;--border2:#252545;
-  --or:#FF6B1A;--am:#FFA726;--or2:#FF8C42;
-  --tx:#F0F0FA;--mu:#5C5C80;--mu2:#8888AA;
-  --gr:#4ADE80;--bl:#60A5FA;--re:#F87171;--pu:#A78BFA;--ya:#FBBF24;
-}
-body{background:var(--bg);color:var(--tx);font-family:'Nunito',sans-serif;min-height:100vh;overflow-x:hidden}
-h1,h2,h3,h4,.display{font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em}
-button{cursor:pointer;font-family:'Nunito',sans-serif}
-input,select,textarea{font-family:'Nunito',sans-serif}
-
-/* Layout */
-.app-wrap{display:flex;min-height:100vh;height:100vh;overflow:hidden}
-.sidebar{width:230px;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto}
-.main-area{margin-left:230px;flex:1;padding:24px 30px 18px;max-width:calc(100vw - 230px);height:100vh;overflow:hidden;display:flex;flex-direction:column}
-.page-shell{flex:1;min-height:0;min-width:0}
-.page-shell-scroll{overflow:auto;padding-right:4px}
-.page-shell-fit{overflow:hidden}
-
-@media (max-height: 860px){
-  .page-shell-fit{overflow:auto}
-}
-
-/* Sidebar */
-.sb-logo{padding:28px 24px 24px;border-bottom:1px solid var(--border)}
-.sb-home{display:block;width:100%;background:transparent;border:none;color:inherit;text-align:left;padding:0}
-.sb-home:hover .sb-logotype{opacity:.92}
-.sb-logotype{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;letter-spacing:-1px;line-height:1}
-.sb-logotype span{color:var(--or)}
-.sb-tagline{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--mu);margin-top:3px}
-.sb-section{padding:20px 12px 8px}
-.sb-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);padding:0 10px;margin-bottom:8px;display:block}
-.nav-item{display:flex;align-items:center;gap:10px;padding:10px 10px;border-radius:10px;border:none;background:none;color:var(--mu2);font-size:13.5px;font-weight:600;width:100%;text-align:left;transition:all .15s;margin-bottom:2px}
-.nav-item:hover{background:var(--s2);color:var(--tx)}
-.nav-item.active{background:rgba(255,107,26,.18);color:var(--or)}
-.nav-item .ni{font-size:16px;width:22px;text-align:center}
-.sb-notif{background:var(--or);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:100px;margin-left:auto}
-.sb-bottom{margin-top:auto;padding:16px 12px;border-top:1px solid var(--border)}
-.user-chip{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--s2)}
-.avatar{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--or),var(--am));display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;color:white;flex-shrink:0}
-.avatar.blue{background:linear-gradient(135deg,var(--bl),#3B82F6)}
-.avatar.green{background:linear-gradient(135deg,var(--gr),#22C55E)}
-.avatar.purple{background:linear-gradient(135deg,var(--pu),#8B5CF6)}
-.u-name{font-size:13px;font-weight:700;line-height:1.2}
-.u-role{font-size:10px;color:var(--mu);letter-spacing:.5px}
-
-/* Page header */
-.ph{margin-bottom:32px}
-.ph-title{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:900;text-transform:uppercase;line-height:1}
-.ph-title span{color:var(--or)}
-.ph-sub{color:var(--mu);font-size:14px;margin-top:4px}
-.ph-row{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
-
-/* Cards */
-.card{background:var(--s1);border:1px solid var(--border);border-radius:18px;padding:24px}
-.card-title{font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px}
-.card-sm{padding:16px;border-radius:14px}
-
-/* Stats */
-.stat-card{background:var(--s1);border:1px solid var(--border);border-radius:18px;padding:20px;position:relative;overflow:hidden}
-.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--or),var(--am))}
-.stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px}
-.stat-val{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:900;line-height:1}
-.stat-unit{font-size:18px;color:var(--mu2);margin-left:2px}
-.stat-change{font-size:12px;color:var(--gr);margin-top:4px}
-
-/* Grids */
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-
-/* Buttons */
-.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:9px;font-size:13.5px;font-weight:700;border:none;transition:all .15s}
-.btn-or{background:var(--or);color:white}
-.btn-or:hover{background:var(--or2);transform:translateY(-1px);box-shadow:0 4px 16px rgba(255,107,26,.3)}
-.btn-ghost{background:transparent;color:var(--mu2);border:1px solid var(--border2)}
-.btn-ghost:hover{background:var(--s2);color:var(--tx)}
-.btn-sm{padding:7px 14px;font-size:12px;border-radius:7px}
-.btn-success{background:rgba(74,222,128,.15);color:var(--gr);border:1px solid rgba(74,222,128,.3)}
-.btn-danger{background:rgba(248,113,113,.15);color:var(--re);border:1px solid rgba(248,113,113,.3)}
-
-/* Form */
-.input,.select{background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:10px 14px;color:var(--tx);font-size:14px;width:100%;transition:border-color .15s}
-.input:focus,.select:focus{outline:none;border-color:var(--or)}
-.select option{background:var(--s1);color:var(--tx)}
-.input::placeholder{color:var(--mu)}
-.form-group{margin-bottom:14px}
-.form-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:6px;display:block;font-weight:700}
-
-/* Multi-select */
-.multi-select{position:relative}
-.multi-select.disabled{opacity:.6;pointer-events:none}
-.multi-select-trigger{width:100%;background:var(--s2);border:1px solid var(--border2);border-radius:9px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:42px;cursor:pointer}
-.multi-select-trigger.open{border-color:var(--or)}
-.multi-select-value{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
-.multi-chip{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700;background:rgba(255,107,26,.18);color:var(--or)}
-.multi-placeholder{font-size:13px;color:var(--mu)}
-.multi-arrow{font-size:12px;color:var(--mu2)}
-.multi-panel{position:absolute;left:0;right:0;top:calc(100% + 6px);background:var(--s1);border:1px solid var(--border2);border-radius:12px;box-shadow:0 16px 28px rgba(0,0,0,.35);z-index:220;padding:10px;max-height:260px;overflow:auto}
-.multi-search{margin-bottom:8px}
-.multi-option{display:flex;align-items:center;gap:8px;padding:8px 8px;border-radius:8px;cursor:pointer}
-.multi-option:hover{background:var(--s2)}
-.multi-option input{accent-color:var(--or)}
-.multi-option-label{font-size:13px;color:var(--tx)}
-
-/* Badges */
-.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
-.b-or{background:rgba(255,107,26,.2);color:var(--or)}
-.b-gr{background:rgba(74,222,128,.2);color:var(--gr)}
-.b-bl{background:rgba(96,165,250,.2);color:var(--bl)}
-.b-mu{background:var(--s2);color:var(--mu2)}
-.b-pu{background:rgba(167,139,250,.2);color:var(--pu)}
-.b-re{background:rgba(248,113,113,.2);color:var(--re)}
-.b-ya{background:rgba(251,191,36,.2);color:var(--ya)}
-
-/* Table */
-.tbl{width:100%;border-collapse:collapse}
-.tbl th{text-align:left;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);padding:8px 14px;border-bottom:1px solid var(--border)}
-.tbl td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:13.5px}
-.tbl tbody tr:last-child td{border-bottom:none}
-.tbl tbody tr:hover td{background:rgba(255,255,255,.02)}
-
-/* Week grid */
-.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
-.day-col{background:var(--s1);border:1px solid var(--border);border-radius:14px;overflow:hidden}
-.day-col.today{border-color:var(--or);box-shadow:0 0 0 1px rgba(255,107,26,.2)}
-.day-hdr{background:var(--s2);padding:10px 12px;text-align:center;border-bottom:1px solid var(--border)}
-.day-name{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:1px}
-.day-date{font-size:10px;color:var(--mu);margin-top:1px}
-.day-body{padding:10px}
-.session{background:var(--s2);border-radius:8px;padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--or);font-size:11.5px}
-.session.pm{border-left-color:var(--bl)}
-.session.gym{border-left-color:var(--pu);cursor:pointer;transition:background .15s}
-.session.gym:hover{background:rgba(167,139,250,.1)}
-.sess-lbl{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mu);margin-bottom:2px}
-.sess-txt{font-weight:600;font-size:11.5px}
-
-/* Gym routine */
-.ex-row{display:grid;grid-template-columns:42px 1fr 80px 70px 70px auto;gap:8px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
-.ex-row:last-child{border-bottom:none}
-.ex-emoji{font-size:28px;text-align:center}
-.ex-info-name{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700}
-.ex-info-mu{font-size:11px;color:var(--mu2)}
-.ex-big{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;color:var(--or);line-height:1;text-align:center}
-.ex-lbl{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--mu);text-align:center}
-
-/* Progress */
-.prog-bar{background:var(--s2);border-radius:100px;height:5px;overflow:hidden;margin-top:6px}
-.prog-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--or),var(--am));transition:width .5s ease}
-
-/* Notification */
-.notif{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:8px;animation:slideIn .3s ease}
-@keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
-
-/* Login */
-.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:hidden}
-.login-bg{position:absolute;inset:0;background:radial-gradient(ellipse at 25% 50%,rgba(255,107,26,.1) 0%,transparent 60%),radial-gradient(ellipse at 75% 20%,rgba(96,165,250,.06) 0%,transparent 50%),radial-gradient(ellipse at 50% 90%,rgba(167,139,250,.05) 0%,transparent 50%)}
-.login-card{background:var(--s1);border:1px solid var(--border);border-radius:24px;padding:48px;width:440px;position:relative;z-index:1;box-shadow:0 40px 80px rgba(0,0,0,.4)}
-.login-logo{font-family:'Barlow Condensed',sans-serif;font-size:60px;font-weight:900;letter-spacing:-2px;line-height:1;margin-bottom:4px}
-.login-logo span{color:var(--or)}
-.login-sub{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--mu);margin-bottom:32px}
-.tab-sw{display:flex;background:var(--s2);border-radius:10px;padding:4px;margin-bottom:24px}
-.tab-btn{flex:1;padding:9px;border-radius:7px;border:none;background:transparent;color:var(--mu2);font-size:13px;font-weight:700;transition:all .2s;letter-spacing:.5px}
-.tab-btn.active{background:var(--s1);color:var(--tx);box-shadow:0 2px 8px rgba(0,0,0,.3)}
-.login-btn{width:100%;padding:13px;background:linear-gradient(135deg,var(--or),var(--am));color:white;border:none;border-radius:10px;font-size:15px;font-weight:800;letter-spacing:.5px;margin-top:8px;transition:all .2s}
-.login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,107,26,.4)}
-.login-hint{font-size:12px;color:var(--mu);text-align:center;margin-top:16px}
-
-/* Complete button */
-.complete-btn{background:linear-gradient(135deg,var(--or),var(--am));color:white;border:none;border-radius:14px;padding:18px 32px;font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:800;letter-spacing:1px;text-transform:uppercase;width:100%;transition:all .2s;box-shadow:0 4px 24px rgba(255,107,26,.3)}
-.complete-btn:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(255,107,26,.4)}
-.complete-btn.done{background:linear-gradient(135deg,#4ADE80,#22C55E);box-shadow:0 4px 24px rgba(74,222,128,.3)}
-
-/* Week type banner */
-.wt-banner{background:linear-gradient(135deg,rgba(255,107,26,.12),rgba(255,167,38,.04));border:1px solid rgba(255,107,26,.25);border-radius:14px;padding:16px 22px;display:flex;align-items:center;gap:20px;margin-bottom:24px}
-.wt-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu)}
-.wt-val{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;text-transform:uppercase;color:var(--or);line-height:1}
-
-/* Km volume view */
-.km-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-.km-name{width:120px;font-size:13px;font-weight:600;flex-shrink:0}
-.km-bars{display:flex;gap:3px;flex:1;align-items:flex-end;height:44px}
-.km-bar{flex:1;border-radius:4px 4px 0 0;min-height:3px;transition:opacity .2s;position:relative}
-.km-bar:hover{opacity:.85}
-.km-total{width:56px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--or);flex-shrink:0}
-
-/* Athlete tracking */
-.ath-track-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
-.ath-track-row:last-child{border-bottom:none}
-.check-dot{width:30px;height:30px;border-radius:50%;border:2px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;transition:all .2s}
-.check-dot.done{background:rgba(74,222,128,.2);border-color:var(--gr);color:var(--gr)}
-.check-dot.nd{background:rgba(248,113,113,.1);border-color:rgba(248,113,113,.25);color:var(--re)}
-
-/* Group tag */
-.g-tag{display:inline-block;padding:4px 12px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
-.g-1500{background:rgba(255,107,26,.2);color:var(--or)}
-.g-800{background:rgba(96,165,250,.2);color:var(--bl)}
-.g-pq{background:rgba(167,139,250,.2);color:var(--pu)}
-
-/* Athlete profile */
-.athlete-profile-page{min-height:calc(100vh - 112px)}
-.profile-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:14px;align-items:start}
-.athlete-profile-page .card{padding:18px}
-.profile-identity-card{position:relative;overflow:hidden}
-.profile-identity-card::before{content:"";position:absolute;inset:-140px auto auto -120px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(96,165,250,.2) 0%,rgba(96,165,250,0) 72%);pointer-events:none}
-.profile-hero{position:relative;display:flex;align-items:center;gap:14px;padding:14px;border-radius:14px;background:linear-gradient(135deg,rgba(96,165,250,.18),rgba(96,165,250,.03));border:1px solid rgba(96,165,250,.28);margin-bottom:10px}
-.profile-avatar{width:68px;height:68px;font-size:26px;border-radius:16px;box-shadow:0 10px 24px rgba(59,130,246,.24)}
-.profile-hero-copy{min-width:0}
-.profile-kicker{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mu2);font-weight:700}
-.profile-name{font-family:'Barlow Condensed',sans-serif;font-size:38px;font-weight:900;line-height:.92;word-break:break-word}
-.profile-chip-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.profile-group-panel{background:var(--s2);border:1px solid var(--border2);border-radius:14px;padding:12px}
-.profile-group-hint{margin-top:6px;font-size:12px;color:var(--mu2)}
-.profile-password-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.athlete-profile-page .form-group{margin-bottom:10px}
-.athlete-profile-page .profile-group-panel.mt3{margin-top:10px}
-.profile-max-card .card-title{margin-bottom:4px}
-.athlete-profile-page .profile-max-card{display:flex;flex-direction:column}
-.max-list{border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px}
-.max-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
-.max-left{display:flex;align-items:center;gap:8px;min-width:0}
-.max-emoji{font-size:18px;width:24px;min-width:24px;text-align:center}
-.max-name{font-size:12px;font-weight:700;line-height:1.15}
-.max-value{display:flex;align-items:baseline;gap:2px;font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--or);line-height:1;white-space:nowrap}
-.max-unit{font-family:'Nunito',sans-serif;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--mu2);font-weight:700}
-.max-empty{font-size:18px;color:var(--mu2)}
-
-/* Athlete calendar */
-.athlete-calendar-page{min-height:calc(100vh - 112px);display:flex;flex-direction:column}
-.athlete-calendar-page .ph{margin-bottom:12px}
-.athlete-cal-grid{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);gap:14px;flex:1;min-height:0}
-.athlete-cal-left,.athlete-cal-right{display:flex;flex-direction:column;gap:10px;min-height:0}
-.athlete-cal-left .card,.athlete-cal-right .card{padding:14px;border-radius:14px}
-.athlete-comp-form{display:grid;grid-template-columns:170px 1fr auto;gap:8px;align-items:end}
-.athlete-comp-list{max-height:112px;overflow:auto;padding-right:2px}
-.athlete-cal-month{display:flex;flex-direction:column;flex:1;min-height:0}
-.athlete-cal-month-grid{min-height:0}
-.athlete-calendar-page .card-title{margin-bottom:10px}
-.athlete-calendar-page .cal-grid{gap:3px}
-.athlete-calendar-page .cal-cell{min-height:52px;padding:5px}
-.athlete-calendar-page .cal-day-num{font-size:15px;margin-bottom:2px}
-.athlete-cal-legend{font-size:11px}
-.athlete-cal-detail-stack{display:flex;flex-direction:column;gap:10px;flex:1;min-height:0;overflow:auto;padding-right:2px}
-.athlete-cal-placeholder{display:flex;align-items:center;justify-content:center;min-height:180px}
-
-/* Calendar month */
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
-.cal-cell{background:var(--s2);border-radius:8px;padding:8px;min-height:70px;cursor:pointer;transition:border .15s;border:1px solid transparent}
-.cal-cell:hover{border-color:var(--border2)}
-.cal-cell.has-training{border-color:rgba(255,107,26,.3)}
-.cal-cell.today-cell{border-color:var(--or);background:rgba(255,107,26,.06)}
-.cal-day-num{font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;margin-bottom:4px}
-.cal-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:3px}
-
-/* Misc */
-.divider{height:1px;background:var(--border);margin:20px 0}
-.flex{display:flex}.fc{flex-direction:column}.ic{align-items:center}.jb{justify-content:space-between}.je{justify-content:flex-end}
-.g2r{gap:8px}.g3r{gap:12px}.g4r{gap:16px}
-.mb2{margin-bottom:8px}.mb3{margin-bottom:12px}.mb4{margin-bottom:16px}.mb6{margin-bottom:24px}
-.mt3{margin-top:12px}.mt4{margin-top:16px}.mt6{margin-top:24px}
-.text-mu{color:var(--mu)}.text-sm{font-size:13px}.fw7{font-weight:700}
-.scroll-y{overflow-y:auto}
-.opacity-50{opacity:.5}
-
-/* Athlete today card */
-.today-session{background:linear-gradient(135deg,rgba(255,107,26,.12),rgba(255,167,38,.04));border:1px solid rgba(255,107,26,.3);border-radius:18px;padding:24px}
-.today-pm{background:linear-gradient(135deg,rgba(96,165,250,.1),rgba(96,165,250,.02));border:1px solid rgba(96,165,250,.25);border-radius:18px;padding:24px}
-.big-time{font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--or);margin-bottom:8px}
-.big-time.blue{color:var(--bl)}
-.today-training{font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:800;line-height:1.2;margin-bottom:8px}
-.gym-pill{background:rgba(167,139,250,.2);color:var(--pu);border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
-.gym-pill:hover{background:rgba(167,139,250,.35);transform:translateY(-1px)}
-
-/* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal{background:var(--s1);border:1px solid var(--border2);border-radius:20px;padding:32px;width:680px;max-width:90vw;max-height:85vh;overflow-y:auto}
-.modal.modal-no-scroll{overflow:hidden;display:flex;flex-direction:column}
-.modal-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
-.modal-close{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--mu2);font-size:13px;font-weight:700}
-.modal-close:hover{background:var(--s3);color:var(--tx)}
-
-/* Pulse animation */
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-.pulse{animation:pulse 2s infinite}
-
-/* Scrollbar */
-::-webkit-scrollbar{width:5px;height:5px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:100px}
-
-/* Zone pills */
-.zone-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:100px;font-size:10px;font-weight:700;letter-spacing:.5px}
-.zone-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.zone-inputs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.zone-input-wrap{background:var(--s2);border-radius:10px;padding:10px 12px;border:1px solid var(--border)}
-.zone-input-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:4px}
-.zone-total-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-
-/* Zone bar chart */
-.zone-bar-wrap{display:flex;align-items:flex-end;gap:3px;height:48px}
-.zone-bar{border-radius:3px 3px 0 0;min-height:2px;transition:height .3s ease}
-
-/* Exercise library */
-.ex-lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
-.ex-lib-card{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;position:relative}
-.ex-lib-card:hover{border-color:var(--border2);background:var(--s3)}
-.ex-lib-card.selected{border-color:var(--or);background:rgba(255,107,26,.08)}
-.ex-lib-img{width:100%;height:80px;object-fit:cover;border-radius:8px;margin-bottom:8px}
-.ex-lib-emoji{font-size:32px;text-align:center;height:80px;display:flex;align-items:center;justify-content:center}
-.ex-type-badge{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:100px}
-.ex-type-weight{background:rgba(255,107,26,.2);color:var(--or)}
-.ex-type-reps{background:rgba(96,165,250,.2);color:var(--bl)}
-.ex-type-time_reps{background:rgba(251,191,36,.2);color:var(--ya)}
-
-/* Image upload */
-.img-upload-zone{border:2px dashed var(--border2);border-radius:12px;padding:24px;text-align:center;cursor:pointer;transition:border-color .15s}
-.img-upload-zone:hover{border-color:var(--or)}
-.img-preview{width:100%;height:120px;object-fit:cover;border-radius:10px;margin-bottom:10px}
-
-/* Tabs */
-.tab-nav{display:flex;gap:4px;background:var(--s2);border-radius:10px;padding:4px;margin-bottom:20px}
-.tab-nav-btn{flex:1;padding:8px 12px;border-radius:7px;border:none;background:transparent;color:var(--mu2);font-size:13px;font-weight:700;transition:all .2s;cursor:pointer}
-.tab-nav-btn.active{background:var(--s1);color:var(--tx);box-shadow:0 2px 8px rgba(0,0,0,.3)}
-
-/* Week navigation */
-.week-nav{display:flex;align-items:center;gap:12px;margin-bottom:20px}
-.week-nav-btn{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--mu2);font-size:13px;font-weight:700;cursor:pointer;transition:all .15s}
-.week-nav-btn:hover{background:var(--s3);color:var(--tx)}
-.week-nav-btn:disabled{opacity:.35;cursor:default}
-
-/* Mobile navigation */
-.mobile-topbar{display:none;position:fixed;top:0;left:0;right:0;height:58px;padding:8px 12px;background:rgba(8,8,17,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);z-index:180;align-items:center;gap:10px}
-.mobile-menu-btn{border:1px solid var(--border2);background:var(--s2);color:var(--tx);border-radius:10px;padding:8px 11px;font-size:16px;line-height:1}
-.mobile-brand{border:none;background:none;color:var(--tx);display:flex;flex-direction:column;align-items:flex-start;line-height:1;min-width:98px}
-.mobile-brand-main{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;letter-spacing:.2px}
-.mobile-brand-sub{font-size:10px;color:var(--mu);letter-spacing:.8px;text-transform:uppercase;margin-top:2px}
-.mobile-current{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mobile-logout{border:1px solid var(--border2);background:var(--s2);color:var(--mu2);border-radius:10px;padding:8px 10px;font-size:14px}
-.mobile-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:210;display:flex;justify-content:flex-start;align-items:stretch}
-.mobile-menu-sheet{width:min(420px,92vw);height:100%;background:var(--s1);border-right:1px solid var(--border2);padding:14px 12px 16px;display:flex;flex-direction:column;gap:12px}
-.mobile-menu-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-.mobile-menu-nav{display:grid;gap:8px;overflow-y:auto;padding-right:2px}
-.mobile-menu-item{position:relative;display:flex;align-items:center;gap:10px;border:1px solid var(--border);background:var(--s2);color:var(--tx);border-radius:12px;padding:12px 14px;font-size:14px;font-weight:700;text-align:left}
-.mobile-menu-item.active{border-color:rgba(255,107,26,.55);background:rgba(255,107,26,.12);color:var(--or)}
-.mobile-menu-icon{font-size:18px;line-height:1}
-.mobile-menu-label{flex:1;line-height:1.2}
-.mobile-menu-badge{background:var(--or);color:white;border-radius:999px;min-width:18px;height:18px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800}
-.mobile-tabbar{display:none;position:fixed;left:0;right:0;bottom:0;background:rgba(13,13,28,.98);border-top:1px solid var(--border);z-index:185;padding:8px max(10px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-right));gap:8px}
-.mobile-tab-btn{position:relative;border:none;background:transparent;border-radius:12px;color:var(--mu2);padding:8px 5px 7px;display:flex;flex-direction:column;align-items:center;gap:5px;min-height:64px}
-.mobile-tab-btn.active{background:rgba(255,107,26,.16);color:var(--or)}
-.mt-icon{font-size:17px;line-height:1}
-.mt-label{font-size:10.5px;font-weight:700;letter-spacing:.2px;line-height:1.15;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mobile-notif{position:absolute;top:2px;right:8px;background:var(--or);color:white;border-radius:999px;min-width:16px;height:16px;padding:0 4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}
-
-@media (max-width: 1180px){
-  .sidebar{display:none}
-  .main-area{margin-left:0;max-width:100vw;height:100vh;padding:70px 12px calc(84px + env(safe-area-inset-bottom))}
-  .mobile-topbar{display:flex}
-  .mobile-tabbar{display:grid}
-  .page-shell,.page-shell-fit,.page-shell-scroll{overflow:auto;-webkit-overflow-scrolling:touch;padding-right:0;padding-bottom:6px}
-  .ph{margin-bottom:20px}
-  .ph-title{font-size:36px}
-  .ph-sub{font-size:12px}
-  .g4,.g3,.g2{grid-template-columns:1fr}
-  .week-grid{grid-template-columns:1fr}
-  .card{padding:16px}
-  .stat-val{font-size:42px}
-  .wt-banner{padding:12px 14px;gap:10px;flex-wrap:wrap}
-  .wt-val{font-size:24px}
-  .today-training{font-size:22px}
-  .cal-cell{min-height:58px;padding:6px}
-  .athlete-calendar-page{min-height:auto}
-  .athlete-cal-grid{grid-template-columns:1fr;gap:12px}
-  .athlete-cal-left,.athlete-cal-right{display:block}
-  .athlete-comp-form{grid-template-columns:1fr}
-  .athlete-comp-list{max-height:none;overflow:visible;padding-right:0}
-  .athlete-cal-detail-stack{overflow:visible;padding-right:0}
-  .athlete-profile-page{min-height:auto}
-  .profile-grid{grid-template-columns:1fr}
-  .profile-password-grid{grid-template-columns:1fr}
-  .athlete-profile-page .max-list{grid-template-columns:1fr}
-  .profile-name{font-size:36px}
-  .login-card{width:calc(100vw - 16px);padding:28px 18px;border-radius:18px}
-  .login-logo{font-size:48px}
-  .modal{width:calc(100vw - 14px);padding:18px;max-height:88vh}
-}
-
-@media (max-width: 640px){
-  .main-area{padding-left:10px;padding-right:10px}
-  .ph-title{font-size:31px}
-  .profile-hero{padding:14px;gap:12px}
-  .profile-avatar{width:62px;height:62px;font-size:24px;border-radius:15px}
-  .profile-name{font-size:32px}
-  .profile-group-panel{padding:12px}
-  .max-row{padding:9px 0}
-  .max-name{font-size:12.5px}
-  .max-value{font-size:26px}
-  .mt-label{font-size:9.2px}
-  .ex-row{grid-template-columns:36px 1fr 62px 62px 62px auto;gap:6px}
-}
-`;
 
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -2051,7 +1649,6 @@ function LoginScreen({ onLogin, athletes }) {
 
   return (
     <div className="login-wrap">
-      <style>{CSS}</style>
       <div className="login-bg" />
       <div className="login-card">
         <div className="login-logo">TRACK<span>FLOW</span></div>
@@ -2065,13 +1662,13 @@ function LoginScreen({ onLogin, athletes }) {
           <>
             <div className="form-group">
               <label className="form-label">Usuario</label>
-              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Juan Carlos o email admin" disabled={authLoading} />
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Juan Carlos o email admin" autoComplete="username" disabled={authLoading} />
             </div>
             <div className="form-group">
               <label className="form-label">Contraseña</label>
-              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleCoachLogin()} disabled={authLoading} />
+              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" onKeyDown={e=>e.key==="Enter"&&handleCoachLogin()} disabled={authLoading} />
             </div>
-            {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
+            {error && <div className="text-sm mb3 form-error">{error}</div>}
             <button className="login-btn" onClick={handleCoachLogin} disabled={authLoading}>
               {authLoading ? "Validando..." : "Entrar →"}
             </button>
@@ -2082,13 +1679,13 @@ function LoginScreen({ onLogin, athletes }) {
           <>
             <div className="form-group">
               <label className="form-label">Usuario</label>
-              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Nombre del atleta" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
+              <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Nombre del atleta" autoComplete="username" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
             </div>
             <div className="form-group">
               <label className="form-label">Contraseña</label>
-              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
+              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
             </div>
-            {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
+            {error && <div className="text-sm mb3 form-error">{error}</div>}
             <button className="login-btn" onClick={handleAthleteLogin} disabled={authLoading}>
               {authLoading ? "Validando..." : "Entrar →"}
             </button>
@@ -2114,16 +1711,21 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
         </button>
       </div>
 
-      <div className="sb-section">
+      <nav className="sb-section" aria-label="Navegación principal">
         <span className="sb-label">Navegación</span>
         {nav.map(n => (
-          <button key={n.id} className={`nav-item ${page===n.id?"active":""}`} onClick={()=>setPage(n.id)}>
+          <button
+            key={n.id}
+            className={`nav-item ${page===n.id?"active":""}`}
+            onClick={()=>setPage(n.id)}
+            aria-current={page === n.id ? "page" : undefined}
+          >
             <span className="ni">{n.icon}</span>
             {n.label}
             {n.id === badgePage && notifCount > 0 && <span className="sb-notif">{notifCount}</span>}
           </button>
         ))}
-      </div>
+      </nav>
 
       <div className="sb-bottom">
         <div className="user-chip">
@@ -2135,7 +1737,7 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
             <div className="u-role">{isCoach ? "Entrenador" : getAthleteGroupsLabel(user)}</div>
           </div>
         </div>
-        <button className="nav-item mt3" onClick={onLogout} style={{color:"var(--re)"}}>
+        <button className="nav-item nav-item-danger mt3" onClick={onLogout}>
           <span className="ni">🚪</span> Cerrar sesión
         </button>
       </div>
@@ -2166,7 +1768,15 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
   return (
     <>
       <header className="mobile-topbar">
-        <button className="mobile-menu-btn" onClick={() => setMenuOpen(true)} aria-label="Abrir menú">☰</button>
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Abrir menú"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-nav-sheet"
+        >
+          ☰
+        </button>
         <button className="mobile-brand" onClick={() => setPage(nav[0]?.id || page)}>
           <span className="mobile-brand-main">TRACKFLOW</span>
           <span className="mobile-brand-sub">{isCoach ? "Entrenador" : "Atleta"}</span>
@@ -2177,19 +1787,27 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
 
       {menuOpen && (
         <div className="mobile-menu-overlay" onClick={() => setMenuOpen(false)}>
-          <div className="mobile-menu-sheet" onClick={(event) => event.stopPropagation()}>
+          <div
+            id="mobile-nav-sheet"
+            className="mobile-menu-sheet"
+            onClick={(event) => event.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menú principal"
+          >
             <div className="mobile-menu-head">
               <div>
-                <div className="card-title" style={{margin:0}}>Menú</div>
+                <div className="card-title mobile-menu-title">Menú</div>
                 <div className="text-sm text-mu">{isCoach ? "Entrenador" : "Atleta"} · {current?.label || ""}</div>
               </div>
-              <button className="modal-close" onClick={() => setMenuOpen(false)}>✕</button>
+              <button className="modal-close" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú">✕</button>
             </div>
             <div className="mobile-menu-nav">
               {nav.map((item) => (
                 <button
                   key={`menu_${item.id}`}
                   className={`mobile-menu-item ${page === item.id ? "active" : ""}`}
+                  aria-current={page === item.id ? "page" : undefined}
                   onClick={() => {
                     setPage(item.id);
                     setMenuOpen(false);
@@ -2205,16 +1823,13 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
         </div>
       )}
 
-      <nav
-        className="mobile-tabbar"
-        aria-label="Navegación móvil"
-        style={{ gridTemplateColumns:`repeat(${Math.max(nav.length, 1)}, minmax(0, 1fr))` }}
-      >
+      <nav className="mobile-tabbar" aria-label="Navegación móvil">
         {nav.map((item) => (
           <button
             key={item.id}
             className={`mobile-tab-btn ${page === item.id ? "active" : ""}`}
             onClick={() => setPage(item.id)}
+            aria-current={page === item.id ? "page" : undefined}
           >
             <span className="mt-icon">{item.icon}</span>
             <span className="mt-label">{item.shortLabel || item.label}</span>
@@ -2223,6 +1838,38 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
         ))}
       </nav>
     </>
+  );
+}
+
+function SyncStatusPill({ syncStatus }) {
+  const status = syncStatus && typeof syncStatus === "object" ? syncStatus : {};
+  const state = String(status.state || "idle").toLowerCase();
+  const pending = Number(status.pendingWrites || 0);
+  const retries = Number(status.retries || 0);
+  const isOnline = status.online !== false;
+
+  let label = "Sincronizado";
+  if (!isOnline) label = "Sin conexión";
+  else if (state === "syncing") label = "Guardando…";
+  else if (state === "queued" || state === "retrying") label = "Pendiente de sincronizar";
+  else if (state === "error") label = "Error de sincronización";
+
+  const detailParts = [];
+  if (pending > 0) detailParts.push(`${pending} cambio${pending === 1 ? "" : "s"}`);
+  if (retries > 0) detailParts.push(`reintento ${retries}`);
+  const detail = detailParts.join(" · ");
+
+  return (
+    <div
+      className={`sync-pill sync-${state}`}
+      role="status"
+      aria-live="polite"
+      title={status.lastError || detail || label}
+    >
+      <span className="sync-dot" />
+      <span>{label}</span>
+      {detail ? <span className="sync-detail">{detail}</span> : null}
+    </div>
   );
 }
 
@@ -3747,7 +3394,7 @@ function CoachSemanaV2({
                         const exercise = allExercises.find((item) => item.id === row.exId) || getExerciseByIdFull(row.exId, customExercises, exerciseImages);
                         const exType = normalizeExerciseType(row.type || exercise.type || "weight");
                         return (
-                          <div key={row.exId} style={{display:"grid",gridTemplateColumns:"42px 1fr 100px 80px 80px 80px auto",gap:8,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+                          <div key={row.exId} className="inline-routine-row" style={{display:"grid",gridTemplateColumns:"42px 1fr 100px 80px 80px 80px auto",gap:8,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
                             <div className="ex-emoji">{exercise.emoji || "🏋️"}</div>
                             <div>
                               <div className="ex-info-name">{exercise.name}</div>
@@ -4659,7 +4306,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
           const imgSrc = exerciseImages[exercise.id] || exercise.imageUrl;
           const isEditing = imgUploadTarget === exercise.id;
           return (
-            <div key={exercise.id} style={{display:"grid",gridTemplateColumns:"44px minmax(180px,1fr) minmax(130px,1fr) auto",gap:10,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+            <div key={exercise.id} className="exercise-compact-row" style={{display:"grid",gridTemplateColumns:"44px minmax(180px,1fr) minmax(130px,1fr) auto",gap:10,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
               <div style={{display:"flex",justifyContent:"center"}}>
                 {imgSrc
                   ? <img src={imgSrc} alt={exercise.name} style={{width:34,height:34,objectFit:"cover",borderRadius:8,border:"1px solid var(--border2)"}} />
@@ -5481,8 +5128,8 @@ function CoachHistorial({
             <div className="text-sm text-mu mb4">
               Edita pesos máximos por atleta y ejercicio. Al guardar se aplicarán todas las modificaciones de la tabla.
             </div>
-            <div style={{border:"1px solid var(--border)",borderRadius:12,overflow:"auto",maxHeight:"64vh",flex:1,minHeight:0}}>
-              <table className="tbl" style={{minWidth:Math.max(860, 260 + (weightExercises.length * 130)),margin:0}}>
+            <div className="bulk-weight-table-wrap" style={{border:"1px solid var(--border)",borderRadius:12,overflow:"auto",maxHeight:"64vh",flex:1,minHeight:0}}>
+              <table className="tbl bulk-weight-table" style={{minWidth:Math.max(860, 260 + (weightExercises.length * 130)),margin:0}}>
                 <thead>
                   <tr>
                     <th style={{position:"sticky",left:0,zIndex:3,background:"var(--s2)"}}>Atleta</th>
@@ -5581,22 +5228,22 @@ function CoachTemporadas({
   };
 
   return (
-    <div>
+    <div className="coach-temporadas-page">
       <div className="ph">
         <div className="ph-title">TEMPORADAS <span>COACH</span></div>
         <div className="ph-sub">Gestiona cierres de temporada y reinicio de planificación</div>
       </div>
 
-      <div className="card mb4">
+      <div className="card season-card mb4">
         <div className="card-title">Temporada activa</div>
         <div className="g2">
           <div>
             <div className="form-label">Temporada</div>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:900}}>{currentSeasonId}</div>
+            <div className="season-hero-value">{currentSeasonId}</div>
           </div>
           <div>
             <div className="form-label">Semana 1 inicia</div>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:36,fontWeight:900,color:"var(--or)"}}>
+            <div className="season-hero-value season-hero-value-accent">
               {seasonWeekOneStartIso}
             </div>
           </div>
@@ -5629,8 +5276,8 @@ function CoachTemporadas({
             />
           </div>
         </div>
-        {error && <div className="text-sm" style={{color:"var(--re)"}}>{error}</div>}
-        <div className="flex ic g3r mt4" style={{flexWrap:"wrap"}}>
+        {error && <div className="text-sm inline-error">{error}</div>}
+        <div className="flex ic g3r mt4 season-actions">
           <button className={`btn ${confirming ? "btn-danger" : "btn-or"}`} onClick={handleFinalize}>
             {confirming ? "Confirmar cierre de temporada" : `Finalizar ${currentSeasonId}`}
           </button>
@@ -5648,24 +5295,26 @@ function CoachTemporadas({
           <div className="text-sm text-mu">Todavía no hay temporadas finalizadas.</div>
         )}
         {archived.length > 0 && (
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Temporada</th>
-                <th>Semana 1</th>
-                <th>Finalizada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {archived.map((season) => (
-                <tr key={season.id}>
-                  <td style={{fontWeight:700}}>{season.id}</td>
-                  <td>{season.weekOneStartIso}</td>
-                  <td>{String(season.finalizedAt || "").slice(0, 19).replace("T", " ")}</td>
+          <div className="table-scroll">
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Temporada</th>
+                  <th>Semana 1</th>
+                  <th>Finalizada</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {archived.map((season) => (
+                  <tr key={season.id}>
+                    <td className="season-id-cell">{season.id}</td>
+                    <td>{season.weekOneStartIso}</td>
+                    <td>{String(season.finalizedAt || "").slice(0, 19).replace("T", " ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
@@ -6039,7 +5688,7 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
         ))}
       </div>}
 
-      {isWeekPublished && !allDays.length && <div className="card" style={{textAlign:"center",padding:40,color:"var(--mu)"}}>No hay rutinas de gym asignadas a tus grupos esta semana</div>}
+      {isWeekPublished && !allDays.length && <div className="card empty-state-card">No hay rutinas de gym asignadas a tus grupos esta semana</div>}
 
       {isWeekPublished && allDays.length > 0 && selectedPlan && (
         <div className="card mb4">
@@ -6053,7 +5702,7 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
         </div>
       )}
 
-      {isWeekPublished && focusExercises.length === 0 && allDays.length > 0 && <div className="card" style={{textAlign:"center",padding:40,color:"var(--mu)"}}>No hay gym este día</div>}
+      {isWeekPublished && focusExercises.length === 0 && allDays.length > 0 && <div className="card empty-state-card">No hay gym este día</div>}
 
       {isWeekPublished && focusExercises.map(ex => {
         const max = user.maxW?.[ex.id];
@@ -6061,16 +5710,16 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
         const imgSrc = ex.imageUrl;
         return (
           <div key={ex.id} className="card mb3">
-            <div style={{display:"grid",gridTemplateColumns:"108px 1fr repeat(3,minmax(78px,90px))",gap:16,alignItems:"center"}}>
-              <div style={{textAlign:"center"}}>
+            <div className="ath-gym-ex-row" style={{display:"grid",gridTemplateColumns:"108px 1fr repeat(3,minmax(78px,90px))",gap:16,alignItems:"center"}}>
+              <div className="ath-gym-ex-media" style={{textAlign:"center"}}>
                 {imgSrc ? (
-                  <img src={imgSrc} alt={ex.name} style={{width:92,height:92,objectFit:"cover",borderRadius:12,border:"1px solid var(--border2)"}} />
+                  <img className="ath-gym-ex-image" src={imgSrc} alt={ex.name} style={{width:92,height:92,objectFit:"cover",borderRadius:12,border:"1px solid var(--border2)"}} />
                 ) : (
-                  <div style={{fontSize:58,textAlign:"center"}}>{ex.emoji}</div>
+                  <div className="ath-gym-ex-emoji" style={{fontSize:58,textAlign:"center"}}>{ex.emoji}</div>
                 )}
               </div>
-              <div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:800,lineHeight:1}}>{ex.name}</div>
+              <div className="ath-gym-ex-main">
+                <div className="ath-gym-ex-name" style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:26,fontWeight:800,lineHeight:1}}>{ex.name}</div>
                 <div style={{fontSize:12,color:"var(--mu2)",marginTop:2}}>{ex.muscles}</div>
                 {exType==="weight" && (
                   max
@@ -6080,25 +5729,25 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
                 {exType==="time_reps" && <div style={{fontSize:11,color:"var(--ya)",marginTop:4}}>Tiempo x repeticiones</div>}
                 {exType==="reps"   && <div style={{fontSize:11,color:"var(--bl)",marginTop:4}}>Sin carga externa</div>}
               </div>
-              <div style={{textAlign:"center"}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,lineHeight:1}}>{ex.sets}</div>
+              <div className="ath-gym-ex-metric" style={{textAlign:"center"}}>
+                <div className="ath-gym-ex-metric-value" style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,lineHeight:1}}>{ex.sets}</div>
                 <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>series</div>
               </div>
               {exType === "time_reps" ? (
-                <div style={{textAlign:"center"}}>
+                <div className="ath-gym-ex-metric" style={{textAlign:"center"}}>
                   <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900,lineHeight:1,color:"var(--ya)"}}>{ex.reps} x {formatExDuration(ex.duration)}</div>
                   <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>reps x tiempo</div>
                 </div>
               ) : (
-                <div style={{textAlign:"center"}}>
-                  <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,lineHeight:1}}>{ex.reps}</div>
+                <div className="ath-gym-ex-metric" style={{textAlign:"center"}}>
+                  <div className="ath-gym-ex-metric-value" style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,lineHeight:1}}>{ex.reps}</div>
                   <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>reps</div>
                 </div>
               )}
-              <div style={{textAlign:"center"}}>
+              <div className="ath-gym-ex-metric" style={{textAlign:"center"}}>
                 {exType==="weight" && ex.kg ? (
                   <>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,color:"var(--or)",lineHeight:1}}>{ex.kg}</div>
+                    <div className="ath-gym-ex-metric-value" style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:44,fontWeight:900,color:"var(--or)",lineHeight:1}}>{ex.kg}</div>
                     <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>kg</div>
                   </>
                 ) : (
@@ -6606,6 +6255,7 @@ export default function TrackFlow() {
   const [seedMeta, setSeedMeta] = useState(null);
   const [customExercises, setCustomExercises] = useState([]);
   const [exerciseImages, setExerciseImages] = useState({});
+  const [syncStatus, setSyncStatus] = useState(() => getStorageSyncSnapshot());
   const week = normalizeWeek(
     ensureWeekInPlans(weekPlansByNumber, activeWeekNumber, routines, seasonAnchorDate),
     routines
@@ -6622,30 +6272,76 @@ export default function TrackFlow() {
     });
   }, [activeWeekNumber, routines, seasonAnchorDate]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const handleSyncStatus = (event) => {
+      if (event?.detail && typeof event.detail === "object") {
+        setSyncStatus(event.detail);
+        return;
+      }
+      setSyncStatus(getStorageSyncSnapshot());
+    };
+    const handleConnectivity = () => {
+      setSyncStatus(getStorageSyncSnapshot());
+    };
+    window.addEventListener("trackflow:sync-status", handleSyncStatus);
+    window.addEventListener("online", handleConnectivity);
+    window.addEventListener("offline", handleConnectivity);
+    handleConnectivity();
+    return () => {
+      window.removeEventListener("trackflow:sync-status", handleSyncStatus);
+      window.removeEventListener("online", handleConnectivity);
+      window.removeEventListener("offline", handleConnectivity);
+    };
+  }, []);
+
   // Load persisted session
   useEffect(() => {
     (async () => {
       await hydrateStorageWriteAccess();
-      const savedUser = await store.get("tf_user");
-      const savedAthletes = await store.get("tf_athletes");
-      const savedUsersCsv = await store.getRaw("tf_users_csv");
-      const savedCurrentSeasonId = await store.get("tf_current_season_id");
-      const savedSeasonWeekOneStart = await store.get("tf_season_week_one_start");
-      const savedSeasons = await store.get("tf_seasons");
-      const savedWeek = await store.get("tf_week");
-      const savedWeekPlans = await store.get("tf_week_plans");
-      const savedActiveWeekNumber = await store.get("tf_active_week_number");
-      const savedRoutines = await store.get("tf_routines");
-      const savedTrainings = await store.get("tf_trainings");
-      const savedNotifs = await store.get("tf_notifs");
-      const savedAthleteNotifs = await store.get("tf_athlete_notifs");
-      const savedGroups = await store.get("tf_groups");
-      const savedHistory = await store.get("tf_history");
-      const savedCalendarWeeks = await store.get("tf_calendar_weeks");
-      const savedSeedMeta = await store.get("tf_seed_meta");
-      const savedPesasRaw = await store.get("tf_pesas_raw");
-      const savedCustomEx = await store.get("tf_custom_exercises");
-      const savedExImages = await store.get("tf_exercise_images");
+      const [
+        savedUser,
+        savedAthletes,
+        savedUsersCsv,
+        savedCurrentSeasonId,
+        savedSeasonWeekOneStart,
+        savedSeasons,
+        savedWeek,
+        savedWeekPlans,
+        savedActiveWeekNumber,
+        savedRoutines,
+        savedTrainings,
+        savedNotifs,
+        savedAthleteNotifs,
+        savedGroups,
+        savedHistory,
+        savedCalendarWeeks,
+        savedSeedMeta,
+        savedPesasRaw,
+        savedCustomEx,
+        savedExImages,
+      ] = await Promise.all([
+        store.get("tf_user"),
+        store.get("tf_athletes"),
+        store.getRaw("tf_users_csv"),
+        store.get("tf_current_season_id"),
+        store.get("tf_season_week_one_start"),
+        store.get("tf_seasons"),
+        store.get("tf_week"),
+        store.get("tf_week_plans"),
+        store.get("tf_active_week_number"),
+        store.get("tf_routines"),
+        store.get("tf_trainings"),
+        store.get("tf_notifs"),
+        store.get("tf_athlete_notifs"),
+        store.get("tf_groups"),
+        store.get("tf_history"),
+        store.get("tf_calendar_weeks"),
+        store.get("tf_seed_meta"),
+        store.get("tf_pesas_raw"),
+        store.get("tf_custom_exercises"),
+        store.get("tf_exercise_images"),
+      ]);
 
       const loadedCurrentSeasonId = normalizeSeasonId(savedCurrentSeasonId, DEFAULT_SEASON_ID);
       const loadedSeasonWeekOneStartIso = normalizeSeasonWeekOneStartIso(
@@ -6741,19 +6437,25 @@ export default function TrackFlow() {
   }, []);
 
   // Persist on change
-  useEffect(() => { if(user) store.set("tf_user", user); }, [user]);
   useEffect(() => {
+    if (loading) return;
+    if (user) store.set("tf_user", user);
+  }, [loading, user]);
+  useEffect(() => {
+    if (loading) return;
     const normalized = normalizeAthletes(athletes);
     store.set("tf_athletes", normalized);
     store.setRaw("tf_users_csv", athletesToCsv(normalized));
-  }, [athletes]);
+  }, [loading, athletes]);
   useEffect(() => {
+    if (loading) return;
     setGroups((prev) => {
       const merged = mergeGroupOptions(GROUPS, prev, collectAthleteGroups(athletes));
       return merged.length === prev.length && merged.every((g, i) => g === prev[i]) ? prev : merged;
     });
-  }, [athletes]);
+  }, [loading, athletes]);
   useEffect(() => {
+    if (loading) return;
     const safeWeekNumber = normalizeWeekNumber(activeWeekNumber, getTodaySeasonWeekNumber(seasonAnchorDate));
     setWeekPlansByNumber((prev) => {
       if (prev?.[safeWeekNumber]) return prev;
@@ -6762,24 +6464,59 @@ export default function TrackFlow() {
         [safeWeekNumber]: createWeekForNumber(safeWeekNumber, routines, {}, seasonAnchorDate),
       };
     });
-  }, [activeWeekNumber, routines, seasonAnchorDate]);
-  useEffect(() => { store.set("tf_groups", groups); }, [groups]);
+  }, [loading, activeWeekNumber, routines, seasonAnchorDate]);
   useEffect(() => {
+    if (loading) return;
+    store.set("tf_groups", groups);
+  }, [loading, groups]);
+  useEffect(() => {
+    if (loading) return;
     store.set("tf_week_plans", normalizeWeekPlansByNumber(weekPlansByNumber, routines, seasonAnchorDate));
-  }, [weekPlansByNumber, routines, seasonAnchorDate]);
+  }, [loading, weekPlansByNumber, routines, seasonAnchorDate]);
   useEffect(() => {
+    if (loading) return;
     store.set("tf_active_week_number", normalizeWeekNumber(activeWeekNumber, getTodaySeasonWeekNumber(seasonAnchorDate)));
-  }, [activeWeekNumber, seasonAnchorDate]);
-  useEffect(() => { store.set("tf_week", normalizeWeek(week, routines)); }, [week, routines]);
-  useEffect(() => { store.set("tf_routines", normalizeRoutineLibrary(routines)); }, [routines]);
-  useEffect(() => { store.set("tf_trainings", normalizeTrainingCatalog(trainings)); }, [trainings]);
-  useEffect(() => { store.set("tf_notifs", notifications); }, [notifications]);
-  useEffect(() => { store.set("tf_athlete_notifs", normalizeAthleteNotificationsMap(athleteNotificationsById)); }, [athleteNotificationsById]);
-  useEffect(() => { store.set("tf_history", history); }, [history]);
-  useEffect(() => { store.set("tf_calendar_weeks", Array.isArray(calendarWeeks) ? calendarWeeks : []); }, [calendarWeeks]);
-  useEffect(() => { store.set("tf_seed_meta", seedMeta || null); }, [seedMeta]);
-  useEffect(() => { store.set("tf_custom_exercises", customExercises); }, [customExercises]);
-  useEffect(() => { store.set("tf_exercise_images", exerciseImages); }, [exerciseImages]);
+  }, [loading, activeWeekNumber, seasonAnchorDate]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_week", normalizeWeek(week, routines));
+  }, [loading, week, routines]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_routines", normalizeRoutineLibrary(routines));
+  }, [loading, routines]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_trainings", normalizeTrainingCatalog(trainings));
+  }, [loading, trainings]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_notifs", notifications);
+  }, [loading, notifications]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_athlete_notifs", normalizeAthleteNotificationsMap(athleteNotificationsById));
+  }, [loading, athleteNotificationsById]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_history", history);
+  }, [loading, history]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_calendar_weeks", Array.isArray(calendarWeeks) ? calendarWeeks : []);
+  }, [loading, calendarWeeks]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_seed_meta", seedMeta || null);
+  }, [loading, seedMeta]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_custom_exercises", customExercises);
+  }, [loading, customExercises]);
+  useEffect(() => {
+    if (loading) return;
+    store.set("tf_exercise_images", exerciseImages);
+  }, [loading, exerciseImages]);
   useEffect(() => {
     if (loading) return;
     const normalized = normalizeSeasonCollection(seasons, currentSeasonId, seasonWeekOneStartIso);
@@ -7102,11 +6839,10 @@ export default function TrackFlow() {
   };
 
   if (loading) return (
-    <div style={{background:"var(--bg)",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <style>{CSS}</style>
-      <div style={{textAlign:"center"}}>
-        <div className="login-logo" style={{fontSize:64,marginBottom:8}}>TRACK<span style={{color:"var(--or)"}}>FLOW</span></div>
-        <div className="pulse" style={{color:"var(--mu)",fontSize:13,letterSpacing:3,textTransform:"uppercase"}}>Cargando...</div>
+    <div className="app-loading">
+      <div className="app-loading-inner">
+        <div className="login-logo app-loading-logo">TRACK<span>FLOW</span></div>
+        <div className="pulse app-loading-text">Cargando...</div>
       </div>
     </div>
   );
@@ -7114,10 +6850,9 @@ export default function TrackFlow() {
   if (!user) return <LoginScreen onLogin={handleLogin} athletes={athletes} />;
 
   const isCoach = user.role === "coach";
-  const isDatasetPage = isCoach && (page === "gym" || page === "dataset");
-  const isCoachAthletesPage = isCoach && page === "athletes";
+  const isCoachScrollablePage = isCoach && ["gym", "dataset", "athletes", "calendario_semanal", "temporadas"].includes(page);
   const isAthleteGymPage = !isCoach && page === "gym";
-  const allowPageScroll = isDatasetPage || isCoachAthletesPage || isAthleteGymPage;
+  const allowPageScroll = isCoachScrollablePage || isAthleteGymPage;
   const mainAreaClass = `main-area ${allowPageScroll ? "main-area-scroll" : "main-area-fit"}`;
   const pageShellClass = `page-shell ${allowPageScroll ? "page-shell-scroll" : "page-shell-fit"}`;
   const publishedWeek = resolvePublishedWeek(week, routines);
@@ -7158,7 +6893,6 @@ export default function TrackFlow() {
 
   return (
     <div className="app-wrap">
-      <style>{CSS}</style>
       <Sidebar
         user={user}
         page={page}
@@ -7174,6 +6908,9 @@ export default function TrackFlow() {
         notifCount={isCoach ? notifications.length : athleteNotifications.length}
       />
       <div className={mainAreaClass}>
+        <div className="global-sync-status">
+          <SyncStatusPill syncStatus={syncStatus} />
+        </div>
         <div className={pageShellClass}>
           {renderPage()}
         </div>

@@ -60,6 +60,7 @@ create index if not exists idx_app_kv_updated_by
 create or replace function public.tg_set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = timezone('utc', now());
@@ -75,6 +76,7 @@ for each row execute function public.tg_set_updated_at();
 create or replace function public.tg_app_kv_versioning()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   if tg_op = 'INSERT' then
@@ -101,6 +103,7 @@ create or replace function public.is_admin_user()
 returns boolean
 language sql
 stable
+set search_path = ''
 as $$
   select exists (
     select 1

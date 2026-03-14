@@ -1,0 +1,214 @@
+{
+  "1366x768:login": {
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": false,
+    "hasTabbar": false,
+    "touchViolations": 2,
+    "touchViolationsList": [
+      {
+        "width": 177,
+        "height": 37,
+        "text": "🏃 Atleta",
+        "className": "tab-btn active",
+        "tag": "button"
+      },
+      {
+        "width": 177,
+        "height": 37,
+        "text": "📋 Entrenador",
+        "className": "tab-btn",
+        "tag": "button"
+      }
+    ]
+  },
+  "1366x768:athlete-hoy": {
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": false,
+    "hasTabbar": false,
+    "touchViolations": 7,
+    "touchViolationsList": [
+      {
+        "width": 195,
+        "height": 32,
+        "text": "TRACKFLOW",
+        "className": "sb-home",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "⚡Hoy",
+        "className": "nav-item active",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "📅Mi Semana",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🏋️Mi Gym",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🗓️Mi Calendario",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "👤Mi Perfil",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🚪 Cerrar sesión",
+        "className": "nav-item nav-item-danger mt3",
+        "tag": "button"
+      }
+    ]
+  },
+  "1366x768:athlete-semana": {
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": false,
+    "hasTabbar": false,
+    "touchViolations": 7,
+    "touchViolationsList": [
+      {
+        "width": 195,
+        "height": 32,
+        "text": "TRACKFLOW",
+        "className": "sb-home",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "⚡Hoy",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "📅Mi Semana",
+        "className": "nav-item active",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🏋️Mi Gym",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🗓️Mi Calendario",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "👤Mi Perfil",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🚪 Cerrar sesión",
+        "className": "nav-item nav-item-danger mt3",
+        "tag": "button"
+      }
+    ]
+  },
+  "1366x768:athlete-calendario": {
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": false,
+    "hasTabbar": false,
+    "touchViolations": 7,
+    "touchViolationsList": [
+      {
+        "width": 195,
+        "height": 32,
+        "text": "TRACKFLOW",
+        "className": "sb-home",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "⚡Hoy",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "📅Mi Semana",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🏋️Mi Gym",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🗓️Mi Calendario",
+        "className": "nav-item active",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "👤Mi Perfil",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 43,
+        "text": "🚪 Cerrar sesión",
+        "className": "nav-item nav-item-danger mt3",
+        "tag": "button"
+      }
+    ]
+  },
+  "1366x768:coach-seed-error": {
+    "error": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.app-wrap')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.app-wrap')\u001b[22m\n"
+  }
+}
