@@ -1014,9 +1014,16 @@ export async function signInSupabaseAdmin({ email, password, role = 'coach', coa
       });
       if (!res.ok) {
         const payload = await res.json().catch(() => null);
+        const status = Number(res.status || 0);
+        if (status === 404 || status === 405) {
+          return {
+            ok: false,
+            error: 'Auth API no disponible. Inicia el backend y usa STORAGE_PROVIDER=mongo para login de sesiones.',
+          };
+        }
         return {
           ok: false,
-          error: payload?.error || `Error ${res.status} autenticando ${normalizedRole === 'coach' ? 'entrenador' : 'atleta'}.`,
+          error: payload?.error || `Error ${status || 'desconocido'} autenticando ${normalizedRole === 'coach' ? 'entrenador' : 'atleta'}.`,
         };
       }
       writeEnabled = true;

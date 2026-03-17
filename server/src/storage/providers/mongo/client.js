@@ -28,3 +28,19 @@ export async function getMongoDb() {
   const client = await mongoClientPromise;
   return client.db(config.mongoDbName);
 }
+
+export async function getMongoClient() {
+  assertMongoConfig();
+  if (!mongoClientPromise) {
+    const client = new MongoClient(config.mongoUri, {
+      maxPoolSize: 20,
+      minPoolSize: 1,
+      retryWrites: true,
+      retryReads: true,
+      serverSelectionTimeoutMS: 10000,
+      appName: 'trackflow-server',
+    });
+    mongoClientPromise = client.connect();
+  }
+  return await mongoClientPromise;
+}

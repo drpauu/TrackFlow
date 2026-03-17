@@ -4,6 +4,7 @@ import { config } from './config.js';
 import createStorageRouter from './routes/storage.js';
 import createAuthRouter from './routes/auth.js';
 import createDomainRouter from './routes/domain.js';
+import createJogatinaRouter from './routes/jogatina.js';
 import { attachRequestContext } from './middleware/requestContext.js';
 import { createStorageProvider } from './storage/provider.js';
 import {
@@ -101,6 +102,7 @@ export async function buildTrackFlowApp() {
   if (storageProvider?.name === 'mongo') {
     app.use('/api/auth', createAuthRouter({ storage: storageProvider }));
     app.use('/api', createDomainRouter({ storage: storageProvider }));
+    app.use('/api/jogatina', createJogatinaRouter({ storage: storageProvider }));
   }
 
   app.use((err, _req, res, _next) => {

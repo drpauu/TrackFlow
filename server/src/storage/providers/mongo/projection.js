@@ -83,6 +83,44 @@ export async function ensureIndexes(db) {
     db.collection('sync_counters').createIndexes([
       { key: { _id: 1 }, name: 'uniq_sync_counter', unique: true },
     ]),
+    db.collection('jogatina_groups').createIndexes([
+      { key: { code5: 1 }, name: 'uniq_jogatina_group_code5', unique: true },
+      { key: { coachId: 1, ownerAthleteId: 1 }, name: 'idx_jogatina_group_owner' },
+      { key: { coachId: 1, name: 1 }, name: 'idx_jogatina_group_name' },
+    ]),
+    db.collection('jogatina_memberships').createIndexes([
+      { key: { athleteId: 1 }, name: 'uniq_jogatina_membership_athlete', unique: true },
+      { key: { groupId: 1, joinedAt: 1 }, name: 'idx_jogatina_membership_group_joined' },
+      { key: { coachId: 1, groupId: 1 }, name: 'idx_jogatina_membership_coach_group' },
+    ]),
+    db.collection('jogatina_wallets').createIndexes([
+      { key: { athleteId: 1, seasonKey: 1 }, name: 'uniq_jogatina_wallet', unique: true },
+      { key: { coachId: 1, seasonKey: 1, points: -1 }, name: 'idx_jogatina_wallet_ranking' },
+      { key: { coachId: 1, athleteId: 1 }, name: 'idx_jogatina_wallet_athlete' },
+    ]),
+    db.collection('jogatina_bets_open').createIndexes([
+      { key: { groupId: 1, status: 1, closeAt: 1 }, name: 'idx_jogatina_bets_group_status_close' },
+      { key: { coachId: 1, resolveDeadlineAt: 1, status: 1 }, name: 'idx_jogatina_bets_deadline' },
+      { key: { groupId: 1, creatorAthleteId: 1, createdAt: -1 }, name: 'idx_jogatina_bets_creator' },
+    ]),
+    db.collection('jogatina_wagers_open').createIndexes([
+      { key: { betId: 1, athleteId: 1 }, name: 'uniq_jogatina_wager', unique: true },
+      { key: { groupId: 1, betId: 1 }, name: 'idx_jogatina_wager_group_bet' },
+      { key: { athleteId: 1, updatedAt: -1 }, name: 'idx_jogatina_wager_athlete' },
+    ]),
+    db.collection('jogatina_group_carryover').createIndexes([
+      { key: { groupId: 1 }, name: 'uniq_jogatina_carryover_group', unique: true },
+      { key: { coachId: 1 }, name: 'idx_jogatina_carryover_coach' },
+    ]),
+    db.collection('jogatina_daily_bonus_claims').createIndexes([
+      { key: { athleteId: 1, localDate: 1 }, name: 'uniq_jogatina_bonus_claim', unique: true },
+      { key: { coachId: 1, localDate: 1 }, name: 'idx_jogatina_bonus_claim_date' },
+    ]),
+    db.collection('jogatina_ledger').createIndexes([
+      { key: { athleteId: 1, createdAt: -1 }, name: 'idx_jogatina_ledger_athlete' },
+      { key: { groupId: 1, createdAt: -1 }, name: 'idx_jogatina_ledger_group' },
+      { key: { coachId: 1, seasonKey: 1, createdAt: -1 }, name: 'idx_jogatina_ledger_coach_season' },
+    ]),
   ]);
 }
 

@@ -19,6 +19,9 @@ import {
   slugify,
   toFiniteInt,
 } from './mongo/shared.js';
+import { createJogatinaService } from '../../domain/jogatina/service.js';
+
+const jogatinaService = createJogatinaService();
 
 function assertAuthForWrite(options = {}) {
   if (!config.mongoRequireAuth) return;
@@ -491,7 +494,31 @@ export function createMongoStorageProvider() {
         },
         { upsert: true }
       );
-      return await db.collection('athlete_day_status').findOne({ _id: rowId });
+      const statusRow = await db.collection('athlete_day_status').findOne({ _id: rowId });
+
+      const shouldTryDailyBonus = Number(statusRow?.plannedSlotsCount || 0) > 0
+        && Number(statusRow?.doneSlotsCount || 0) >= Number(statusRow?.plannedSlotsCount || 0);
+
+      if (shouldTryDailyBonus) {
+        try {
+          const athlete = await db.collection('athletes').findOne(
+            { coachId: safeCoachId, athleteId: safeAthleteId },
+            { projection: { timezone: 1 } }
+          );
+          await jogatinaService.awardDailyCompletionBonus({
+            coachId: safeCoachId,
+            athleteId: safeAthleteId,
+            dateIso,
+            timezone: athlete?.timezone || null,
+            source: 'day_status_update',
+          });
+        } catch (error) {
+          // No bloqueamos el flujo principal si falla el bonus de Jogatina.
+          console.error('Jogatina daily bonus error:', error?.message || error);
+        }
+      }
+
+      return statusRow;
     },
 
     async upsertAthleteCompetition(coachId, athleteId, payload = {}, createdBy = null) {

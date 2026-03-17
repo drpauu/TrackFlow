@@ -30,6 +30,8 @@ export const config = {
     process.env.AUTH_COOKIE_SECURE
     || (process.env.NODE_ENV === 'production' ? 'true' : 'false')
   ).trim().toLowerCase() === 'true',
+  jogatinaEnabled: String(process.env.JOGATINA_ENABLED || 'true').trim().toLowerCase() === 'true',
+  jogatinaCronSecret: String(process.env.JOGATINA_CRON_SECRET || process.env.CRON_SECRET || '').trim(),
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   supabaseSchema: process.env.SUPABASE_SCHEMA || 'public',
