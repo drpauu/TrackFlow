@@ -24,13 +24,13 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "concurrently": "^9.1.2",
-    "xlsx": "^0.18.5"
+    "concurrently": "^9.1.2"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "mongodb": "^7.1.0",
     "scoop": "^0.0.2"
   }
 }
