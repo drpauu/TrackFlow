@@ -3,6 +3,7 @@ import { verifyPassword, signSessionToken } from '../../security/auth.js';
 import { getMongoDb } from './mongo/client.js';
 import {
   ensureIndexes,
+  ensureCoachUserFromLocalData,
   getCurrentSyncVersion,
   getStateValue,
   nextSyncVersion,
@@ -153,6 +154,7 @@ export function createMongoStorageProvider() {
       const db = await getMongoDb();
       await ensureIndexes(db);
       await seedFromLocalIfNeeded(db, config.defaultCoachId);
+      await ensureCoachUserFromLocalData(db, config.defaultCoachId);
     },
 
     async get(key, options = {}) {

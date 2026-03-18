@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import json; d=json.load\\(open\\(''c:/Users/pau.alcazar/OneDrive - Accenture/Documents/TrackFlow/server/data/app_storage.json''\\)\\); keys=[k for k in d if k.startswith\\(''tf_''\\)]; print\\(''Keys:'', keys[:10]\\); print\\(''Has tf_user:'', ''tf_user'' in d\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\(''c:/Users/pau.alcazar/OneDrive - Accenture/Documents/TrackFlow/server/data/app_storage.json''\\)\\); user=d.get\\(''tf_user''\\); print\\(''tf_user:'', user[:200] if isinstance\\(user, str\\) else json.dumps\\(user\\)[:200]\\)\")",
+      "Bash(python -c \"import json; d=json.load\\(open\\(''c:/Users/pau.alcazar/OneDrive - Accenture/Documents/TrackFlow/server/data/seeds/app_storage.seed.json''\\)\\); print\\(''Has tf_user:'', ''tf_user'' in d\\); val=d.get\\(''tf_user''\\); print\\(''tf_user value:'', str\\(val\\)[:300] if val else ''null/missing''\\)\")",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''name:'''', d.get\\(''''name''''\\)\\); print\\(''''scripts:'''', list\\(d.get\\(''''scripts'''',{}\\).keys\\(\\)\\)[:10]\\)\")"
+    ]
+  }
+}

@@ -81,7 +81,7 @@ export async function ensureIndexes(db) {
       { key: { coachId: 1, syncVersion: 1 }, name: 'idx_state_cache_sync' },
     ]),
     db.collection('sync_counters').createIndexes([
-      { key: { _id: 1 }, name: 'uniq_sync_counter', unique: true },
+      { key: { _id: 1 }, name: 'uniq_sync_counter' },
     ]),
     db.collection('jogatina_groups').createIndexes([
       { key: { code5: 1 }, name: 'uniq_jogatina_group_code5', unique: true },
@@ -587,6 +587,30 @@ export async function applyProjectionForKey({ db, coachId, key, rawValue }) {
   if (key === 'tf_history') await syncHistory(db, coachId, rawValue);
   if (key === 'tf_custom_exercises' || key === 'tf_exercise_images') {
     await syncGymExercises(db, coachId);
+  }
+}
+
+export async function ensureCoachUserFromLocalData(db, coachId) {
+  const safeCoachId = normalizeCoachId(coachId);
+  const existing = await db.collection('users').findOne(
+    { _id: `coach:${safeCoachId}`, role: 'coach' },
+    { projection: { _id: 1 } }
+  );
+  if (existing) return;
+
+  // Try from state_cache (previously synced tf_user)
+  const cachedDoc = await db.collection('state_cache').findOne({ coachId: safeCoachId, key: 'tf_user' });
+  if (cachedDoc?.value && cachedDoc.value !== 'null') {
+    await syncCoach(db, safeCoachId, cachedDoc.value);
+    return;
+  }
+
+  // Try from local app_storage.json
+  const storageJson = await readJsonFile(config.appStorageFile, {});
+  const localValue = storageJson?.tf_user;
+  const localStr = toStoredString(localValue);
+  if (localStr && localStr !== 'null') {
+    await syncCoach(db, safeCoachId, localStr);
   }
 }
 
