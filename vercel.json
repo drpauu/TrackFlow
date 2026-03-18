@@ -16,11 +16,5 @@
       "source": "/:path*",
       "destination": "/index.html"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/jogatina/cron/run",
-      "schedule": "*/5 * * * *"
-    }
   ]
 }

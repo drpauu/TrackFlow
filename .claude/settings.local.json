@@ -6,7 +6,9 @@
       "Bash(python -c \"import json; d=json.load\\(open\\(''c:/Users/pau.alcazar/OneDrive - Accenture/Documents/TrackFlow/server/data/seeds/app_storage.seed.json''\\)\\); print\\(''Has tf_user:'', ''tf_user'' in d\\); val=d.get\\(''tf_user''\\); print\\(''tf_user value:'', str\\(val\\)[:300] if val else ''null/missing''\\)\")",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''name:'''', d.get\\(''''name''''\\)\\); print\\(''''scripts:'''', list\\(d.get\\(''''scripts'''',{}\\).keys\\(\\)\\)[:10]\\)\")"
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(''''name:'''', d.get\\(''''name''''\\)\\); print\\(''''scripts:'''', list\\(d.get\\(''''scripts'''',{}\\).keys\\(\\)\\)[:10]\\)\")",
+      "Bash(npx kill-port:*)",
+      "Bash(taskkill //F //FI \"LOCALPORT eq 8787\")"
     ]
   }
 }
