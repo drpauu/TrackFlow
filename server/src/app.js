@@ -98,6 +98,11 @@ export async function buildTrackFlowApp() {
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
   app.use(express.json({ limit: '2mb' }));
   app.use(attachRequestContext);
+  app.get('/api/debug-config', (_req, res) => res.json({
+    storageProvider: config.storageProvider,
+    providerName: storageProvider?.name,
+    hasMongoUri: !!config.mongoUri,
+  }));
   app.use('/api', createStorageRouter({ storage: storageProvider }));
   if (storageProvider?.name === 'mongo') {
     app.use('/api/auth', createAuthRouter({ storage: storageProvider }));

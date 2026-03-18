@@ -80,9 +80,7 @@ export async function ensureIndexes(db) {
       { key: { coachId: 1, key: 1 }, name: 'uniq_state_cache_key', unique: true },
       { key: { coachId: 1, syncVersion: 1 }, name: 'idx_state_cache_sync' },
     ]),
-    db.collection('sync_counters').createIndexes([
-      { key: { _id: 1 }, name: 'uniq_sync_counter' },
-    ]),
+    Promise.resolve(),
     db.collection('jogatina_groups').createIndexes([
       { key: { code5: 1 }, name: 'uniq_jogatina_group_code5', unique: true },
       { key: { coachId: 1, ownerAthleteId: 1 }, name: 'idx_jogatina_group_owner' },
