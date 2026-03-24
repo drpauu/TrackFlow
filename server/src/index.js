@@ -2,23 +2,13 @@ import { config } from './config.js';
 import { buildTrackFlowApp } from './app.js';
 
 async function main() {
-  const { app, storageProvider, isLocalMode } = await buildTrackFlowApp();
+  const { app, storageProvider } = await buildTrackFlowApp();
 
   app.listen(config.port, () => {
     console.log(`TrackFlow server listening on http://localhost:${config.port}`);
     console.log(`Storage provider: ${storageProvider.name}`);
-    if (isLocalMode) {
-      console.log(`Users CSV: ${config.usersCsvFile}`);
-      console.log(`App storage: ${config.appStorageFile}`);
-      return;
-    }
-    if (storageProvider.name === 'mongo') {
-      console.log(`Mongo DB: ${config.mongoDbName}`);
-      console.log(`Mongo default coach: ${config.defaultCoachId}`);
-      return;
-    }
-    console.log(`Supabase URL: ${config.supabaseUrl}`);
-    console.log(`Supabase schema/table: ${config.supabaseSchema}.${config.supabaseKvTable}`);
+    console.log(`Mongo DB: ${config.mongoDbName}`);
+    console.log(`Mongo default coach: ${config.defaultCoachId}`);
   });
 }
 

@@ -1,20 +1,19 @@
-﻿import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   hydrateStorageWriteAccess,
-  getStorageSyncSnapshot,
-  signInSupabaseAdmin,
+  signInStorageSession,
   signOutStorageSession,
 } from "../../lib/storageClient.js";
 import AthleteJogatina from "./jogatina/AthleteJogatina.jsx";
 
 import './trackflow.css';
 
-// â”€â”€â”€ ZONES (km por intensidad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ZONES (km por intensidad) ─────────────────────────────────────────────────
 const ZONES = [
   { id:"regen", label:"Regenerativo",       short:"REG", color:"#4ADE80" },
-  { id:"ua",    label:"Umbral AerÃ³bico",     short:"UA",  color:"#60A5FA" },
-  { id:"uan",   label:"Umbral AnaerÃ³bico",   short:"UAN", color:"#FBBF24" },
-  { id:"anae",  label:"AnaerÃ³bico",          short:"ANE", color:"#F87171" },
+  { id:"ua",    label:"Umbral Aeróbico",     short:"UA",  color:"#60A5FA" },
+  { id:"uan",   label:"Umbral Anaeróbico",   short:"UAN", color:"#FBBF24" },
+  { id:"anae",  label:"Anaeróbico",          short:"ANE", color:"#F87171" },
 ];
 const emptyZones = () => ({ regen:0, ua:0, uan:0, anae:0 });
 const zonesTotal = z => z ? [z.regen,z.ua,z.uan,z.anae].reduce((s,v)=>s+Number(v||0),0) : 0;
@@ -23,25 +22,25 @@ const safeZones = z => {
   return { regen:Number(z.regen||0), ua:Number(z.ua||0), uan:Number(z.uan||0), anae:Number(z.anae||0) };
 };
 
-// â”€â”€â”€ MOCK DATA (from PESAS2024.xlsx) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// type: "weight" = pesoÃ—seriesÃ—reps (%1RMâ†’kg)
-// type: "reps" = seriesÃ—reps (sin carga externa)
-// type: "time_reps" = tiempoÃ—reps (con series)
+// ─── MOCK DATA (from PESAS2024.xlsx) ─────────────────────────────────────────
+// type: "weight" = peso×series×reps (%1RM→kg)
+// type: "reps" = series×reps (sin carga externa)
+// type: "time_reps" = tiempo×reps (con series)
 
 const GYM_EXERCISES = [
-  { id:"sq",    name:"Sentadilla",      emoji:"ðŸ‹ï¸",  muscles:"CuÃ¡driceps Â· GlÃºteos",   category:"compound",   type:"weight" },
-  { id:"dl",    name:"Peso Muerto",     emoji:"âš¡",   muscles:"Isquios Â· Espalda",      category:"compound",   type:"weight" },
-  { id:"bp",    name:"Press Banca",     emoji:"ðŸ’ª",   muscles:"Pecho Â· TrÃ­ceps",        category:"upper",      type:"weight" },
-  { id:"ht",    name:"Hip Thrust",      emoji:"ðŸ”¥",   muscles:"GlÃºteos Â· Isquios",      category:"compound",   type:"weight" },
-  { id:"lp",    name:"Prensa",          emoji:"ðŸ¦µ",   muscles:"CuÃ¡driceps",             category:"compound",   type:"weight" },
-  { id:"row",   name:"Remo con Barra",  emoji:"ðŸš£",   muscles:"Dorsal Â· BÃ­ceps",        category:"upper",      type:"weight" },
-  { id:"lunge", name:"Zancadas",        emoji:"ðŸš€",   muscles:"CuÃ¡driceps Â· GlÃºteos",   category:"unilateral", type:"reps"   },
-  { id:"rdl",   name:"RDL",             emoji:"ðŸŽ¯",   muscles:"Isquios Â· GlÃºteos",      category:"compound",   type:"weight" },
-  { id:"calf",  name:"Gemelos",         emoji:"ðŸ¦´",   muscles:"SÃ³leo Â· Gastrocnemio",   category:"isolation",  type:"reps"   },
-  { id:"pm",    name:"Press Militar",   emoji:"ðŸ’¥",   muscles:"Hombros Â· TrÃ­ceps",      category:"upper",      type:"weight" },
-  { id:"plank", name:"Plancha",         emoji:"â±ï¸",   muscles:"Core Â· Abdomen",         category:"core",       type:"time_reps" },
-  { id:"box",   name:"Box Jump",        emoji:"ðŸ“¦",   muscles:"CuÃ¡driceps Â· GlÃºteos",   category:"power",      type:"reps"   },
-  { id:"sj",    name:"Salto Vertical",  emoji:"â¬†ï¸",   muscles:"Gemelos Â· GlÃºteos",      category:"power",      type:"reps"   },
+  { id:"sq",    name:"Sentadilla",      emoji:"🏋️",  muscles:"Cuádriceps · Glúteos",   category:"compound",   type:"weight" },
+  { id:"dl",    name:"Peso Muerto",     emoji:"⚡",   muscles:"Isquios · Espalda",      category:"compound",   type:"weight" },
+  { id:"bp",    name:"Press Banca",     emoji:"💪",   muscles:"Pecho · Tríceps",        category:"upper",      type:"weight" },
+  { id:"ht",    name:"Hip Thrust",      emoji:"🔥",   muscles:"Glúteos · Isquios",      category:"compound",   type:"weight" },
+  { id:"lp",    name:"Prensa",          emoji:"🦵",   muscles:"Cuádriceps",             category:"compound",   type:"weight" },
+  { id:"row",   name:"Remo con Barra",  emoji:"🚣",   muscles:"Dorsal · Bíceps",        category:"upper",      type:"weight" },
+  { id:"lunge", name:"Zancadas",        emoji:"🚀",   muscles:"Cuádriceps · Glúteos",   category:"unilateral", type:"reps"   },
+  { id:"rdl",   name:"RDL",             emoji:"🎯",   muscles:"Isquios · Glúteos",      category:"compound",   type:"weight" },
+  { id:"calf",  name:"Gemelos",         emoji:"🦴",   muscles:"Sóleo · Gastrocnemio",   category:"isolation",  type:"reps"   },
+  { id:"pm",    name:"Press Militar",   emoji:"💥",   muscles:"Hombros · Tríceps",      category:"upper",      type:"weight" },
+  { id:"plank", name:"Plancha",         emoji:"⏱️",   muscles:"Core · Abdomen",         category:"core",       type:"time_reps" },
+  { id:"box",   name:"Box Jump",        emoji:"📦",   muscles:"Cuádriceps · Glúteos",   category:"power",      type:"reps"   },
+  { id:"sj",    name:"Salto Vertical",  emoji:"⬆️",   muscles:"Gemelos · Glúteos",      category:"power",      type:"reps"   },
 ];
 
 const createAthleteSeed = (name, group = "por-asignar") => {
@@ -69,10 +68,10 @@ const DEFAULT_ATHLETES = [
   "Marina",
   "Eric",
   "Pelayo",
-  "MarÃ§al",
+  "Marçal",
   "Teo",
   "Pablo Col",
-  "MartÃ­",
+  "Martí",
   "Pol Ferran",
   "Pol Serra",
   "Aram",
@@ -147,7 +146,7 @@ const DEFAULT_WEEK = {
   targetGroup: "all",
   days: [
     {
-      am:"Rodaje 10km suave Z2", pm:"TÃ©cnica + 6Ã—200m",
+      am:"Rodaje 10km suave Z2", pm:"Técnica + 6×200m",
       targetGroup:"all",
       gym:true,
       gymPlan:{ mode:"saved", routineId:"rt_lower_strength_a" },
@@ -155,15 +154,15 @@ const DEFAULT_WEEK = {
     },
     { am:"Descanso activo", pm:"", targetGroup:"all", gym:false, gymPlan:null, gymFocus:[] },
     {
-      am:"Fartlek 8Ã—1' Z4", pm:"Rodaje 8km recuperaciÃ³n",
+      am:"Fartlek 8×1' Z4", pm:"Rodaje 8km recuperación",
       targetGroup:"all",
       gym:true,
       gymPlan:{ mode:"saved", routineId:"rt_mixed_power_b" },
       gymFocus:["lp","lunge","rdl","pm"]
     },
-    { am:"", pm:"Series 4Ã—1000m", targetGroup:"all", gym:false, gymPlan:null, gymFocus:[] },
+    { am:"", pm:"Series 4×1000m", targetGroup:"all", gym:false, gymPlan:null, gymFocus:[] },
     {
-      am:"Rodaje 12km Z2", pm:"Drills tÃ©cnicos",
+      am:"Rodaje 12km Z2", pm:"Drills técnicos",
       targetGroup:"all",
       gym:true,
       gymPlan:{ mode:"saved", routineId:"rt_full_body_c" },
@@ -175,24 +174,24 @@ const DEFAULT_WEEK = {
 };
 
 const WEEK_TYPES = ["Inicial","Competitiva","Volumen"];
-const SESSION_TARGET_GROUPS = ["all","pequeÃ±os","1500m","800m"];
+const SESSION_TARGET_GROUPS = ["all","pequeños","1500m","800m"];
 
 const TRAINING_DATASET = [
-  { id:"tr_run_regen",  name:"Rodaje regenerativo",     description:"Trote suave de recuperaciÃ³n activa",          weekTypes:["Inicial","Competitiva","Volumen"], zones:{ regen:6,  ua:0,  uan:0, anae:0 } },
-  { id:"tr_run_z2",     name:"Rodaje Z2 continuo",       description:"Carrera continua a ritmo aerÃ³bico",          weekTypes:["Inicial","Volumen"],                zones:{ regen:2,  ua:8,  uan:0, anae:0 } },
+  { id:"tr_run_regen",  name:"Rodaje regenerativo",     description:"Trote suave de recuperación activa",          weekTypes:["Inicial","Competitiva","Volumen"], zones:{ regen:6,  ua:0,  uan:0, anae:0 } },
+  { id:"tr_run_z2",     name:"Rodaje Z2 continuo",       description:"Carrera continua a ritmo aeróbico",          weekTypes:["Inicial","Volumen"],                zones:{ regen:2,  ua:8,  uan:0, anae:0 } },
   { id:"tr_run_z2_lng", name:"Rodaje largo Z2",          description:"Tirada larga de 80-100 minutos",             weekTypes:["Inicial","Volumen"],                zones:{ regen:4,  ua:14, uan:0, anae:0 } },
   { id:"tr_fartlek_s",  name:"Fartlek suave",            description:"Cambios de ritmo a UA/UAN",                  weekTypes:["Inicial","Volumen"],                zones:{ regen:2,  ua:4,  uan:3, anae:0 } },
   { id:"tr_fartlek_f",  name:"Fartlek intenso",          description:"Cambios de ritmo a UAN/Anae",                weekTypes:["Competitiva","Volumen"],            zones:{ regen:2,  ua:3,  uan:4, anae:1 } },
-  { id:"tr_series_200", name:"Series 200m",              description:"6-10 series de 200m a ritmo competiciÃ³n",    weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:2, anae:3 } },
+  { id:"tr_series_200", name:"Series 200m",              description:"6-10 series de 200m a ritmo competición",    weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:2, anae:3 } },
   { id:"tr_series_400", name:"Series 400m",              description:"6-8 series de 400m a ritmo UAN/Anae",        weekTypes:["Inicial","Competitiva"],            zones:{ regen:2,  ua:1,  uan:4, anae:2 } },
   { id:"tr_series_1k",  name:"Series 1000m extensivo",  description:"8-10 series de 1000m a ritmo UA/UAN",        weekTypes:["Inicial","Volumen"],                zones:{ regen:2,  ua:2,  uan:6, anae:1 } },
   { id:"tr_series_800", name:"Series 800m",              description:"4-6 series de 800m a ritmo UAN",             weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:5, anae:1 } },
-  { id:"tr_tecnica",    name:"TÃ©cnica de carrera",       description:"Drills, ABC, skipping, pliometrÃ­a",          weekTypes:["Inicial","Competitiva"],            zones:{ regen:2,  ua:0,  uan:0, anae:0 } },
-  { id:"tr_precomp",    name:"Calentamiento precomp.",   description:"Calentamiento para competiciÃ³n",              weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:1, anae:0 } },
-  { id:"tr_competicion",name:"CompeticiÃ³n",              description:"Carrera oficial o simulaciÃ³n de competiciÃ³n", weekTypes:["Competitiva"],                      zones:{ regen:1,  ua:1,  uan:2, anae:4 } },
+  { id:"tr_tecnica",    name:"Técnica de carrera",       description:"Drills, ABC, skipping, pliometría",          weekTypes:["Inicial","Competitiva"],            zones:{ regen:2,  ua:0,  uan:0, anae:0 } },
+  { id:"tr_precomp",    name:"Calentamiento precomp.",   description:"Calentamiento para competición",              weekTypes:["Competitiva"],                      zones:{ regen:2,  ua:1,  uan:1, anae:0 } },
+  { id:"tr_competicion",name:"Competición",              description:"Carrera oficial o simulación de competición", weekTypes:["Competitiva"],                      zones:{ regen:1,  ua:1,  uan:2, anae:4 } },
   { id:"tr_movilidad",  name:"Movilidad y estiramiento", description:"Trabajo de movilidad articular y flexibilidad",weekTypes:["Inicial","Competitiva","Volumen"], zones:{ regen:0,  ua:0,  uan:0, anae:0 } },
-  { id:"tr_pliometria", name:"PliometrÃ­a",               description:"Saltos, multisaltos, trabajo explosivo",      weekTypes:["Inicial","Competitiva"],            zones:{ regen:1,  ua:0,  uan:1, anae:1 } },
-  { id:"tr_umbral",     name:"Umbral aerÃ³bico continuo", description:"Carrera continua al ritmo de umbral aerÃ³bico",weekTypes:["Inicial","Volumen"],                zones:{ regen:1,  ua:10, uan:1, anae:0 } },
+  { id:"tr_pliometria", name:"Pliometría",               description:"Saltos, multisaltos, trabajo explosivo",      weekTypes:["Inicial","Competitiva"],            zones:{ regen:1,  ua:0,  uan:1, anae:1 } },
+  { id:"tr_umbral",     name:"Umbral aeróbico continuo", description:"Carrera continua al ritmo de umbral aeróbico",weekTypes:["Inicial","Volumen"],                zones:{ regen:1,  ua:10, uan:1, anae:0 } },
 ];
 const ADDITIONAL_GYM_EXERCISE_NAMES = [
   "PESO MUERTO A UNA PIERNA",
@@ -235,11 +234,11 @@ const ADDITIONAL_GYM_EXERCISE_NAMES = [
   "SALTO A CAJON UNIPODAL",
   "ARRANCADA",
   "ELEVACION LATERAL",
-  "EXTENSION DE PIERNA LATERA-ATRÃS",
+  "EXTENSION DE PIERNA LATERA-ATRÁS",
   "PASO LATERAL",
   "PUENTE DE GLUTEO CON ABDUCCION  DE PIERNAS",
   "ABDUCCION DE CADERA EN DEBITO PRONO",
-  "PATADA LATERAL ATRÃS",
+  "PATADA LATERAL ATRÁS",
   "PATADA POSTERIOR",
   "RETROCESO DE GLUTEOS",
   "ROLLER GLUTEO",
@@ -369,12 +368,12 @@ const inferBuiltinExerciseCategory = (name, type) => {
 };
 const inferBuiltinExerciseEmoji = (type, name) => {
   const key = normalizeExerciseNameKey(name);
-  if (/ROLLER/.test(key)) return "ðŸŒ€";
-  if (/BANDA/.test(key)) return "ðŸŸ ";
-  if (/SALTO|ATERRIZAJE|REBOTE/.test(key)) return "âš¡";
-  if (type === "time_reps") return "âŒ›";
-  if (type === "weight") return "ðŸ‹ï¸";
-  return "ðŸ”";
+  if (/ROLLER/.test(key)) return "🌀";
+  if (/BANDA/.test(key)) return "🟠";
+  if (/SALTO|ATERRIZAJE|REBOTE/.test(key)) return "⚡";
+  if (type === "time_reps") return "⌛";
+  if (type === "weight") return "🏋️";
+  return "🔁";
 };
 const inferBuiltinExerciseLoadProfile = (name, type) => {
   const key = normalizeExerciseNameKey(name);
@@ -421,26 +420,26 @@ const EXERCISE_LOAD_PROFILE = {
   ...ADDITIONAL_GYM_EXERCISE_LOAD_PROFILE,
 };
 const ALL_BUILTIN_GYM_EXERCISES = [...GYM_EXERCISES, ...ADDITIONAL_GYM_EXERCISES];
-const DAYS_SHORT = ["Lun","Mar","MiÃ©","Jue","Vie","SÃ¡b","Dom"];
-const DAYS_FULL  = ["Lunes","Martes","MiÃ©rcoles","Jueves","Viernes","SÃ¡bado","Domingo"];
-const GROUPS = ["por-asignar","1500m","800m","pequeÃ±os"];
+const DAYS_SHORT = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const DAYS_FULL  = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const GROUPS = ["por-asignar","1500m","800m","pequeños"];
 const NAV_ITEMS = {
   coach: [
-    { id:"semana", icon:"ðŸ“…", label:"Plan Semanal", shortLabel:"Plan" },
-    { id:"calendario", icon:"ðŸ—“ï¸", label:"Calendario", shortLabel:"Calendario" },
-    { id:"calendario_semanal", icon:"ðŸ—‚ï¸", label:"Calendario Semanal", shortLabel:"Semanal" },
-    { id:"gym", icon:"ðŸ‹ï¸", label:"Dataset Ejercicios", shortLabel:"Ejercicios" },
-    { id:"dataset", icon:"ðŸ§ª", label:"Dataset Entrenos", shortLabel:"Entrenos" },
-    { id:"athletes", icon:"ðŸ‘¥", label:"GestiÃ³n Atletas", shortLabel:"Atletas" },
-    { id:"temporadas", icon:"ðŸ—ƒï¸", label:"Temporadas", shortLabel:"Temporadas" },
+    { id:"semana", icon:"📅", label:"Plan Semanal", shortLabel:"Plan" },
+    { id:"calendario", icon:"🗓️", label:"Calendario", shortLabel:"Calendario" },
+    { id:"calendario_semanal", icon:"🗂️", label:"Calendario Semanal", shortLabel:"Semanal" },
+    { id:"gym", icon:"🏋️", label:"Dataset Ejercicios", shortLabel:"Ejercicios" },
+    { id:"dataset", icon:"🧪", label:"Dataset Entrenos", shortLabel:"Entrenos" },
+    { id:"athletes", icon:"👥", label:"Gestión Atletas", shortLabel:"Atletas" },
+    { id:"temporadas", icon:"🗃️", label:"Temporadas", shortLabel:"Temporadas" },
   ],
   athlete: [
-    { id:"hoy", icon:"âš¡", label:"Hoy", shortLabel:"Hoy" },
-    { id:"semana", icon:"ðŸ“…", label:"Mi Semana", shortLabel:"Semana" },
+    { id:"hoy", icon:"⚡", label:"Hoy", shortLabel:"Hoy" },
+    { id:"semana", icon:"📅", label:"Mi Semana", shortLabel:"Semana" },
     { id:"jogatina", icon:"🎲", label:"Jogatina", shortLabel:"Jogatina" },
-    { id:"gym", icon:"ðŸ‹ï¸", label:"Mi Gym", shortLabel:"Gym" },
-    { id:"calendario", icon:"ðŸ—“ï¸", label:"Mi Calendario", shortLabel:"Calendario" },
-    { id:"perfil", icon:"ðŸ‘¤", label:"Mi Perfil", shortLabel:"Perfil" },
+    { id:"gym", icon:"🏋️", label:"Mi Gym", shortLabel:"Gym" },
+    { id:"calendario", icon:"🗓️", label:"Mi Calendario", shortLabel:"Calendario" },
+    { id:"perfil", icon:"👤", label:"Mi Perfil", shortLabel:"Perfil" },
   ],
 };
 const getNavByRole = (role) => role === "coach" ? NAV_ITEMS.coach : NAV_ITEMS.athlete;
@@ -449,13 +448,13 @@ const COACH = { id:"coach", name:"Juan Carlos", role:"coach", password:"150346" 
 const PESAS_DB_SOURCE = { file: "pesas2024_hardcoded_db.js", workbook: "PESAS2024.xlsx", format: "sparse-rows-trailing-null-trimmed" };
 const HARDCODED_PESAS_DB = (typeof window !== "undefined" && window.PESAS2024_HARDCODED_DB) ? window.PESAS2024_HARDCODED_DB : null;
 
-// â”€â”€â”€ STYLES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── STYLES ───────────────────────────────────────────────────────────────────
 
 
 
-// â”€â”€â”€ UTILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── UTILS ────────────────────────────────────────────────────────────────────
 const calcWeight = (max, pct) => Math.round((max * pct) / 100 / 2.5) * 2.5;
-const getToday = () => new Date().getDay(); // 0=Sunâ€¦6=Sat â†’ convert to 0=Mon
+const getToday = () => new Date().getDay(); // 0=Sun…6=Sat → convert to 0=Mon
 const todayIdx = () => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; };
 const groupClass = (g) => g === "1500m" ? "g-1500" : g === "800m" ? "g-800" : "g-pq";
 const groupBadge = (g) => g === "1500m" ? "b-or" : g === "800m" ? "b-bl" : "b-pu";
@@ -619,7 +618,7 @@ const getAthleteGroups = (athlete) => {
   return groups.length ? groups : ["por-asignar"];
 };
 const getAthletePrimaryGroup = (athlete) => getAthleteGroups(athlete)[0] || "por-asignar";
-const getAthleteGroupsLabel = (athlete) => getAthleteGroups(athlete).join(" Â· ");
+const getAthleteGroupsLabel = (athlete) => getAthleteGroups(athlete).join(" · ");
 const athleteBelongsToGroup = (athlete, group) =>
   (group || "all") === "all" || getAthleteGroups(athlete).includes(group);
 const collectAthleteGroups = (athletes = []) =>
@@ -633,7 +632,7 @@ const normalizeCompetitionList = (items) => {
       return {
         id: item?.id || `comp_${dateIso}_${index}`,
         dateIso,
-        name: String(item?.name || "CompeticiÃ³n").trim() || "CompeticiÃ³n",
+        name: String(item?.name || "Competición").trim() || "Competición",
       };
     })
     .filter(Boolean)
@@ -687,7 +686,7 @@ const normalizeAthleteNotificationsMap = (rawMap) => {
         if (!item || typeof item !== "object") return null;
         return {
           id: item.id || `notif_${athleteId}_${index}`,
-          title: String(item.title || "ActualizaciÃ³n").trim() || "ActualizaciÃ³n",
+          title: String(item.title || "Actualización").trim() || "Actualización",
           message: String(item.message || "").trim(),
           createdAt: item.createdAt || new Date().toISOString(),
           weekNumber: item.weekNumber != null ? Number(item.weekNumber) : null,
@@ -769,7 +768,7 @@ const normalizeSessionTargets = (source, fallbackTargetGroup = "all") => {
     targetAll,
     targetGroups: mergedGroups,
     targetAthleteIds,
-    // Campo legacy para compatibilidad de datos y serializaciÃ³n histÃ³rica.
+    // Campo legacy para compatibilidad de datos y serialización histórica.
     targetGroup: targetAll ? "all" : (mergedGroups[0] || "all"),
   };
 };
@@ -1259,7 +1258,7 @@ const planVisibleForGroup = (week, day, group) => {
 
 const cloneRoutineDraft = (routine) => JSON.parse(JSON.stringify(routine));
 
-// â”€â”€â”€ EXERCISE LIBRARY UTILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── EXERCISE LIBRARY UTILS ──────────────────────────────────────────────────
 const getAllExercises = (customExercises = [], exerciseImages = {}) => {
   const merged = [...ALL_BUILTIN_GYM_EXERCISES, ...(customExercises || [])];
   return merged.map(ex => ({
@@ -1271,7 +1270,7 @@ const getAllExercises = (customExercises = [], exerciseImages = {}) => {
 const getExerciseByIdFull = (id, customExercises = [], exerciseImages = {}) => {
   const all = getAllExercises(customExercises, exerciseImages);
   return all.find(e => e.id === id) || {
-    id, name: labelFromExId(id), emoji:"ðŸ‹ï¸", muscles:"Sin detalle", category:"custom", type:"weight", imageUrl:null,
+    id, name: labelFromExId(id), emoji:"🏋️", muscles:"Sin detalle", category:"custom", type:"weight", imageUrl:null,
   };
 };
 const getDefaultExerciseLoad = (exId, customExercises = [], exerciseImages = {}) => {
@@ -1291,7 +1290,7 @@ const formatExDuration = (sec) => {
   return s >= 60 ? `${Math.floor(s/60)}m${s%60>0?s%60+"s":""}` : `${s}s`;
 };
 
-// â”€â”€â”€ ZONE UTILS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ZONE UTILS ──────────────────────────────────────────────────────────────
 const dayZoneSummary = (day, week = null) => {
   const out = emptyZones();
   if (!day) return { ...out, total:0 };
@@ -1435,7 +1434,7 @@ const collectChangedTargetGroups = (previousWeek, nextWeek, routines = []) => {
   return targets;
 };
 
-// â”€â”€â”€ STORAGE HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
 const LOCAL_STORAGE_PREFIX = "trackflow_local_";
 const getLocalStorageKey = (key) => `${LOCAL_STORAGE_PREFIX}${key}`;
 const localRawGet = (key) => {
@@ -1484,7 +1483,7 @@ const store = {
   },
 };
 
-// â”€â”€â”€ CSV REGISTRY (usuarios) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CSV REGISTRY (usuarios) ──────────────────────────────────────────────────
 const ATHLETE_CSV_COLUMNS = [
   "id","name","group","groups","avatar","maxW","weekKms","todayDone","competitions","password","passwordChangedOnce"
 ];
@@ -1578,7 +1577,7 @@ const athletesFromCsv = (csvText) => {
   }).filter(a => a.id && a.name);
 };
 
-// â”€â”€â”€ LOGIN SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── LOGIN SCREEN ─────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin, athletes }) {
   const [tab, setTab] = useState("athlete"); // "coach" | "athlete"
   const [username, setUsername] = useState("");
@@ -1611,7 +1610,7 @@ function LoginScreen({ onLogin, athletes }) {
           }
         );
         if (result?.ok === false) {
-          setError(result.error || "No se pudo iniciar sesiÃ³n como entrenador.");
+          setError(result.error || "No se pudo iniciar sesión como entrenador.");
           return;
         }
         setError("");
@@ -1620,7 +1619,7 @@ function LoginScreen({ onLogin, athletes }) {
       }
       return;
     }
-    setError("ContraseÃ±a incorrecta");
+    setError("Contraseña incorrecta");
   };
 
   const handleAthleteLogin = async () => {
@@ -1633,7 +1632,7 @@ function LoginScreen({ onLogin, athletes }) {
     }
     const expectedPassword = String(found.password || "1234");
     if (String(password || "") !== expectedPassword) {
-      setError("ContraseÃ±a incorrecta");
+      setError("Contraseña incorrecta");
       return;
     }
     setAuthLoading(true);
@@ -1647,7 +1646,7 @@ function LoginScreen({ onLogin, athletes }) {
         }
       );
       if (result?.ok === false) {
-        setError(result.error || "No se pudo iniciar sesiÃ³n.");
+        setError(result.error || "No se pudo iniciar sesión.");
         return;
       }
       setError("");
@@ -1663,8 +1662,8 @@ function LoginScreen({ onLogin, athletes }) {
         <div className="login-logo">TRACK<span>FLOW</span></div>
 
         <div className="tab-sw">
-          <button className={`tab-btn ${tab==="athlete"?"active":""}`} onClick={()=>{setTab("athlete");setError("")}}>ðŸƒ Atleta</button>
-          <button className={`tab-btn ${tab==="coach"?"active":""}`} onClick={()=>{setTab("coach");setError("")}}>ðŸ“‹ Entrenador</button>
+          <button className={`tab-btn ${tab==="athlete"?"active":""}`} onClick={()=>{setTab("athlete");setError("")}}>🏃 Atleta</button>
+          <button className={`tab-btn ${tab==="coach"?"active":""}`} onClick={()=>{setTab("coach");setError("")}}>📋 Entrenador</button>
         </div>
 
         {tab === "coach" && (
@@ -1674,12 +1673,12 @@ function LoginScreen({ onLogin, athletes }) {
               <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Juan Carlos o email admin" autoComplete="username" disabled={authLoading} />
             </div>
             <div className="form-group">
-              <label className="form-label">ContraseÃ±a</label>
-              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" autoComplete="current-password" onKeyDown={e=>e.key==="Enter"&&handleCoachLogin()} disabled={authLoading} />
+              <label className="form-label">Contraseña</label>
+              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" onKeyDown={e=>e.key==="Enter"&&handleCoachLogin()} disabled={authLoading} />
             </div>
             {error && <div className="text-sm mb3 form-error">{error}</div>}
             <button className="login-btn" onClick={handleCoachLogin} disabled={authLoading}>
-              {authLoading ? "Validando..." : "Entrar â†’"}
+              {authLoading ? "Validando..." : "Entrar →"}
             </button>
           </>
         )}
@@ -1691,12 +1690,12 @@ function LoginScreen({ onLogin, athletes }) {
               <input className="input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="Nombre del atleta" autoComplete="username" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
             </div>
             <div className="form-group">
-              <label className="form-label">ContraseÃ±a</label>
-              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" autoComplete="current-password" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
+              <label className="form-label">Contraseña</label>
+              <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" onKeyDown={e=>e.key==="Enter"&&handleAthleteLogin()} disabled={authLoading} />
             </div>
             {error && <div className="text-sm mb3 form-error">{error}</div>}
             <button className="login-btn" onClick={handleAthleteLogin} disabled={authLoading}>
-              {authLoading ? "Validando..." : "Entrar â†’"}
+              {authLoading ? "Validando..." : "Entrar →"}
             </button>
           </>
         )}
@@ -1705,7 +1704,7 @@ function LoginScreen({ onLogin, athletes }) {
   );
 }
 
-// â”€â”€â”€ SIDEBAR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SIDEBAR ──────────────────────────────────────────────────────────────────
 function Sidebar({ user, page, setPage, onLogout, notifCount }) {
   const isCoach = user.role === "coach";
   const nav = getNavByRole(user.role);
@@ -1720,8 +1719,8 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
         </button>
       </div>
 
-      <nav className="sb-section" aria-label="NavegaciÃ³n principal">
-        <span className="sb-label">NavegaciÃ³n</span>
+      <nav className="sb-section" aria-label="Navegación principal">
+        <span className="sb-label">Navegación</span>
         {nav.map(n => (
           <button
             key={n.id}
@@ -1747,7 +1746,7 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
           </div>
         </div>
         <button className="nav-item nav-item-danger mt3" onClick={onLogout}>
-          <span className="ni">ðŸšª</span> Cerrar sesiÃ³n
+          <span className="ni">🚪</span> Cerrar sesión
         </button>
       </div>
     </div>
@@ -1780,18 +1779,18 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
         <button
           className="mobile-menu-btn"
           onClick={() => setMenuOpen(true)}
-          aria-label="Abrir menÃº"
+          aria-label="Abrir menú"
           aria-expanded={menuOpen}
           aria-controls="mobile-nav-sheet"
         >
-          â˜°
+          ☰
         </button>
         <button className="mobile-brand" onClick={() => setPage(nav[0]?.id || page)}>
           <span className="mobile-brand-main">TRACKFLOW</span>
           <span className="mobile-brand-sub">{isCoach ? "Entrenador" : "Atleta"}</span>
         </button>
         <div className="mobile-current" title={current?.label || ""}>{current?.label || ""}</div>
-        <button className="mobile-logout" onClick={onLogout} aria-label="Cerrar sesiÃ³n">ðŸšª</button>
+        <button className="mobile-logout" onClick={onLogout} aria-label="Cerrar sesión">🚪</button>
       </header>
 
       {menuOpen && (
@@ -1802,14 +1801,14 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="MenÃº principal"
+            aria-label="Menú principal"
           >
             <div className="mobile-menu-head">
               <div>
-                <div className="card-title mobile-menu-title">MenÃº</div>
-                <div className="text-sm text-mu">{isCoach ? "Entrenador" : "Atleta"} Â· {current?.label || ""}</div>
+                <div className="card-title mobile-menu-title">Menú</div>
+                <div className="text-sm text-mu">{isCoach ? "Entrenador" : "Atleta"} · {current?.label || ""}</div>
               </div>
-              <button className="modal-close" onClick={() => setMenuOpen(false)} aria-label="Cerrar menÃº">âœ•</button>
+              <button className="modal-close" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú">✕</button>
             </div>
             <div className="mobile-menu-nav">
               {nav.map((item) => (
@@ -1832,7 +1831,7 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
         </div>
       )}
 
-      <nav className="mobile-tabbar" aria-label="NavegaciÃ³n mÃ³vil">
+      <nav className="mobile-tabbar" aria-label="Navegación móvil">
         {nav.map((item) => (
           <button
             key={item.id}
@@ -1847,38 +1846,6 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
         ))}
       </nav>
     </>
-  );
-}
-
-function SyncStatusPill({ syncStatus }) {
-  const status = syncStatus && typeof syncStatus === "object" ? syncStatus : {};
-  const state = String(status.state || "idle").toLowerCase();
-  const pending = Number(status.pendingWrites || 0);
-  const retries = Number(status.retries || 0);
-  const isOnline = status.online !== false;
-
-  let label = "Sincronizado";
-  if (!isOnline) label = "Sin conexiÃ³n";
-  else if (state === "syncing") label = "Guardandoâ€¦";
-  else if (state === "queued" || state === "retrying") label = "Pendiente de sincronizar";
-  else if (state === "error") label = "Error de sincronizaciÃ³n";
-
-  const detailParts = [];
-  if (pending > 0) detailParts.push(`${pending} cambio${pending === 1 ? "" : "s"}`);
-  if (retries > 0) detailParts.push(`reintento ${retries}`);
-  const detail = detailParts.join(" Â· ");
-
-  return (
-    <div
-      className={`sync-pill sync-${state}`}
-      role="status"
-      aria-live="polite"
-      title={status.lastError || detail || label}
-    >
-      <span className="sync-dot" />
-      <span>{label}</span>
-      {detail ? <span className="sync-detail">{detail}</span> : null}
-    </div>
   );
 }
 
@@ -1938,7 +1905,7 @@ function MultiSelect({ options = [], values = [], onChange, placeholder = "Selec
             ? selected.map((group) => <span key={group} className="multi-chip">{group}</span>)
             : <span className="multi-placeholder">{placeholder}</span>}
         </div>
-        <span className="multi-arrow">{open ? "â–²" : "â–¼"}</span>
+        <span className="multi-arrow">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
@@ -2039,7 +2006,7 @@ function MultiSelectList({
             ? selected.map((value) => <span key={value} className="multi-chip">{labelByValue[value] || value}</span>)
             : <span className="multi-placeholder">{placeholder}</span>}
         </div>
-        <span className="multi-arrow">{open ? "â–²" : "â–¼"}</span>
+        <span className="multi-arrow">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
@@ -2068,7 +2035,7 @@ function MultiSelectList({
   );
 }
 
-// â”€â”€â”€ COACH: DASHBOARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COACH: DASHBOARD ─────────────────────────────────────────────────────────
 function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
   const team = normalizeAthletes(athletes);
   const done = team.filter(a => a.todayDone).length;
@@ -2079,8 +2046,8 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
   return (
     <div>
       <div className="ph">
-        <div className="ph-title">BUEN<span>OS DÃAS,</span></div>
-        <div className="ph-title" style={{marginTop:-8}}>JORDI ðŸ‘‹</div>
+        <div className="ph-title">BUEN<span>OS DÍAS,</span></div>
+        <div className="ph-title" style={{marginTop:-8}}>JORDI 👋</div>
         <div className="ph-sub">{new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"})}</div>
       </div>
 
@@ -2104,7 +2071,7 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
         <div className="stat-card">
           <div className="stat-label">Tipo de semana</div>
           <div className="stat-val" style={{fontSize:28,marginTop:4}}>{week.type}</div>
-          <div className="stat-change">Â· PlanificaciÃ³n activa</div>
+          <div className="stat-change">· Planificación activa</div>
         </div>
       </div>
 
@@ -2112,13 +2079,13 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
         {/* Notifications */}
         <div className="card">
           <div className="flex ic jb mb4">
-            <div className="card-title mb2" style={{margin:0}}>ðŸ”” Notificaciones</div>
+            <div className="card-title mb2" style={{margin:0}}>🔔 Notificaciones</div>
             {notifications.length > 0 && <button className="btn btn-ghost btn-sm" onClick={onClearNotif}>Limpiar</button>}
           </div>
           {notifications.length === 0 && <div className="text-mu text-sm">Sin notificaciones nuevas</div>}
           {notifications.map((n,i) => (
             <div key={i} className="notif">
-              <span style={{fontSize:20}}>âœ…</span>
+              <span style={{fontSize:20}}>✅</span>
               <div>
                 <div style={{fontWeight:700,fontSize:13}}>{n.athlete}</div>
                 <div style={{fontSize:12,color:"var(--mu2)"}}>{n.msg}</div>
@@ -2129,23 +2096,23 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
 
         {/* Today's plan */}
         <div className="card">
-          <div className="card-title">ðŸ“‹ Plan de hoy â€” {DAYS_FULL[todayI]}</div>
+          <div className="card-title">📋 Plan de hoy — {DAYS_FULL[todayI]}</div>
           {todayPlan?.am && (
             <div className="mb3">
-              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--or)",fontWeight:700,marginBottom:4}}>ðŸŒ… MaÃ±ana</div>
+              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--or)",fontWeight:700,marginBottom:4}}>🌅 Mañana</div>
               <div style={{fontWeight:700}}>{todayPlan.am}</div>
             </div>
           )}
           {todayPlan?.pm && (
             <div className="mb3">
-              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--bl)",fontWeight:700,marginBottom:4}}>ðŸŒ† Tarde</div>
+              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--bl)",fontWeight:700,marginBottom:4}}>🌆 Tarde</div>
               <div style={{fontWeight:700}}>{todayPlan.pm}</div>
             </div>
           )}
           {todayPlan?.gym && (
             <div>
-              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--pu)",fontWeight:700,marginBottom:4}}>ðŸ‹ï¸ Gym</div>
-              <div style={{fontWeight:700}}>SesiÃ³n de pesas â€” {todayPlan.gymFocus?.length} ejercicios</div>
+              <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--pu)",fontWeight:700,marginBottom:4}}>🏋️ Gym</div>
+              <div style={{fontWeight:700}}>Sesión de pesas — {todayPlan.gymFocus?.length} ejercicios</div>
             </div>
           )}
           {!todayPlan?.am && !todayPlan?.pm && <div className="text-mu text-sm">Sin entrenamiento planificado hoy</div>}
@@ -2155,7 +2122,7 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
   );
 }
 
-// â”€â”€â”€ COACH: PLAN SEMANAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COACH: PLAN SEMANAL ──────────────────────────────────────────────────────
 function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
   const [editing, setEditing] = useState(null); // day index
   const [draft, setDraft] = useState(null);
@@ -2186,7 +2153,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
       selectedRoutineId: d.gymPlan?.routineId || (routines[0]?.id || ""),
       inlineRoutine: buildInlineDraft(d),
       saveInlineToLibrary: false,
-      saveInlineName: `${DAYS_FULL[i]} Â· ${groupLabel(d.targetGroup || week.targetGroup || "all")}`,
+      saveInlineName: `${DAYS_FULL[i]} · ${groupLabel(d.targetGroup || week.targetGroup || "all")}`,
       amZones: safeZones(d.amZones),
       pmZones: safeZones(d.pmZones),
     });
@@ -2285,7 +2252,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
         <div className="ph-row">
           <div>
             <div className="ph-title">PLAN <span>SEMANAL</span></div>
-            <div className="ph-sub">Entrenos AM/PM, rutina gym por dÃ­a y grupo objetivo (o todos)</div>
+            <div className="ph-sub">Entrenos AM/PM, rutina gym por día y grupo objetivo (o todos)</div>
           </div>
         </div>
       </div>
@@ -2308,7 +2275,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
         <div className="wt-banner" style={{margin:0}}>
           <div>
             <div className="wt-label">Tipo / grupo por defecto</div>
-            <div className="wt-val" style={{fontSize:24}}>{week.type} Â· {groupLabel(week.targetGroup || "all")}</div>
+            <div className="wt-val" style={{fontSize:24}}>{week.type} · {groupLabel(week.targetGroup || "all")}</div>
           </div>
           <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
             <select className="select" value={week.type} onChange={e=>setWeek(normalizeWeek({ ...week, type:e.target.value }, routines))}>
@@ -2338,20 +2305,20 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
               <div className="day-body">
                 {d.am && (
                   <div className="session">
-                    <div className="sess-lbl">ðŸŒ… AM Â· {displayTarget(week, d)}</div>
+                    <div className="sess-lbl">🌅 AM · {displayTarget(week, d)}</div>
                     <div className="sess-txt">{d.am}</div>
                   </div>
                 )}
                 {d.pm && (
                   <div className="session pm">
-                    <div className="sess-lbl">ðŸŒ† PM Â· {displayTarget(week, d)}</div>
+                    <div className="sess-lbl">🌆 PM · {displayTarget(week, d)}</div>
                     <div className="sess-txt">{d.pm}</div>
                   </div>
                 )}
                 {d.gym && (
                   <div className="session gym">
-                    <div className="sess-lbl">ðŸ‹ï¸ GYM Â· {displayTarget(week, d)}</div>
-                    <div className="sess-txt">{resolved?.name || "Rutina"} Â· {gymCount} ejercicios</div>
+                    <div className="sess-lbl">🏋️ GYM · {displayTarget(week, d)}</div>
+                    <div className="sess-txt">{resolved?.name || "Rutina"} · {gymCount} ejercicios</div>
                   </div>
                 )}
                 {!d.am && !d.pm && !d.gym && (
@@ -2369,7 +2336,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
                     <span style={{fontSize:10,color:"var(--mu)",fontWeight:700}}>={dayZoneSummary(d).total.toFixed(1)}km</span>
                   </div>
                 )}
-                <button className="btn btn-ghost btn-sm mt3" style={{width:"100%",fontSize:11}} onClick={()=>openEdit(i)}>âœï¸ Editar</button>
+                <button className="btn btn-ghost btn-sm mt3" style={{width:"100%",fontSize:11}} onClick={()=>openEdit(i)}>✏️ Editar</button>
               </div>
             </div>
           );
@@ -2380,13 +2347,13 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
         <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&setEditing(null)}>
           <div className="modal">
             <div className="flex ic jb mb4">
-              <div className="modal-title">âœï¸ {DAYS_FULL[editing]}</div>
-              <button className="modal-close" onClick={()=>setEditing(null)}>âœ• Cerrar</button>
+              <div className="modal-title">✏️ {DAYS_FULL[editing]}</div>
+              <button className="modal-close" onClick={()=>setEditing(null)}>✕ Cerrar</button>
             </div>
 
             <div className="g2">
               <div className="form-group">
-                <label className="form-label">Grupo objetivo del dÃ­a</label>
+                <label className="form-label">Grupo objetivo del día</label>
                 <select className="select" value={draft.targetGroup || "all"} onChange={e=>setDraft({...draft,targetGroup:e.target.value})}>
                   {groupsWithAll.map(g=><option key={g} value={g}>{groupLabel(g)}</option>)}
                 </select>
@@ -2400,12 +2367,12 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">ðŸŒ… Entrenamiento MaÃ±ana (AM)</label>
-              <input className="input" value={draft.am||""} onChange={e=>setDraft({...draft,am:e.target.value})} placeholder="Ej: Rodaje 10km Z2, Series 6Ã—200m..." />
+              <label className="form-label">🌅 Entrenamiento Mañana (AM)</label>
+              <input className="input" value={draft.am||""} onChange={e=>setDraft({...draft,am:e.target.value})} placeholder="Ej: Rodaje 10km Z2, Series 6×200m..." />
             </div>
             {draft.am && (
               <div className="form-group">
-                <label className="form-label">ðŸ“Š Km AM por zona de intensidad</label>
+                <label className="form-label">📊 Km AM por zona de intensidad</label>
                 <div className="zone-inputs">
                   {ZONES.map(z => (
                     <div key={z.id} className="zone-input-wrap">
@@ -2430,12 +2397,12 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
             )}
 
             <div className="form-group">
-              <label className="form-label">ðŸŒ† Entrenamiento Tarde (PM)</label>
-              <input className="input" value={draft.pm||""} onChange={e=>setDraft({...draft,pm:e.target.value})} placeholder="Ej: TÃ©cnica de carrera, Fartlek..." />
+              <label className="form-label">🌆 Entrenamiento Tarde (PM)</label>
+              <input className="input" value={draft.pm||""} onChange={e=>setDraft({...draft,pm:e.target.value})} placeholder="Ej: Técnica de carrera, Fartlek..." />
             </div>
             {draft.pm && (
               <div className="form-group">
-                <label className="form-label">ðŸ“Š Km PM por zona de intensidad</label>
+                <label className="form-label">📊 Km PM por zona de intensidad</label>
                 <div className="zone-inputs">
                   {ZONES.map(z => (
                     <div key={z.id} className="zone-input-wrap">
@@ -2460,10 +2427,10 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
             )}
 
             <div className="form-group">
-              <label className="form-label">ðŸ‹ï¸ Â¿Hay Gym este dÃ­a?</label>
+              <label className="form-label">🏋️ ¿Hay Gym este día?</label>
               <div className="flex ic g3r">
-                <button className={`btn ${draft.gym?"btn-or":"btn-ghost"} btn-sm`} onClick={()=>setDraft({...draft,gym:true})}>âœ“ SÃ­</button>
-                <button className={`btn ${!draft.gym?"btn-danger":"btn-ghost"} btn-sm`} onClick={()=>setDraft({...draft,gym:false})}>âœ• No</button>
+                <button className={`btn ${draft.gym?"btn-or":"btn-ghost"} btn-sm`} onClick={()=>setDraft({...draft,gym:true})}>✓ Sí</button>
+                <button className={`btn ${!draft.gym?"btn-danger":"btn-ghost"} btn-sm`} onClick={()=>setDraft({...draft,gym:false})}>✕ No</button>
               </div>
             </div>
 
@@ -2482,7 +2449,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
                       <label className="form-label">Rutina guardada</label>
                       <select className="select" value={draft.selectedRoutineId || ""} onChange={e=>setDraft({...draft,selectedRoutineId:e.target.value})}>
                         {(routines || []).map(rt => (
-                          <option key={rt.id} value={rt.id}>{rt.name} Â· {groupLabel(rt.targetGroup)}</option>
+                          <option key={rt.id} value={rt.id}>{rt.name} · {groupLabel(rt.targetGroup)}</option>
                         ))}
                       </select>
                     </div>
@@ -2529,7 +2496,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
                           const ex = GYM_EXERCISES.find(e => e.id === row.exId);
                           return (
                             <div key={row.exId} className="ex-row" style={{gridTemplateColumns:"42px 1fr 90px 90px 90px"}}>
-                              <div className="ex-emoji">{ex?.emoji || "ðŸ‹ï¸"}</div>
+                              <div className="ex-emoji">{ex?.emoji || "🏋️"}</div>
                               <div>
                                 <div className="ex-info-name">{ex?.name || row.exId}</div>
                                 <div className="ex-info-mu">{ex?.muscles || ""}</div>
@@ -2546,11 +2513,11 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
                     <div className="card card-sm mt3">
                       <div className="flex ic jb">
                         <div>
-                          <div className="fw7" style={{fontSize:13}}>Â¿Guardar tambiÃ©n esta rutina en la biblioteca?</div>
-                          <div className="text-mu text-sm">Si marcas esto, se aÃ±ade en "Rutinas Gym" y la semana guardarÃ¡ una referencia</div>
+                          <div className="fw7" style={{fontSize:13}}>¿Guardar también esta rutina en la biblioteca?</div>
+                          <div className="text-mu text-sm">Si marcas esto, se añade en "Rutinas Gym" y la semana guardará una referencia</div>
                         </div>
                         <button className={`btn btn-sm ${draft.saveInlineToLibrary ? "btn-or" : "btn-ghost"}`} onClick={()=>setDraft({...draft, saveInlineToLibrary: !draft.saveInlineToLibrary})}>
-                          {draft.saveInlineToLibrary ? "âœ“ SÃ­" : "No"}
+                          {draft.saveInlineToLibrary ? "✓ Sí" : "No"}
                         </button>
                       </div>
                       {draft.saveInlineToLibrary && (
@@ -2563,18 +2530,18 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
                 {currentResolved && (
                   <div className="card card-sm mt3">
                     <div className="flex ic jb mb3">
-                      <div className="fw7">Resumen gym del dÃ­a</div>
+                      <div className="fw7">Resumen gym del día</div>
                       <span className="badge b-pu">{(currentResolved.exercises || []).length} ejercicios</span>
                     </div>
                     <div className="text-sm text-mu">
-                      {currentResolved.name || "Rutina"} Â· {groupLabel(currentResolved.targetGroup || draft.targetGroup || "all")}
+                      {currentResolved.name || "Rutina"} · {groupLabel(currentResolved.targetGroup || draft.targetGroup || "all")}
                     </div>
                   </div>
                 )}
               </>
             )}
 
-            <button className="btn btn-or mt4" style={{width:"100%"}} onClick={saveEdit}>ðŸ’¾ Guardar dÃ­a</button>
+            <button className="btn btn-or mt4" style={{width:"100%"}} onClick={saveEdit}>💾 Guardar día</button>
           </div>
         </div>
       )}
@@ -3019,7 +2986,7 @@ function CoachSemanaV2({
         <div className="ph-row">
           <div>
             <div className="ph-title">PLAN <span>SEMANAL</span></div>
-            <div className="ph-sub">Crea y publica la semana. Si ya estÃ¡ publicada, entra en modo consulta o modifica y guarda cambios.</div>
+            <div className="ph-sub">Crea y publica la semana. Si ya está publicada, entra en modo consulta o modifica y guarda cambios.</div>
           </div>
           <div className="flex ic g2r" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
             <span className={`badge ${editorWeek.published ? "b-gr" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
@@ -3043,7 +3010,7 @@ function CoachSemanaV2({
       </div>
 
       <div className="wt-banner mb6" style={{gap:14}}>
-        <button className="btn btn-ghost btn-sm" onClick={() => moveWeek(-1)}>â† Semana anterior</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => moveWeek(-1)}>← Semana anterior</button>
         <div>
           <div className="wt-label">Semana</div>
           <div className="wt-val">Semana {currentWeekNumber}</div>
@@ -3057,7 +3024,7 @@ function CoachSemanaV2({
             </select>
           </div>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={() => moveWeek(1)}>Semana siguiente â†’</button>
+        <button className="btn btn-ghost btn-sm" onClick={() => moveWeek(1)}>Semana siguiente →</button>
       </div>
 
       <div className="week-grid">
@@ -3079,20 +3046,20 @@ function CoachSemanaV2({
               <div className="day-body">
                 {amSessions.map((session, sessionIndex) => (
                   <div key={session.id || `${session.name}_${sessionIndex}`} className="session">
-                    <div className="sess-lbl">{sessionIndex === 0 ? "ðŸŒ… AM" : "âž• Extra AM"} Â· {getTargetLabel(session, athleteLookup)}</div>
+                    <div className="sess-lbl">{sessionIndex === 0 ? "🌅 AM" : "➕ Extra AM"} · {getTargetLabel(session, athleteLookup)}</div>
                     <div className="sess-txt">{session.name}</div>
                   </div>
                 ))}
                 {pmSessions.map((session, sessionIndex) => (
                   <div key={session.id || `${session.name}_${sessionIndex}`} className="session pm">
-                    <div className="sess-lbl">{sessionIndex === 0 ? "ðŸŒ† PM" : "âž• Extra PM"} Â· {getTargetLabel(session, athleteLookup)}</div>
+                    <div className="sess-lbl">{sessionIndex === 0 ? "🌆 PM" : "➕ Extra PM"} · {getTargetLabel(session, athleteLookup)}</div>
                     <div className="sess-txt">{session.name}</div>
                   </div>
                 ))}
                 {currentDay.gym && (
                   <div className="session gym">
-                    <div className="sess-lbl">ðŸ‹ï¸ Rutina Â· {groupLabel(gymPlan?.targetGroup || currentDay.gymTargetGroup || "all")}</div>
-                    <div className="sess-txt">{gymPlan?.name || "Rutina"} Â· {getDayGymCount(currentDay, routines)} ejercicios</div>
+                    <div className="sess-lbl">🏋️ Rutina · {groupLabel(gymPlan?.targetGroup || currentDay.gymTargetGroup || "all")}</div>
+                    <div className="sess-txt">{gymPlan?.name || "Rutina"} · {getDayGymCount(currentDay, routines)} ejercicios</div>
                   </div>
                 )}
                 {!amSessions.length && !pmSessions.length && !currentDay.gym && <div style={{fontSize:11,color:"var(--mu)",textAlign:"center",padding:"8px 0"}}>Descanso</div>}
@@ -3108,7 +3075,7 @@ function CoachSemanaV2({
                   </div>
                 )}
                 <button className="btn btn-ghost btn-sm mt3" style={{width:"100%",fontSize:11}} onClick={() => openEdit(index)}>
-                  {canEditWeek ? "âœï¸ Editar" : "ðŸ‘ï¸ Ver"}
+                  {canEditWeek ? "✏️ Editar" : "👁️ Ver"}
                 </button>
               </div>
             </div>
@@ -3120,8 +3087,8 @@ function CoachSemanaV2({
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setEditing(null)}>
           <div className="modal">
             <div className="flex ic jb mb4">
-              <div className="modal-title">{canEditWeek ? "âœï¸" : "ðŸ‘ï¸"} {DAYS_FULL[editing]}</div>
-              <button className="modal-close" onClick={() => { setEditing(null); setDraft(null); }}>âœ• Cerrar</button>
+              <div className="modal-title">{canEditWeek ? "✏️" : "👁️"} {DAYS_FULL[editing]}</div>
+              <button className="modal-close" onClick={() => { setEditing(null); setDraft(null); }}>✕ Cerrar</button>
             </div>
 
             <div className="g2">
@@ -3131,7 +3098,7 @@ function CoachSemanaV2({
                 return (
                   <div key={slot} className="card card-sm">
                     <div className="form-group">
-                      <label className="form-label">{slot === "am" ? "ðŸŒ… Entreno principal AM" : "ðŸŒ† Entreno principal PM"}</label>
+                      <label className="form-label">{slot === "am" ? "🌅 Entreno principal AM" : "🌆 Entreno principal PM"}</label>
                       <select className="select" value={session?.trainingId || ""} onChange={(e) => setPrimaryTraining(slot, e.target.value)} disabled={!canEditWeek}>
                         <option value="">Escribir manualmente</option>
                         {getSelectableTrainings(session?.trainingId || "").map((training) => <option key={training.id} value={training.id}>{training.name}</option>)}
@@ -3148,7 +3115,7 @@ function CoachSemanaV2({
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">DescripciÃ³n (opcional)</label>
+                      <label className="form-label">Descripción (opcional)</label>
                       <input
                         className="input"
                         value={session?.description || ""}
@@ -3180,7 +3147,7 @@ function CoachSemanaV2({
                           options={athleteOptions}
                           values={session?.targetAthleteIds || []}
                           onChange={(nextAthletes) => setPrimaryTargets(slot, { targetAthleteIds: nextAthletes })}
-                          placeholder="Atletas especÃ­ficos"
+                          placeholder="Atletas específicos"
                           searchPlaceholder="Buscar atleta..."
                           disabled={!canEditWeek}
                         />
@@ -3218,7 +3185,7 @@ function CoachSemanaV2({
               <div className="flex ic jb mb3">
                 <div>
                   <div className="fw7" style={{fontSize:16}}>Entrenos extra</div>
-                  <div className="text-sm text-mu">AÃ±ade sesiones extra AM/PM para grupos, atletas especÃ­ficos o combinaciones.</div>
+                  <div className="text-sm text-mu">Añade sesiones extra AM/PM para grupos, atletas específicos o combinaciones.</div>
                 </div>
                 {canEditWeek && (
                   <div className="flex ic g2r">
@@ -3228,7 +3195,7 @@ function CoachSemanaV2({
                 )}
               </div>
 
-              {(draft.extraSessions || []).length === 0 && <div className="text-sm text-mu">No hay entrenos extra para este dÃ­a.</div>}
+              {(draft.extraSessions || []).length === 0 && <div className="text-sm text-mu">No hay entrenos extra para este día.</div>}
 
               {(draft.extraSessions || []).map((session) => (
                 <div key={session.id} className="card card-sm mt3" style={{background:"var(--s2)"}}>
@@ -3236,7 +3203,7 @@ function CoachSemanaV2({
                     <div className="form-group">
                       <label className="form-label">Franja</label>
                       <select className="select" value={session.slot || "am"} onChange={(e) => updateExtraField(session.id, "slot", e.target.value)} disabled={!canEditWeek}>
-                        <option value="am">MaÃ±ana</option>
+                        <option value="am">Mañana</option>
                         <option value="pm">Tarde</option>
                       </select>
                     </div>
@@ -3260,7 +3227,7 @@ function CoachSemanaV2({
                       />
                     </div>
                     <div className="form-group">
-                      <label className="form-label">DescripciÃ³n (opcional)</label>
+                      <label className="form-label">Descripción (opcional)</label>
                       <input
                         className="input"
                         value={session.description || ""}
@@ -3294,7 +3261,7 @@ function CoachSemanaV2({
                           options={athleteOptions}
                           values={session?.targetAthleteIds || []}
                           onChange={(nextAthletes) => setExtraTargets(session.id, { targetAthleteIds: nextAthletes })}
-                          placeholder="Atletas especÃ­ficos"
+                          placeholder="Atletas específicos"
                           searchPlaceholder="Buscar atleta..."
                           disabled={!canEditWeek}
                         />
@@ -3336,11 +3303,11 @@ function CoachSemanaV2({
             <div className="card card-sm mt4">
               <div className="flex ic jb mb3">
                 <div>
-                  <div className="fw7" style={{fontSize:16}}>Rutina del dÃ­a</div>
-                  <div className="text-sm text-mu">La rutina se crea inline aquÃ­ mismo. No se guarda en una biblioteca global.</div>
+                  <div className="fw7" style={{fontSize:16}}>Rutina del día</div>
+                  <div className="text-sm text-mu">La rutina se crea inline aquí mismo. No se guarda en una biblioteca global.</div>
                 </div>
                 <div className="flex ic g2r">
-                  <button className={`btn btn-sm ${draft.gym ? "btn-or" : "btn-ghost"}`} onClick={() => canEditWeek && setDraft({ ...draft, gym:true })}>SÃ­</button>
+                  <button className={`btn btn-sm ${draft.gym ? "btn-or" : "btn-ghost"}`} onClick={() => canEditWeek && setDraft({ ...draft, gym:true })}>Sí</button>
                   <button className={`btn btn-sm ${!draft.gym ? "btn-danger" : "btn-ghost"}`} onClick={() => canEditWeek && setDraft({ ...draft, gym:false })}>No</button>
                 </div>
               </div>
@@ -3391,7 +3358,7 @@ function CoachSemanaV2({
                           onClick={() => addInlineExercise(exercisePicker)}
                           disabled={!canEditWeek || !exercisePicker}
                         >
-                          AÃ±adir
+                          Añadir
                         </button>
                       </div>
                     </div>
@@ -3404,7 +3371,7 @@ function CoachSemanaV2({
                         const exType = normalizeExerciseType(row.type || exercise.type || "weight");
                         return (
                           <div key={row.exId} className="inline-routine-row" style={{display:"grid",gridTemplateColumns:"42px 1fr 100px 80px 80px 80px auto",gap:8,alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
-                            <div className="ex-emoji">{exercise.emoji || "ðŸ‹ï¸"}</div>
+                            <div className="ex-emoji">{exercise.emoji || "🏋️"}</div>
                             <div>
                               <div className="ex-info-name">{exercise.name}</div>
                               <div className="ex-info-mu">{exercise.muscles}</div>
@@ -3421,7 +3388,7 @@ function CoachSemanaV2({
                               : exType === "time_reps"
                                 ? <input type="number" min={3} max={120} className="input" value={row.duration || 20} onChange={(e) => updateInlineExercise(row.exId, "duration", e.target.value)} disabled={!canEditWeek} title="Tiempo (segundos)" />
                                 : <div style={{textAlign:"center"}}><span className="badge b-bl">Reps</span></div>}
-                            {canEditWeek ? <button className="btn btn-danger btn-sm" onClick={() => removeInlineExercise(row.exId)}>âœ•</button> : <div />}
+                            {canEditWeek ? <button className="btn btn-danger btn-sm" onClick={() => removeInlineExercise(row.exId)}>✕</button> : <div />}
                           </div>
                         );
                       })}
@@ -3434,14 +3401,14 @@ function CoachSemanaV2({
                         <div className="fw7">Resumen rutina</div>
                         <span className="badge b-pu">{(currentGymPlan.exercises || []).length} ejercicios</span>
                       </div>
-                      <div className="text-sm text-mu">{currentGymPlan.name} Â· {groupLabel(currentGymPlan.targetGroup || "all")}</div>
+                      <div className="text-sm text-mu">{currentGymPlan.name} · {groupLabel(currentGymPlan.targetGroup || "all")}</div>
                     </div>
                   )}
                 </>
               )}
             </div>
 
-            {canEditWeek && <button className="btn btn-or mt4" style={{width:"100%"}} onClick={saveEdit}>Guardar dÃ­a</button>}
+            {canEditWeek && <button className="btn btn-or mt4" style={{width:"100%"}} onClick={saveEdit}>Guardar día</button>}
           </div>
         </div>
       )}
@@ -3574,7 +3541,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
         <div className="ph-row">
           <div>
             <div className="ph-title">DATASET <span>ENTRENOS</span></div>
-            <div className="ph-sub">Listado compacto, filtros por tipo/kms/desagregado y ediciÃ³n con guardado.</div>
+            <div className="ph-sub">Listado compacto, filtros por tipo/kms/desagregado y edición con guardado.</div>
           </div>
           <div className="flex ic g2r">
             <button className="btn btn-or btn-sm" onClick={() => setShowTrainingForm((prev) => !prev)}>
@@ -3593,7 +3560,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
                 <input className="input" value={trainingDraft.name} onChange={(e) => setTrainingDraft({ ...trainingDraft, name:e.target.value })} placeholder="Ej: Series 6x300 a ritmo 1500" />
               </div>
               <div className="form-group">
-                <label className="form-label">DescripciÃ³n</label>
+                <label className="form-label">Descripción</label>
                 <input className="input" value={trainingDraft.description} onChange={(e) => setTrainingDraft({ ...trainingDraft, description:e.target.value })} placeholder="Notas del entreno" />
               </div>
             </div>
@@ -3611,7 +3578,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">KilÃ³metros por zona</label>
+              <label className="form-label">Kilómetros por zona</label>
               <div className="zone-inputs">
                 {ZONES.map((zone) => (
                   <div key={zone.id} className="zone-input-wrap">
@@ -3662,12 +3629,12 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
 
         <div className="g2 mb4">
           <div className="form-group">
-            <label className="form-label">Kms mÃ­nimos</label>
+            <label className="form-label">Kms mínimos</label>
             <input className="input" type="number" min={0} step={0.5} value={datasetFilters.minKm} onChange={(e) => setDatasetFilters((prev) => ({ ...prev, minKm:e.target.value }))} placeholder="0" />
           </div>
           <div className="form-group">
-            <label className="form-label">Kms mÃ¡ximos</label>
-            <input className="input" type="number" min={0} step={0.5} value={datasetFilters.maxKm} onChange={(e) => setDatasetFilters((prev) => ({ ...prev, maxKm:e.target.value }))} placeholder="Sin lÃ­mite" />
+            <label className="form-label">Kms máximos</label>
+            <input className="input" type="number" min={0} step={0.5} value={datasetFilters.maxKm} onChange={(e) => setDatasetFilters((prev) => ({ ...prev, maxKm:e.target.value }))} placeholder="Sin límite" />
           </div>
         </div>
 
@@ -3694,7 +3661,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
               step={0.5}
               value={datasetFilters.maxKmType}
               onChange={(e) => setDatasetFilters((prev) => ({ ...prev, maxKmType:e.target.value }))}
-              placeholder={datasetFilters.kmType === "all" ? "Selecciona tipo kms" : "Sin lÃ­mite"}
+              placeholder={datasetFilters.kmType === "all" ? "Selecciona tipo kms" : "Sin límite"}
               disabled={datasetFilters.kmType === "all"}
             />
           </div>
@@ -3717,7 +3684,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
                   <div style={{fontWeight:700}}>{training.name}</div>
                   {training.description && <div style={{fontSize:11,color:"var(--mu)"}}>{training.description}</div>}
                 </td>
-                <td style={{fontSize:12}}>{normalizeTrainingWeekTypes(training.weekTypes).join(" Â· ")}</td>
+                <td style={{fontSize:12}}>{normalizeTrainingWeekTypes(training.weekTypes).join(" · ")}</td>
                 <td style={{fontWeight:700}}>{zonesTotal(training.zones).toFixed(1)} km</td>
                 <td>
                   <div className="zone-total-row">
@@ -3746,7 +3713,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
           <div className="modal" style={{maxWidth:760}}>
             <div className="flex ic jb mb4">
               <div className="modal-title">{trainingDetailEditing ? "Editar entreno" : "Detalle entreno"}</div>
-              <button className="modal-close" onClick={closeTrainingDetail}>âœ• Cerrar</button>
+              <button className="modal-close" onClick={closeTrainingDetail}>✕ Cerrar</button>
             </div>
             <div className="g2">
               <div className="form-group">
@@ -3754,7 +3721,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
                 <input className="input" value={trainingDetailDraft.name} onChange={(e) => setTrainingDetailDraft((prev) => ({ ...prev, name:e.target.value }))} disabled={!trainingDetailEditing} />
               </div>
               <div className="form-group">
-                <label className="form-label">DescripciÃ³n</label>
+                <label className="form-label">Descripción</label>
                 <input className="input" value={trainingDetailDraft.description} onChange={(e) => setTrainingDetailDraft((prev) => ({ ...prev, description:e.target.value }))} disabled={!trainingDetailEditing} />
               </div>
             </div>
@@ -3772,7 +3739,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">KilÃ³metros por zona</label>
+              <label className="form-label">Kilómetros por zona</label>
               <div className="zone-inputs">
                 {ZONES.map((zone) => (
                   <div key={zone.id} className="zone-input-wrap">
@@ -3815,7 +3782,7 @@ function CoachTrainingsDataset({ trainings, setTrainings }) {
   );
 }
 
-// â”€â”€â”€ COACH: GYM ROUTINES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COACH: GYM ROUTINES ──────────────────────────────────────────────────────
 function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExercises, exerciseImages, setExerciseImages }) {
   const [tab, setTab] = useState("routines"); // "routines" | "library"
   const [selectedId, setSelectedId] = useState(routines?.[0]?.id || null);
@@ -3886,7 +3853,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
     const ex = {
       id,
       name: newExForm.name.trim(),
-      emoji: newExForm.emoji || "ðŸ‹ï¸",
+      emoji: newExForm.emoji || "🏋️",
       muscles: newExForm.muscles || "",
       category: newExForm.category || "custom",
       type: newExForm.type || "weight",
@@ -3906,14 +3873,14 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
         <div className="ph-row">
           <div>
             <div className="ph-title">DATASET DE <span>EJERCICIOS</span></div>
-            <div className="ph-sub">Gestiona ejercicios y crea rutinas asignadas a cada dÃ­a.</div>
+            <div className="ph-sub">Gestiona ejercicios y crea rutinas asignadas a cada día.</div>
           </div>
           <div className="flex ic g3r">
             <button className="btn btn-ghost" onClick={()=>setTab(tab==="library"?"routines":"library")}>
-              {tab==="library" ? "â† Rutinas" : "ðŸ“š Biblioteca ejercicios"}
+              {tab==="library" ? "← Rutinas" : "📚 Biblioteca ejercicios"}
             </button>
             {tab==="routines" && <button className="btn btn-or" onClick={createRoutine}>+ Nueva rutina</button>}
-            {tab==="library" && <button className="btn btn-or" onClick={()=>setNewExForm({ name:"", emoji:"ðŸ‹ï¸", muscles:"", category:"custom", type:"weight", imageFile:null })}>+ Nuevo ejercicio</button>}
+            {tab==="library" && <button className="btn btn-or" onClick={()=>setNewExForm({ name:"", emoji:"🏋️", muscles:"", category:"custom", type:"weight", imageFile:null })}>+ Nuevo ejercicio</button>}
           </div>
         </div>
       </div>
@@ -3925,8 +3892,8 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
           {newExForm && (
             <div className="card mb4">
               <div className="flex ic jb mb4">
-                <div className="modal-title" style={{fontSize:22}}>âž• Nuevo ejercicio</div>
-                <button className="modal-close" onClick={()=>setNewExForm(null)}>âœ•</button>
+                <div className="modal-title" style={{fontSize:22}}>➕ Nuevo ejercicio</div>
+                <button className="modal-close" onClick={()=>setNewExForm(null)}>✕</button>
               </div>
               <div className="g2">
                 <div className="form-group">
@@ -3938,13 +3905,13 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                   <input className="input" value={newExForm.emoji} onChange={e=>setNewExForm({...newExForm,emoji:e.target.value})} style={{width:80}} />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">MÃºsculos</label>
-                  <input className="input" value={newExForm.muscles} onChange={e=>setNewExForm({...newExForm,muscles:e.target.value})} placeholder="Ej: CuÃ¡driceps Â· GlÃºteos" />
+                  <label className="form-label">Músculos</label>
+                  <input className="input" value={newExForm.muscles} onChange={e=>setNewExForm({...newExForm,muscles:e.target.value})} placeholder="Ej: Cuádriceps · Glúteos" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Tipo</label>
                   <select className="select" value={newExForm.type} onChange={e=>setNewExForm({...newExForm,type:e.target.value})}>
-                    <option value="weight">Peso (% 1RM â†’ kg)</option>
+                    <option value="weight">Peso (% 1RM → kg)</option>
                     <option value="reps">Repeticiones (sin peso)</option>
                     <option value="time_reps">Tiempo x Repeticiones</option>
                   </select>
@@ -3954,8 +3921,8 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                 <label className="form-label">Imagen (opcional)</label>
                 <div className="img-upload-zone" onClick={()=>document.getElementById("new-ex-img").click()}>
                   {newExForm.imageFile
-                    ? <div style={{fontSize:13,color:"var(--gr)"}}>âœ… {newExForm.imageFile.name}</div>
-                    : <div style={{fontSize:13,color:"var(--mu)"}}>ðŸ“· Clic para subir imagen</div>}
+                    ? <div style={{fontSize:13,color:"var(--gr)"}}>✅ {newExForm.imageFile.name}</div>
+                    : <div style={{fontSize:13,color:"var(--mu)"}}>📷 Clic para subir imagen</div>}
                 </div>
                 <input id="new-ex-img" type="file" accept="image/*" style={{display:"none"}} onChange={e=>setNewExForm({...newExForm,imageFile:e.target.files[0]||null})} />
               </div>
@@ -3993,7 +3960,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                     </div>
                   ) : (
                     <button className="btn btn-ghost btn-sm mt3" style={{width:"100%",fontSize:11}} onClick={()=>setImgUploadTarget(ex.id)}>
-                      {imgSrc ? "ðŸ”„ Cambiar imagen" : "ðŸ“· AÃ±adir imagen"}
+                      {imgSrc ? "🔄 Cambiar imagen" : "📷 Añadir imagen"}
                     </button>
                   )}
                   {isCustom && (
@@ -4013,7 +3980,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
       {tab === "routines" && (
         <div className="g2">
           <div className="card">
-            <div className="card-title">ðŸ“š Biblioteca de rutinas</div>
+            <div className="card-title">📚 Biblioteca de rutinas</div>
             {(routines||[]).length===0 && <div className="text-mu text-sm">No hay rutinas guardadas</div>}
             {(routines||[]).map(rt => (
               <div key={rt.id} style={{
@@ -4023,7 +3990,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
               }}>
                 <div className="flex ic jb g2r">
                   <button className="nav-item" style={{margin:0,padding:0,background:"transparent",color:"var(--tx)"}} onClick={()=>setSelectedId(rt.id)}>
-                    <span className="ni">ðŸ‹ï¸</span><span style={{fontWeight:700}}>{rt.name}</span>
+                    <span className="ni">🏋️</span><span style={{fontWeight:700}}>{rt.name}</span>
                   </button>
                   <button className="btn btn-danger btn-sm" onClick={()=>deleteRoutine(rt.id)}>Eliminar</button>
                 </div>
@@ -4036,7 +4003,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
           </div>
 
           <div className="card">
-            <div className="card-title">âœï¸ Editor de rutina</div>
+            <div className="card-title">✍️ Editor de rutina</div>
             {!selected && <div className="text-mu text-sm">Selecciona o crea una rutina</div>}
 
             {selected && (
@@ -4055,7 +4022,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">AÃ±adir ejercicios</label>
+                  <label className="form-label">Añadir ejercicios</label>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                     {allExercises.map(ex => {
                       const active = selected.exercises.some(e=>e.exId===ex.id);
@@ -4072,7 +4039,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
 
                 <div>
                   {(selected.exercises||[]).map(row => {
-                    const ex = allExercises.find(e=>e.id===row.exId) || { emoji:"ðŸ‹ï¸", name:row.exId, muscles:"" };
+                    const ex = allExercises.find(e=>e.id===row.exId) || { emoji:"🏋️", name:row.exId, muscles:"" };
                     const imgSrc = exerciseImages[row.exId] || row.imageUrl || ex.imageUrl;
                     const exType = normalizeExerciseType(row.type || ex.type || "weight");
                     return (
@@ -4119,7 +4086,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                           {exType === "reps"   && <span className="badge b-bl">SIN PESO</span>}
                           {exType === "time_reps" && <span className="badge b-ya">{row.reps} x {formatExDuration(row.duration)}</span>}
                         </div>
-                        <button className="btn btn-danger btn-sm" style={{padding:"4px 8px"}} onClick={()=>toggleExercise(row.exId)}>âœ•</button>
+                        <button className="btn btn-danger btn-sm" style={{padding:"4px 8px"}} onClick={()=>toggleExercise(row.exId)}>✕</button>
                       </div>
                     );
                   })}
@@ -4127,7 +4094,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
 
                 <div className="divider" />
                 <div style={{fontSize:12,color:"var(--mu)"}}>
-                  âœ… Las rutinas guardadas se asignan en "Plan Semanal" a cada dÃ­a. Los pesos se calculan automÃ¡ticamente por atleta segÃºn su 1RM.
+                  ✅ Las rutinas guardadas se asignan en "Plan Semanal" a cada día. Los pesos se calculan automáticamente por atleta según su 1RM.
                 </div>
               </>
             )}
@@ -4158,7 +4125,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
   const handleImageUpload = (exId, file) => {
     if (!file) return;
     if (!isExerciseImageFileAllowed(file)) {
-      setImageError("Solo se permiten imÃ¡genes SVG, PNG, JPG o JPEG.");
+      setImageError("Solo se permiten imágenes SVG, PNG, JPG o JPEG.");
       return;
     }
     setImageError("");
@@ -4176,7 +4143,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
       return;
     }
     if (!isExerciseImageFileAllowed(file)) {
-      setImageError("Solo se permiten imÃ¡genes SVG, PNG, JPG o JPEG.");
+      setImageError("Solo se permiten imágenes SVG, PNG, JPG o JPEG.");
       return;
     }
     setImageError("");
@@ -4186,14 +4153,14 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
   const saveNewExercise = () => {
     if (!newExForm?.name?.trim()) return;
     if (newExForm.imageFile && !isExerciseImageFileAllowed(newExForm.imageFile)) {
-      setImageError("Solo se permiten imÃ¡genes SVG, PNG, JPG o JPEG.");
+      setImageError("Solo se permiten imágenes SVG, PNG, JPG o JPEG.");
       return;
     }
     const id = `custom_${Date.now()}`;
     const exercise = {
       id,
       name: newExForm.name.trim(),
-      emoji: newExForm.emoji || "ðŸ‹ï¸",
+      emoji: newExForm.emoji || "🏋️",
       muscles: newExForm.muscles || "",
       category: newExForm.category || "custom",
       type: newExForm.type || "weight",
@@ -4214,9 +4181,9 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
         <div className="ph-row">
           <div>
             <div className="ph-title">DATASET DE <span>EJERCICIOS</span></div>
-            <div className="ph-sub">Las rutinas se crean dentro de cada dÃ­a del plan semanal. AquÃ­ gestionas el catÃ¡logo completo de ejercicios.</div>
+            <div className="ph-sub">Las rutinas se crean dentro de cada día del plan semanal. Aquí gestionas el catálogo completo de ejercicios.</div>
           </div>
-          <button className="btn btn-or" onClick={() => { setImageError(""); setNewExForm({ name:"", emoji:"ðŸ‹ï¸", muscles:"", category:"custom", type:"weight", imageFile:null }); }}>+ Nuevo ejercicio</button>
+          <button className="btn btn-or" onClick={() => { setImageError(""); setNewExForm({ name:"", emoji:"🏋️", muscles:"", category:"custom", type:"weight", imageFile:null }); }}>+ Nuevo ejercicio</button>
         </div>
       </div>
 
@@ -4232,7 +4199,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
           </div>
           <div className="stat-card">
             <div className="stat-label">Uso</div>
-            <div className="stat-change" style={{marginTop:0,color:"var(--tx)"}}>AÃ±Ã¡delos desde el editor de cada dÃ­a al crear la rutina inline</div>
+            <div className="stat-change" style={{marginTop:0,color:"var(--tx)"}}>Añádelos desde el editor de cada día al crear la rutina inline</div>
           </div>
         </div>
       </div>
@@ -4243,7 +4210,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
             className="input"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Nombre, mÃºsculos o tipoâ€¦"
+            placeholder="Nombre, músculos o tipo…"
           />
         </div>
       </div>
@@ -4256,8 +4223,8 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
       {newExForm && (
         <div className="card mb4">
           <div className="flex ic jb mb4">
-            <div className="modal-title" style={{fontSize:22}}>âž• Nuevo ejercicio</div>
-            <button className="modal-close" onClick={() => setNewExForm(null)}>âœ•</button>
+            <div className="modal-title" style={{fontSize:22}}>➕ Nuevo ejercicio</div>
+            <button className="modal-close" onClick={() => setNewExForm(null)}>✕</button>
           </div>
           <div className="g2">
             <div className="form-group">
@@ -4269,8 +4236,8 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
               <input className="input" value={newExForm.emoji} onChange={(e) => setNewExForm({ ...newExForm, emoji:e.target.value })} style={{width:80}} />
             </div>
             <div className="form-group">
-              <label className="form-label">MÃºsculos</label>
-              <input className="input" value={newExForm.muscles} onChange={(e) => setNewExForm({ ...newExForm, muscles:e.target.value })} placeholder="Ej: Core Â· GlÃºteos" />
+              <label className="form-label">Músculos</label>
+              <input className="input" value={newExForm.muscles} onChange={(e) => setNewExForm({ ...newExForm, muscles:e.target.value })} placeholder="Ej: Core · Glúteos" />
             </div>
             <div className="form-group">
               <label className="form-label">Tipo</label>
@@ -4284,7 +4251,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
           <div className="form-group">
             <label className="form-label">Imagen (opcional)</label>
             <div className="img-upload-zone" onClick={() => document.getElementById("new-ex-img-v2").click()}>
-              {newExForm.imageFile ? <div style={{fontSize:13,color:"var(--gr)"}}>âœ… {newExForm.imageFile.name}</div> : <div style={{fontSize:13,color:"var(--mu)"}}>ðŸ“· Clic para subir imagen</div>}
+              {newExForm.imageFile ? <div style={{fontSize:13,color:"var(--gr)"}}>✅ {newExForm.imageFile.name}</div> : <div style={{fontSize:13,color:"var(--mu)"}}>📷 Clic para subir imagen</div>}
             </div>
             <input
               id="new-ex-img-v2"
@@ -4344,7 +4311,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
                   </>
                 ) : (
                   <button className="btn btn-ghost btn-sm" onClick={() => setImgUploadTarget(exercise.id)}>
-                    {imgSrc ? "Cambiar imagen" : "AÃ±adir imagen"}
+                    {imgSrc ? "Cambiar imagen" : "Añadir imagen"}
                   </button>
                 )}
                 {isCustom && (
@@ -4364,7 +4331,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
   );
 }
 
-// â”€â”€â”€ COACH: GRUPOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COACH: GRUPOS ────────────────────────────────────────────────────────────
 function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
   const [creating, setCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
@@ -4395,7 +4362,7 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
     <div>
       <div className="ph">
         <div className="ph-row">
-          <div><div className="ph-title">GRUPOS <span>DE TRABAJO</span></div><div className="ph-sub">Gestiona grupos base y grupos especiales (lesionados, readaptaciÃ³n, etc.)</div></div>
+          <div><div className="ph-title">GRUPOS <span>DE TRABAJO</span></div><div className="ph-sub">Gestiona grupos base y grupos especiales (lesionados, readaptación, etc.)</div></div>
           <button className="btn btn-or" onClick={()=>{setCreating(true); setError("");}}>+ Nuevo grupo</button>
         </div>
       </div>
@@ -4422,8 +4389,8 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
       </div>
 
       <div className="card">
-        <div className="card-title">ðŸ” AsignaciÃ³n de grupo por atleta</div>
-        <div className="text-sm text-mu mb3">Puedes mover cualquier atleta entre 1500m, 800m, pequeÃ±os o grupos personalizados.</div>
+        <div className="card-title">🔁 Asignación de grupo por atleta</div>
+        <div className="text-sm text-mu mb3">Puedes mover cualquier atleta entre 1500m, 800m, pequeños o grupos personalizados.</div>
         {athletes.map((a) => (
           <div key={a.id} className="flex ic g3r mb3" style={{alignItems:"center"}}>
             <div className="avatar" style={{width:30,height:30,fontSize:11}}>{a.avatar}</div>
@@ -4443,11 +4410,11 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
           <div className="modal" style={{width:420}}>
             <div className="flex ic jb mb4">
               <div className="modal-title">Nuevo Grupo</div>
-              <button className="modal-close" onClick={()=>setCreating(false)}>âœ•</button>
+              <button className="modal-close" onClick={()=>setCreating(false)}>✕</button>
             </div>
             <div className="form-group">
               <label className="form-label">Nombre del grupo</label>
-              <input className="input" value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} placeholder="Ej: Lesionados, ReadaptaciÃ³n, Especial..." />
+              <input className="input" value={newGroupName} onChange={e=>setNewGroupName(e.target.value)} placeholder="Ej: Lesionados, Readaptación, Especial..." />
             </div>
             {error && <div className="text-sm mb3" style={{color:"var(--re)"}}>{error}</div>}
             <div className="flex ic g2r">
@@ -4461,7 +4428,7 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
   );
 }
 
-// â”€â”€â”€ COACH: CALENDARIO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COACH: CALENDARIO ────────────────────────────────────────────────────────
 function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnchorDate }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
@@ -4522,16 +4489,16 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
       <div className="ph">
         <div className="ph-title">CALENDARIO <span>COACH</span></div>
         <div className="ph-sub">
-          Semana {currentWeekNumber} Â· {calendarWeek ? "Haz clic en un dÃ­a para ver entreno, gym, kms y estado." : "La semana aÃºn no estÃ¡ publicada."}
+          Semana {currentWeekNumber} · {calendarWeek ? "Haz clic en un día para ver entreno, gym, kms y estado." : "La semana aún no está publicada."}
         </div>
       </div>
 
       <div className="g2" style={{alignItems:"start"}}>
         <div className="card">
           <div className="flex ic jb mb4">
-            <button className="btn btn-ghost btn-sm" onClick={() => goMonth(-1)}>â† Ant.</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => goMonth(-1)}>← Ant.</button>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:24,fontWeight:700}}>{monthNames[viewMonth]} {viewYear}</div>
-            <button className="btn btn-ghost btn-sm" onClick={() => goMonth(1)}>Sig. â†’</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => goMonth(1)}>Sig. →</button>
           </div>
           <div className="cal-grid" style={{marginBottom:8}}>
             {DAYS_SHORT.map((d) => <div key={d} style={{textAlign:"center",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)",fontWeight:700,padding:"6px 0"}}>{d}</div>)}
@@ -4592,8 +4559,8 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
 
           {!selected && (
             <div className="card" style={{textAlign:"center",padding:34}}>
-              <div style={{fontSize:34,marginBottom:8}}>ðŸ“…</div>
-              <div style={{color:"var(--mu)"}}>Selecciona un dÃ­a para ver el detalle.</div>
+              <div style={{fontSize:34,marginBottom:8}}>📅</div>
+              <div style={{color:"var(--mu)"}}>Selecciona un día para ver el detalle.</div>
             </div>
           )}
 
@@ -4601,9 +4568,9 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
               <div className="card">
                 <div className="flex ic jb mb4">
                   <div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900}}>{selectedInfo.dayIndex != null ? DAYS_FULL[selectedInfo.dayIndex] : "Sin planificaciÃ³n"} {selected.dateIso}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900}}>{selectedInfo.dayIndex != null ? DAYS_FULL[selectedInfo.dayIndex] : "Sin planificación"} {selected.dateIso}</div>
                     {selectedInfo.records.length > 0
-                      ? <span className="badge b-gr">Realizado Â· {selectedInfo.records.length} registro(s)</span>
+                      ? <span className="badge b-gr">Realizado · {selectedInfo.records.length} registro(s)</span>
                       : selectedInfo.dayIndex == null
                         ? <span className="badge b-mu">Sin plan semanal</span>
                         : selected.dateIso <= todayIso
@@ -4612,9 +4579,9 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
                   </div>
                 <button className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>Cerrar</button>
               </div>
-              {selectedInfo.am.map((session, idx) => <div key={session.id || `am_${idx}`} className="session"><div className="sess-lbl">{idx === 0 ? "ðŸŒ… AM" : "âž• Extra AM"} Â· {getTargetLabel(session)}</div><div className="sess-txt">{session.name}</div></div>)}
-              {selectedInfo.pm.map((session, idx) => <div key={session.id || `pm_${idx}`} className="session pm"><div className="sess-lbl">{idx === 0 ? "ðŸŒ† PM" : "âž• Extra PM"} Â· {getTargetLabel(session)}</div><div className="sess-txt">{session.name}</div></div>)}
-              {selectedInfo.dayPlan?.gym && <div className="session gym"><div className="sess-lbl">ðŸ‹ï¸ Gym</div><div className="sess-txt">{selectedInfo.gymPlan?.name || "Rutina"} Â· {getDayGymCount(selectedInfo.dayPlan, routines)} ejercicios</div></div>}
+              {selectedInfo.am.map((session, idx) => <div key={session.id || `am_${idx}`} className="session"><div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {getTargetLabel(session)}</div><div className="sess-txt">{session.name}</div></div>)}
+              {selectedInfo.pm.map((session, idx) => <div key={session.id || `pm_${idx}`} className="session pm"><div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {getTargetLabel(session)}</div><div className="sess-txt">{session.name}</div></div>)}
+              {selectedInfo.dayPlan?.gym && <div className="session gym"><div className="sess-lbl">🏋️ Gym</div><div className="sess-txt">{selectedInfo.gymPlan?.name || "Rutina"} · {getDayGymCount(selectedInfo.dayPlan, routines)} ejercicios</div></div>}
               {!selectedInfo.am.length && !selectedInfo.pm.length && !selectedInfo.dayPlan?.gym && <div className="text-sm text-mu">Descanso</div>}
               <div className="divider" />
               <div className="card card-sm" style={{background:"var(--s2)"}}>
@@ -4627,7 +4594,7 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
                     </span>
                   ))}
                 </div>
-                <div className="text-sm mt3">Total del dÃ­a: <strong style={{color:"var(--or)"}}>{selectedInfo.dayZones.total.toFixed(1)} km</strong></div>
+                <div className="text-sm mt3">Total del día: <strong style={{color:"var(--or)"}}>{selectedInfo.dayZones.total.toFixed(1)} km</strong></div>
               </div>
             </div>
           )}
@@ -4637,7 +4604,7 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
   );
 }
 
-// â”€â”€â”€ COACH: HISTORIAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COACH: HISTORIAL ─────────────────────────────────────────────────────────
 function CoachHistorial({
   weekPlansByNumber,
   routines,
@@ -4696,7 +4663,7 @@ function CoachHistorial({
 
   const formatWeekRange = (week) => {
     if (!week?.startDate || !week?.endDate) return "Sin rango de fechas";
-    return `${week.startDate} â†’ ${week.endDate}`;
+    return `${week.startDate} → ${week.endDate}`;
   };
   const parseSelectedGroups = (selectedValues) => {
     const normalized = collectGroupValues(selectedValues);
@@ -4705,7 +4672,7 @@ function CoachHistorial({
   const handleCreateGroup = () => {
     const name = normalizeGroupName(newGroupName);
     if (!name || name === "all") {
-      setGroupError("Escribe un nombre de grupo vÃ¡lido.");
+      setGroupError("Escribe un nombre de grupo válido.");
       return;
     }
     const exists = allGroups.some((group) => group.toLowerCase() === name.toLowerCase());
@@ -4722,7 +4689,7 @@ function CoachHistorial({
   const handleDeleteGroup = (groupName) => {
     const normalizedGroup = normalizeGroupName(groupName);
     if (!normalizedGroup || normalizedGroup === "por-asignar" || GROUPS.includes(normalizedGroup)) return;
-    if (!window.confirm(`Â¿Eliminar el grupo "${normalizedGroup}"?`)) return;
+    if (!window.confirm(`¿Eliminar el grupo "${normalizedGroup}"?`)) return;
     if (typeof setGroups === "function") {
       setGroups((prev) => mergeGroupOptions((prev || []).filter((group) => group.toLowerCase() !== normalizedGroup.toLowerCase()), ["por-asignar"]));
     }
@@ -4812,7 +4779,7 @@ function CoachHistorial({
   };
   const removeAthlete = (athlete) => {
     if (!athlete?.id) return;
-    if (!window.confirm(`Â¿Eliminar al atleta "${athlete.name}"?`)) return;
+    if (!window.confirm(`¿Eliminar al atleta "${athlete.name}"?`)) return;
     if (typeof onDeleteAthlete === "function") onDeleteAthlete(athlete.id);
     else setAthletes((prev) => normalizeAthletes(prev).filter((item) => item.id !== athlete.id));
     if (editingAthleteId === athlete.id) closeWeightEditor();
@@ -4879,19 +4846,19 @@ function CoachHistorial({
     <div>
       <div className="ph">
         {isAthletesView
-          ? <div className="ph-title">GESTIÃ“N <span>ATLETAS</span></div>
+          ? <div className="ph-title">GESTIÓN <span>ATLETAS</span></div>
           : <div className="ph-title">HISTORIAL <span>SEMANAL</span></div>}
         <div className="ph-sub">
           {isAthletesView
-            ? "Crear/modificar/eliminar atletas, gestionar grupos y editar pesos mÃ¡ximos (solo coach)."
+            ? "Crear/modificar/eliminar atletas, gestionar grupos y editar pesos máximos (solo coach)."
             : "Semanas publicadas en formato compacto. Clic para ver entrenos, gym, kms y estado diario."}
         </div>
       </div>
 
       {isAthletesView && (
         <div className="card mb4">
-          <div className="card-title">ðŸ‘¥ GestiÃ³n de atletas</div>
-          <div className="text-sm text-mu mb3">Solo el entrenador puede crear perfiles, asignar grupos y editar pesos mÃ¡ximos.</div>
+          <div className="card-title">👥 Gestión de atletas</div>
+          <div className="text-sm text-mu mb3">Solo el entrenador puede crear perfiles, asignar grupos y editar pesos máximos.</div>
           <div className="card card-sm mb3">
             <div className="fw7 mb3">Grupos</div>
             <div className="g2">
@@ -4926,7 +4893,7 @@ function CoachHistorial({
               />
             </div>
             <div className="form-group" style={{margin:0}}>
-              <label className="form-label">Grupos (multi-selecciÃ³n)</label>
+              <label className="form-label">Grupos (multi-selección)</label>
               <MultiSelect
                 options={allGroups}
                 values={newAthleteGroups}
@@ -4938,7 +4905,7 @@ function CoachHistorial({
           <div className="flex ic g2r" style={{justifyContent:"space-between",flexWrap:"wrap"}}>
             <div className="text-sm text-mu">Puedes asignar uno o varios grupos por atleta.</div>
             <div className="flex ic g2r" style={{marginLeft:"auto",flexWrap:"wrap"}}>
-              <button className="btn btn-ghost" onClick={openBulkWeightEditor}>âš–ï¸ Modificar pesos generales</button>
+              <button className="btn btn-ghost" onClick={openBulkWeightEditor}>⚖️ Modificar pesos generales</button>
               <button className="btn btn-or" onClick={handleCreateAthlete}>+ Crear atleta</button>
             </div>
           </div>
@@ -4983,9 +4950,9 @@ function CoachHistorial({
                     </div>
                   </div>
                   <div className="flex ic g2r" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
-                    <button className="btn btn-ghost btn-sm" onClick={() => renameAthlete(athlete)}>âœï¸ Nombre</button>
-                    <button className="btn btn-ghost btn-sm" onClick={() => openWeightEditor(athlete)}>âš–ï¸ Pesos</button>
-                    <button className="btn btn-danger btn-sm" onClick={() => removeAthlete(athlete)}>ðŸ—‘ï¸ Eliminar</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => renameAthlete(athlete)}>✏️ Nombre</button>
+                    <button className="btn btn-ghost btn-sm" onClick={() => openWeightEditor(athlete)}>⚖️ Pesos</button>
+                    <button className="btn btn-danger btn-sm" onClick={() => removeAthlete(athlete)}>🗑️ Eliminar</button>
                   </div>
                 </div>
                 <MultiSelect
@@ -4996,7 +4963,7 @@ function CoachHistorial({
                 />
               </div>
             ))}
-            {roster.length === 0 && <div className="text-sm text-mu">No hay atletas creados todavÃ­a.</div>}
+            {roster.length === 0 && <div className="text-sm text-mu">No hay atletas creados todavía.</div>}
             {roster.length > 0 && filteredRoster.length === 0 && <div className="text-sm text-mu">No hay atletas con esos filtros.</div>}
           </div>
         </div>
@@ -5004,7 +4971,7 @@ function CoachHistorial({
 
       {!isAthletesView && publishedWeeks.length === 0 && (
         <div className="card">
-          <div className="text-mu text-sm">TodavÃ­a no hay semanas publicadas en el historial.</div>
+          <div className="text-mu text-sm">Todavía no hay semanas publicadas en el historial.</div>
         </div>
       )}
 
@@ -5022,7 +4989,7 @@ function CoachHistorial({
               <div className="flex ic jb" style={{alignItems:"flex-start",gap:16}}>
                 <div>
                   <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:30,fontWeight:900}}>Semana {weekNumber}</div>
-                  <div className="text-sm text-mu">{week.type} Â· {formatWeekRange(week)}</div>
+                  <div className="text-sm text-mu">{week.type} · {formatWeekRange(week)}</div>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div className="text-sm text-mu" style={{textTransform:"uppercase",letterSpacing:1}}>Resumen kms</div>
@@ -5068,25 +5035,25 @@ function CoachHistorial({
                         </div>
                         {amSessions.map((session, idx) => (
                           <div key={session.id || `hist_am_${dayIndex}_${idx}`} className="session">
-                            <div className="sess-lbl">{idx === 0 ? "ðŸŒ… AM" : "âž• Extra AM"} Â· {getTargetLabel(session)}</div>
+                            <div className="sess-lbl">{idx === 0 ? "🌅 AM" : "➕ Extra AM"} · {getTargetLabel(session)}</div>
                             <div className="sess-txt">{session.name}</div>
                           </div>
                         ))}
                         {pmSessions.map((session, idx) => (
                           <div key={session.id || `hist_pm_${dayIndex}_${idx}`} className="session pm">
-                            <div className="sess-lbl">{idx === 0 ? "ðŸŒ† PM" : "âž• Extra PM"} Â· {getTargetLabel(session)}</div>
+                            <div className="sess-lbl">{idx === 0 ? "🌆 PM" : "➕ Extra PM"} · {getTargetLabel(session)}</div>
                             <div className="sess-txt">{session.name}</div>
                           </div>
                         ))}
                         {day.gym && (
                           <div className="session gym">
-                            <div className="sess-lbl">ðŸ‹ï¸ Gym</div>
-                            <div className="sess-txt">{gymPlan?.name || "Rutina"} Â· {getDayGymCount(day, routines)} ejercicios</div>
+                            <div className="sess-lbl">🏋️ Gym</div>
+                            <div className="sess-txt">{gymPlan?.name || "Rutina"} · {getDayGymCount(day, routines)} ejercicios</div>
                           </div>
                         )}
                         {!amSessions.length && !pmSessions.length && !day.gym && <div className="text-sm text-mu">Descanso</div>}
                         <div className="divider" />
-                        <div className="text-sm">Kms dÃ­a: <strong style={{color:"var(--or)"}}>{dayZones.total.toFixed(1)} km</strong></div>
+                        <div className="text-sm">Kms día: <strong style={{color:"var(--or)"}}>{dayZones.total.toFixed(1)} km</strong></div>
                       </div>
                     );
                   })}
@@ -5101,8 +5068,8 @@ function CoachHistorial({
         <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && closeWeightEditor()}>
           <div className="modal" style={{maxWidth:760}}>
             <div className="flex ic jb mb4">
-              <div className="modal-title">Pesos mÃ¡ximos Â· {editingAthlete.name}</div>
-              <button className="modal-close" onClick={closeWeightEditor}>âœ•</button>
+              <div className="modal-title">Pesos máximos · {editingAthlete.name}</div>
+              <button className="modal-close" onClick={closeWeightEditor}>✕</button>
             </div>
             <div className="g3">
               {weightExercises.map((exercise) => (
@@ -5132,10 +5099,10 @@ function CoachHistorial({
           <div className="modal modal-no-scroll" style={{width:"96vw",maxWidth:1400}}>
             <div className="flex ic jb mb4">
               <div className="modal-title">Modificar Pesos Generales</div>
-              <button className="modal-close" onClick={closeBulkWeightEditor}>âœ•</button>
+              <button className="modal-close" onClick={closeBulkWeightEditor}>✕</button>
             </div>
             <div className="text-sm text-mu mb4">
-              Edita pesos mÃ¡ximos por atleta y ejercicio. Al guardar se aplicarÃ¡n todas las modificaciones de la tabla.
+              Edita pesos máximos por atleta y ejercicio. Al guardar se aplicarán todas las modificaciones de la tabla.
             </div>
             <div className="bulk-weight-table-wrap" style={{border:"1px solid var(--border)",borderRadius:12,overflow:"auto",maxHeight:"64vh",flex:1,minHeight:0}}>
               <table className="tbl bulk-weight-table" style={{minWidth:Math.max(860, 260 + (weightExercises.length * 130)),margin:0}}>
@@ -5187,7 +5154,7 @@ function CoachHistorial({
   );
 }
 
-// â”€â”€â”€ COACH: TEMPORADAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COACH: TEMPORADAS ───────────────────────────────────────────────────────
 function CoachTemporadas({
   currentSeasonId,
   seasonWeekOneStartIso,
@@ -5240,7 +5207,7 @@ function CoachTemporadas({
     <div className="coach-temporadas-page">
       <div className="ph">
         <div className="ph-title">TEMPORADAS <span>COACH</span></div>
-        <div className="ph-sub">Gestiona cierres de temporada y reinicio de planificaciÃ³n</div>
+        <div className="ph-sub">Gestiona cierres de temporada y reinicio de planificación</div>
       </div>
 
       <div className="card season-card mb4">
@@ -5262,7 +5229,7 @@ function CoachTemporadas({
       <div className="card mb4">
         <div className="card-title">Finalizar temporada</div>
         <div className="text-sm text-mu mb4">
-          Al finalizar, se archiva todo el histÃ³rico de la temporada actual y se resetea la app para la nueva temporada.
+          Al finalizar, se archiva todo el histórico de la temporada actual y se resetea la app para la nueva temporada.
           Los pesos de los atletas se conservan.
         </div>
         <div className="g2">
@@ -5301,7 +5268,7 @@ function CoachTemporadas({
       <div className="card">
         <div className="card-title">Temporadas archivadas</div>
         {archived.length === 0 && (
-          <div className="text-sm text-mu">TodavÃ­a no hay temporadas finalizadas.</div>
+          <div className="text-sm text-mu">Todavía no hay temporadas finalizadas.</div>
         )}
         {archived.length > 0 && (
           <div className="table-scroll">
@@ -5330,7 +5297,7 @@ function CoachTemporadas({
   );
 }
 
-// â”€â”€â”€ ATHLETE: HOY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ATHLETE: HOY ─────────────────────────────────────────────────────────────
 function AthleteHoy({
   user,
   week,
@@ -5392,7 +5359,7 @@ function AthleteHoy({
           <div className="wt-val">{week.type}</div>
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
-          <span className="badge b-bl" style={{fontSize:12,padding:"6px 12px"}}>Grupos: {userGroups.join(" Â· ")}</span>
+          <span className="badge b-bl" style={{fontSize:12,padding:"6px 12px"}}>Grupos: {userGroups.join(" · ")}</span>
           <span className={`badge ${isWeekPublished ? (visibleToday.hasContent ? "b-gr" : "b-mu") : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
             {!isWeekPublished ? "Semana pendiente de publicar" : visibleToday.hasContent ? "Plan publicado para tus grupos" : "Sin plan para tus grupos hoy"}
           </span>
@@ -5406,12 +5373,12 @@ function AthleteHoy({
         <div className="card mb4" style={{background:"linear-gradient(135deg,rgba(167,139,250,.16),rgba(167,139,250,.06))",borderColor:"rgba(167,139,250,.45)"}}>
           <div className="flex ic jb">
             <div>
-              <div className="card-title" style={{margin:0}}>ðŸ Cuenta atrÃ¡s competiciÃ³n</div>
-              <div className="text-sm text-mu mt3">{nextCompetition.name} Â· {nextCompetition.dateIso}</div>
+              <div className="card-title" style={{margin:0}}>🏁 Cuenta atrás competición</div>
+              <div className="text-sm text-mu mt3">{nextCompetition.name} · {nextCompetition.dateIso}</div>
             </div>
             <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,color:"var(--pu)"}}>
               {nextCompetition.diffDays}
-              <span style={{fontSize:14,color:"var(--mu)",marginLeft:6}}>dÃ­as</span>
+              <span style={{fontSize:14,color:"var(--mu)",marginLeft:6}}>días</span>
             </div>
           </div>
         </div>
@@ -5420,15 +5387,15 @@ function AthleteHoy({
       {notifList.length > 0 && (
         <div className="card mb4">
           <div className="flex ic jb mb4">
-            <div className="card-title" style={{margin:0}}>ðŸ”” Notificaciones</div>
+            <div className="card-title" style={{margin:0}}>🔔 Notificaciones</div>
             <button className="btn btn-ghost btn-sm" onClick={() => onClearNotifications?.()}>Limpiar todas</button>
           </div>
           {notifList.map((notification) => (
             <div key={notification.id} className="notif" style={{background:"rgba(96,165,250,.08)",borderColor:"rgba(96,165,250,.28)",justifyContent:"space-between"}}>
               <div className="flex ic g3r" style={{alignItems:"flex-start"}}>
-                <span style={{fontSize:18}}>ðŸ“£</span>
+                <span style={{fontSize:18}}>📣</span>
                 <div>
-                  <div style={{fontWeight:700,fontSize:13}}>{notification.title || "ActualizaciÃ³n"}</div>
+                  <div style={{fontWeight:700,fontSize:13}}>{notification.title || "Actualización"}</div>
                   <div style={{fontSize:12,color:"var(--mu2)"}}>{notification.message}</div>
                 </div>
               </div>
@@ -5441,11 +5408,11 @@ function AthleteHoy({
       <div className="g2 mb4">
         {visibleToday.am.length > 0 ? (
           <div className="today-session">
-            <div className="big-time">ðŸŒ… MaÃ±ana â€” AM</div>
+            <div className="big-time">🌅 Mañana — AM</div>
             {visibleToday.am.map((session, index) => (
               <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 12}}>
                 <div className="today-training" style={{fontSize:index === 0 ? 28 : 22}}>{session.name}</div>
-                <span className={`badge ${index === 0 ? "b-or" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} Â· {getTargetLabel(session)}</span>
+                <span className={`badge ${index === 0 ? "b-or" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {getTargetLabel(session)}</span>
               </div>
             ))}
             <button
@@ -5453,24 +5420,24 @@ function AthleteHoy({
               style={{width:"100%"}}
               onClick={() => toggleSlot("am")}
             >
-              {completion.amDone ? "âœ“ AM completado" : "Marcar AM como completado"}
+              {completion.amDone ? "✓ AM completado" : "Marcar AM como completado"}
             </button>
           </div>
         ) : (
           <div className="card" style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:120}}>
             <span style={{color:"var(--mu)",fontSize:14}}>
-              {!isWeekPublished ? "La semana aÃºn no estÃ¡ publicada" : hasAnyAssignedToday ? "No hay sesiÃ³n AM para tus grupos" : "Sin sesiÃ³n de maÃ±ana"}
+              {!isWeekPublished ? "La semana aún no está publicada" : hasAnyAssignedToday ? "No hay sesión AM para tus grupos" : "Sin sesión de mañana"}
             </span>
           </div>
         )}
 
         {visibleToday.pm.length > 0 ? (
           <div className="today-pm">
-            <div className="big-time blue">ðŸŒ† Tarde â€” PM</div>
+            <div className="big-time blue">🌆 Tarde — PM</div>
             {visibleToday.pm.map((session, index) => (
               <div key={session.id || `${session.name}_${index}`} style={{marginTop:index === 0 ? 0 : 12}}>
                 <div className="today-training" style={{fontSize:index === 0 ? 28 : 22}}>{session.name}</div>
-                <span className={`badge ${index === 0 ? "b-bl" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} Â· {getTargetLabel(session)}</span>
+                <span className={`badge ${index === 0 ? "b-bl" : "b-ya"}`}>{index === 0 ? "Principal" : "Extra"} · {getTargetLabel(session)}</span>
               </div>
             ))}
             <button
@@ -5478,13 +5445,13 @@ function AthleteHoy({
               style={{width:"100%"}}
               onClick={() => toggleSlot("pm")}
             >
-              {completion.pmDone ? "âœ“ PM completado" : "Marcar PM como completado"}
+              {completion.pmDone ? "✓ PM completado" : "Marcar PM como completado"}
             </button>
           </div>
         ) : (
           <div className="card" style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:120}}>
             <span style={{color:"var(--mu)",fontSize:14}}>
-              {!isWeekPublished ? "La semana aÃºn no estÃ¡ publicada" : hasAnyAssignedToday ? "No hay sesiÃ³n PM para tus grupos" : "Sin sesiÃ³n de tarde"}
+              {!isWeekPublished ? "La semana aún no está publicada" : hasAnyAssignedToday ? "No hay sesión PM para tus grupos" : "Sin sesión de tarde"}
             </span>
           </div>
         )}
@@ -5494,8 +5461,8 @@ function AthleteHoy({
         <div className="card mb4">
           <div className="flex ic jb">
             <div>
-              <div className="card-title" style={{margin:0}}>ðŸ‹ï¸ Gym hoy</div>
-              <div className="text-mu text-sm">{gymResolved?.name || "Rutina"} Â· {groupLabel(gymResolved?.targetGroup || rawTodayPlan.gymTargetGroup || "all")}</div>
+              <div className="card-title" style={{margin:0}}>🏋️ Gym hoy</div>
+              <div className="text-mu text-sm">{gymResolved?.name || "Rutina"} · {groupLabel(gymResolved?.targetGroup || rawTodayPlan.gymTargetGroup || "all")}</div>
             </div>
             <div className="flex ic g2r">
               <span className={`badge ${completion.gymDone ? "b-gr" : "b-re"}`}>{completion.gymDone ? "Gym hecho" : "Gym pendiente"}</span>
@@ -5509,7 +5476,7 @@ function AthleteHoy({
             style={{width:"100%"}}
             onClick={() => toggleSlot("gym")}
           >
-            {completion.gymDone ? "âœ“ Gym completado" : "Marcar Gym como completado"}
+            {completion.gymDone ? "✓ Gym completado" : "Marcar Gym como completado"}
           </button>
           {showGym && (
             <div className="mt4">
@@ -5540,7 +5507,7 @@ function AthleteHoy({
                         <div className="ex-lbl">kg</div>
                       </div>
                     ) : (
-                      <div style={{textAlign:"center",color:"var(--mu)",fontSize:12}}>â€”</div>
+                      <div style={{textAlign:"center",color:"var(--mu)",fontSize:12}}>—</div>
                     )}
                     <div>
                       {exType === "weight" && <span className="badge b-or">{ex.pct}% 1RM</span>}
@@ -5557,16 +5524,16 @@ function AthleteHoy({
 
       {!visibleToday.am.length && !visibleToday.pm.length && (
         <div className="card mb4" style={{textAlign:"center",padding:40}}>
-          <div style={{fontSize:48,marginBottom:12}}>ðŸ˜´</div>
+          <div style={{fontSize:48,marginBottom:12}}>😴</div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:800}}>
-            {!isWeekPublished ? "SEMANA NO PUBLICADA" : hasAnyAssignedToday ? "SIN PLAN ASIGNADO" : "DÃA DE DESCANSO"}
+            {!isWeekPublished ? "SEMANA NO PUBLICADA" : hasAnyAssignedToday ? "SIN PLAN ASIGNADO" : "DÍA DE DESCANSO"}
           </div>
           <div style={{color:"var(--mu)",marginTop:8}}>
             {!isWeekPublished
-              ? "El entrenador todavÃ­a no ha publicado la semana."
+              ? "El entrenador todavía no ha publicado la semana."
               : hasAnyAssignedToday
                 ? "Hoy hay trabajo para otros grupos, pero no para los tuyos."
-                : "Recarga energÃ­as para maÃ±ana."}
+                : "Recarga energías para mañana."}
           </div>
         </div>
       )}
@@ -5574,12 +5541,12 @@ function AthleteHoy({
   );
 }
 
-// â”€â”€â”€ ATHLETE: MI SEMANA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ATHLETE: MI SEMANA ───────────────────────────────────────────────────────
 function AthleteSemana({ week, routines, user, customExercises, exerciseImages, isWeekPublished }) {
   const [gymDay, setGymDay] = useState(null);
   const todayI = todayIdx();
   const userGroups = getAthleteGroups(user);
-  const userGroupsLabel = userGroups.join(" Â· ");
+  const userGroupsLabel = userGroups.join(" · ");
 
   const gymForDay = (i) => getDayGymExercisesForAthlete(week.days[i], routines, user, customExercises, exerciseImages);
 
@@ -5587,7 +5554,7 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
     <div>
       <div className="ph">
         <div className="ph-title">MI <span>SEMANA</span></div>
-        <div className="ph-sub">Plan completo Â· Semana {week.type} Â· Grupos {userGroupsLabel}</div>
+        <div className="ph-sub">Plan completo · Semana {week.type} · Grupos {userGroupsLabel}</div>
       </div>
 
       <div className="wt-banner">
@@ -5616,12 +5583,12 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
                 {isWeekPublished && !visiblePlan.hasContent && (
                   <div style={{fontSize:11,color:"var(--mu)",textAlign:"center",padding:"8px 0"}}>{hasAssignedForOthers ? "No asignado a tus grupos" : "Descanso"}</div>
                 )}
-                {visiblePlan.am.map((session, index) => <div key={session.id || `${session.name}_${index}`} className="session"><div className="sess-lbl">{index === 0 ? "ðŸŒ… AM" : "âž• Extra AM"}</div><div className="sess-txt">{session.name}</div></div>)}
-                {visiblePlan.pm.map((session, index) => <div key={session.id || `${session.name}_${index}`} className="session pm"><div className="sess-lbl">{index === 0 ? "ðŸŒ† PM" : "âž• Extra PM"}</div><div className="sess-txt">{session.name}</div></div>)}
+                {visiblePlan.am.map((session, index) => <div key={session.id || `${session.name}_${index}`} className="session"><div className="sess-lbl">{index === 0 ? "🌅 AM" : "➕ Extra AM"}</div><div className="sess-txt">{session.name}</div></div>)}
+                {visiblePlan.pm.map((session, index) => <div key={session.id || `${session.name}_${index}`} className="session pm"><div className="sess-lbl">{index === 0 ? "🌆 PM" : "➕ Extra PM"}</div><div className="sess-txt">{session.name}</div></div>)}
                 {visiblePlan.gym && (
                   <div className="session gym" onClick={()=>setGymDay(gymDay===i?null:i)}>
-                    <div className="sess-lbl">ðŸ‹ï¸ GYM</div>
-                    <div className="sess-txt">{gymResolved?.name || "Rutina"} Â· {gymCount} ejercicios Â· ver â†’</div>
+                    <div className="sess-lbl">🏋️ GYM</div>
+                    <div className="sess-txt">{gymResolved?.name || "Rutina"} · {gymCount} ejercicios · ver →</div>
                   </div>
                 )}
               </div>
@@ -5639,8 +5606,8 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
                           <div style={{flex:1}}>
                             <div style={{fontSize:12,fontWeight:700}}>{ex.name}</div>
                             {exType==="time_reps"
-                              ? <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets} Ã— {ex.reps} Ã— {formatExDuration(ex.duration)}</div>
-                              : <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets}Ã—{ex.reps}{exType==="weight"?` â€” ${ex.pct}%`:""}</div>}
+                              ? <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets} × {ex.reps} × {formatExDuration(ex.duration)}</div>
+                              : <div style={{fontSize:10,color:"var(--mu)"}}>{ex.sets}×{ex.reps}{exType==="weight"?` — ${ex.pct}%`:""}</div>}
                           </div>
                           {exType==="weight" && ex.kg
                             ? <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:900,color:"var(--or)"}}>{ex.kg}kg</div>
@@ -5661,7 +5628,7 @@ function AthleteSemana({ week, routines, user, customExercises, exerciseImages, 
   );
 }
 
-// â”€â”€â”€ ATHLETE: MI GYM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ATHLETE: MI GYM ─────────────────────────────────────────────────────────
 function AthleteGym({ user, routines, week, customExercises, exerciseImages, isWeekPublished }) {
   const userGroups = getAthleteGroups(user);
   const allDays = week.days
@@ -5680,19 +5647,19 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
     <div>
       <div className="ph">
         <div className="ph-title">MI <span>GYM</span></div>
-        <div className="ph-sub">Rutinas inline publicadas para tus grupos Â· pesos calculados segÃºn tu 1RM</div>
+        <div className="ph-sub">Rutinas inline publicadas para tus grupos · pesos calculados según tu 1RM</div>
       </div>
 
       {!isWeekPublished && (
         <div className="card mb4" style={{textAlign:"center",padding:40,color:"var(--mu)"}}>
-          La semana todavÃ­a no estÃ¡ publicada.
+          La semana todavía no está publicada.
         </div>
       )}
 
       {isWeekPublished && <div className="flex ic g2r mb4" style={{flexWrap:"wrap"}}>
         {allDays.map(d=>(
           <button key={d.i} className={`btn ${selectedDay===d.i?"btn-or":"btn-ghost"}`} onClick={()=>setSelectedDay(d.i)}>
-            {DAYS_SHORT[d.i]} Â· {getDayGymCount(d.day, routines)} ejercicios
+            {DAYS_SHORT[d.i]} · {getDayGymCount(d.day, routines)} ejercicios
           </button>
         ))}
       </div>}
@@ -5703,15 +5670,15 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
         <div className="card mb4">
           <div className="flex ic jb">
             <div>
-              <div className="card-title" style={{margin:0}}>ðŸ‹ï¸ {selectedPlan.name || "Rutina"}</div>
-              <div className="text-mu text-sm">{DAYS_FULL[selectedDay]} Â· {groupLabel(selectedPlan.targetGroup || week.days[selectedDay]?.targetGroup || "all")}</div>
+              <div className="card-title" style={{margin:0}}>🏋️ {selectedPlan.name || "Rutina"}</div>
+              <div className="text-mu text-sm">{DAYS_FULL[selectedDay]} · {groupLabel(selectedPlan.targetGroup || week.days[selectedDay]?.targetGroup || "all")}</div>
             </div>
             <span className="badge b-pu">{focusExercises.length} ejercicios</span>
           </div>
         </div>
       )}
 
-      {isWeekPublished && focusExercises.length === 0 && allDays.length > 0 && <div className="card empty-state-card">No hay gym este dÃ­a</div>}
+      {isWeekPublished && focusExercises.length === 0 && allDays.length > 0 && <div className="card empty-state-card">No hay gym este día</div>}
 
       {isWeekPublished && focusExercises.map(ex => {
         const max = user.maxW?.[ex.id];
@@ -5732,8 +5699,8 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
                 <div style={{fontSize:12,color:"var(--mu2)",marginTop:2}}>{ex.muscles}</div>
                 {exType==="weight" && (
                   max
-                    ? <div style={{fontSize:11,color:"var(--mu)",marginTop:4}}>1RM: {max}kg Â· {ex.pct}%</div>
-                    : <div style={{fontSize:11,color:"var(--re)",marginTop:4}}>âš  Sin peso mÃ¡ximo definido</div>
+                    ? <div style={{fontSize:11,color:"var(--mu)",marginTop:4}}>1RM: {max}kg · {ex.pct}%</div>
+                    : <div style={{fontSize:11,color:"var(--re)",marginTop:4}}>⚠ Sin peso máximo definido</div>
                 )}
                 {exType==="time_reps" && <div style={{fontSize:11,color:"var(--ya)",marginTop:4}}>Tiempo x repeticiones</div>}
                 {exType==="reps"   && <div style={{fontSize:11,color:"var(--bl)",marginTop:4}}>Sin carga externa</div>}
@@ -5760,7 +5727,7 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
                     <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--mu)"}}>kg</div>
                   </>
                 ) : (
-                  <div style={{color:"var(--mu)",fontSize:13}}>â€”</div>
+                  <div style={{color:"var(--mu)",fontSize:13}}>—</div>
                 )}
               </div>
             </div>
@@ -5771,7 +5738,7 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
   );
 }
 
-// â”€â”€â”€ ATHLETE: PERFIL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ATHLETE: PERFIL ─────────────────────────────────────────────────────────
 function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
   const athleteGroups = getAthleteGroups(user);
   const [nameDraft, setNameDraft] = useState(String(user?.name || ""));
@@ -5812,15 +5779,15 @@ function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
     const nextPassword = String(passwordDraft || "").trim();
     const confirmPassword = String(passwordConfirm || "").trim();
     if (nextPassword.length < 4) {
-      setPasswordMsg({ ok:false, text:"La contraseÃ±a debe tener al menos 4 caracteres." });
+      setPasswordMsg({ ok:false, text:"La contraseña debe tener al menos 4 caracteres." });
       return;
     }
     if (nextPassword !== confirmPassword) {
-      setPasswordMsg({ ok:false, text:"Las contraseÃ±as no coinciden." });
+      setPasswordMsg({ ok:false, text:"Las contraseñas no coinciden." });
       return;
     }
     onUpdatePassword?.(nextPassword);
-    setPasswordMsg({ ok:true, text:"ContraseÃ±a actualizada." });
+    setPasswordMsg({ ok:true, text:"Contraseña actualizada." });
     setPasswordDraft("");
     setPasswordConfirm("");
   };
@@ -5873,28 +5840,28 @@ function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
           <div className="profile-group-panel mt3">
             <div className="profile-password-grid">
               <div className="form-group" style={{marginBottom:0}}>
-                <label className="form-label">Nueva contraseÃ±a</label>
+                <label className="form-label">Nueva contraseña</label>
                 <input
                   type="password"
                   className="input"
                   value={passwordDraft}
                   onChange={(e) => setPasswordDraft(e.target.value)}
-                  placeholder="MÃ­nimo 4 caracteres"
+                  placeholder="Mínimo 4 caracteres"
                 />
               </div>
               <div className="form-group" style={{marginBottom:0}}>
-                <label className="form-label">Confirmar contraseÃ±a</label>
+                <label className="form-label">Confirmar contraseña</label>
                 <input
                   type="password"
                   className="input"
                   value={passwordConfirm}
                   onChange={(e) => setPasswordConfirm(e.target.value)}
-                  placeholder="Repite la contraseÃ±a"
+                  placeholder="Repite la contraseña"
                 />
               </div>
             </div>
             <div className="flex ic jb mt3" style={{flexWrap:"wrap",gap:8}}>
-              <button className="btn btn-or btn-sm" onClick={savePassword}>Guardar contraseÃ±a</button>
+              <button className="btn btn-or btn-sm" onClick={savePassword}>Guardar contraseña</button>
             </div>
             {passwordMsg && (
               <div className="text-sm mt3" style={{color: passwordMsg.ok ? "var(--gr)" : "var(--re)"}}>
@@ -5905,7 +5872,7 @@ function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
         </div>
 
         <div className="card profile-max-card">
-          <div className="card-title">âš–ï¸ Mis mÃ¡ximos</div>
+          <div className="card-title">⚖️ Mis máximos</div>
           <div className="text-sm text-mu mb4">Solo el entrenador puede modificar los pesos.</div>
           <div className="max-list">
             {maxEntries.map((exercise) => (
@@ -5920,7 +5887,7 @@ function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
                     <span className="max-unit">kg</span>
                   </div>
                 ) : (
-                  <div className="max-value max-empty">â€”</div>
+                  <div className="max-value max-empty">—</div>
                 )}
               </div>
             ))}
@@ -5931,7 +5898,7 @@ function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
   );
 }
 
-// â”€â”€â”€ ATHLETE: CALENDARIO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ATHLETE: CALENDARIO ─────────────────────────────────────────────────────
 function AthleteCalendario({
   user,
   week,
@@ -5984,7 +5951,7 @@ function AthleteCalendario({
     onAddCompetition({
       id: `comp_${competitionDate}_${Date.now()}`,
       dateIso: competitionDate,
-      name: competitionName.trim() || "CompeticiÃ³n",
+      name: competitionName.trim() || "Competición",
     });
     setCompetitionDate("");
     setCompetitionName("");
@@ -6018,7 +5985,7 @@ function AthleteCalendario({
       <div className="athlete-cal-grid">
         <div className="athlete-cal-left">
           <div className="card mb3">
-            <div className="card-title">ðŸ Competiciones</div>
+            <div className="card-title">🏁 Competiciones</div>
             <div className="athlete-comp-form mb3">
               <div className="form-group" style={{margin:0}}>
                 <label className="form-label">Fecha</label>
@@ -6028,11 +5995,11 @@ function AthleteCalendario({
                 <label className="form-label">Nombre (opcional)</label>
                 <input className="input" value={competitionName} onChange={(e) => setCompetitionName(e.target.value)} placeholder="Control 1500m, Campeonato..." />
               </div>
-              <button className="btn btn-or" style={{height:42,whiteSpace:"nowrap"}} onClick={handleAddCompetition}>+ AÃ±adir</button>
+              <button className="btn btn-or" style={{height:42,whiteSpace:"nowrap"}} onClick={handleAddCompetition}>+ Añadir</button>
             </div>
             <div className="divider" style={{margin:"10px 0"}} />
             <div className="athlete-comp-list">
-              {(competitions || []).length === 0 && <div className="text-sm text-mu">No hay competiciones aÃ±adidas.</div>}
+              {(competitions || []).length === 0 && <div className="text-sm text-mu">No hay competiciones añadidas.</div>}
               {(competitions || []).map((competition) => (
                 <div key={competition.id} className="flex ic jb mb3">
                   <div>
@@ -6047,9 +6014,9 @@ function AthleteCalendario({
 
           <div className="card athlete-cal-month">
             <div className="flex ic jb mb4">
-              <button className="week-nav-btn" onClick={()=>goMonth(-1)}>â† Ant.</button>
+              <button className="week-nav-btn" onClick={()=>goMonth(-1)}>← Ant.</button>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:20,fontWeight:700}}>{monthNames[viewMonth]} {viewYear}</div>
-              <button className="week-nav-btn" onClick={()=>goMonth(1)}>Sig. â†’</button>
+              <button className="week-nav-btn" onClick={()=>goMonth(1)}>Sig. →</button>
             </div>
 
             <div className="cal-grid" style={{marginBottom:6}}>
@@ -6089,7 +6056,7 @@ function AthleteCalendario({
                     {hasTrain && completion.status === "partial" && <span className="cal-dot" style={{background:"var(--or)"}} title="Completado parcial" />}
                     {hasTrain && completion.status === "none" && <span className="cal-dot" style={{background:"var(--re)"}} title="Sin completar" />}
                     {week.days[dow]?.gym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
-                    {isCompetitionDay && <span className="cal-dot" style={{background:"#c084fc"}} title="CompeticiÃ³n" />}
+                    {isCompetitionDay && <span className="cal-dot" style={{background:"#c084fc"}} title="Competición" />}
                   </div>
                 );
               })}
@@ -6097,11 +6064,11 @@ function AthleteCalendario({
 
             <div className="divider" style={{margin:"12px 0"}} />
             <div className="flex ic g4r athlete-cal-legend" style={{flexWrap:"wrap"}}>
-              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--gr)"}} /> DÃ­a completo</div>
-              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> DÃ­a parcial</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--gr)"}} /> Día completo</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> Día parcial</div>
               <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--re)"}} /> Sin completar</div>
-              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--mu2)"}} /> DÃ­a futuro</div>
-              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"#c084fc"}} /> CompeticiÃ³n</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--mu2)"}} /> Día futuro</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"#c084fc"}} /> Competición</div>
             </div>
           </div>
         </div>
@@ -6109,8 +6076,8 @@ function AthleteCalendario({
         <div className="athlete-cal-right">
           {!selected && (
             <div className="card athlete-cal-placeholder" style={{textAlign:"center"}}>
-              <div style={{fontSize:36,marginBottom:12}}>ðŸ“…</div>
-              <div style={{color:"var(--mu)",fontSize:14}}>Selecciona un dÃ­a para ver el detalle</div>
+              <div style={{fontSize:36,marginBottom:12}}>📅</div>
+              <div style={{color:"var(--mu)",fontSize:14}}>Selecciona un día para ver el detalle</div>
             </div>
           )}
 
@@ -6132,12 +6099,12 @@ function AthleteCalendario({
                       </span>
                     )}
                   </div>
-                  <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)}>âœ•</button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)}>✕</button>
                 </div>
 
                 {info.competitions.length > 0 && (
                   <div className="card card-sm mb3" style={{background:"rgba(167,139,250,.12)",borderColor:"rgba(167,139,250,.35)"}}>
-                    <div className="fw7 mb3">ðŸ Competiciones del dÃ­a</div>
+                    <div className="fw7 mb3">🏁 Competiciones del día</div>
                     {info.competitions.map((competition) => (
                       <div key={competition.id} className="text-sm" style={{fontWeight:700}}>{competition.name}</div>
                     ))}
@@ -6147,7 +6114,7 @@ function AthleteCalendario({
                 {isWeekPublished && info.visiblePlan?.am?.length > 0 && (
                   <div className="mb3">
                     <div className="flex ic jb">
-                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--or)",fontWeight:700,marginBottom:4}}>ðŸŒ… MaÃ±ana AM</div>
+                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--or)",fontWeight:700,marginBottom:4}}>🌅 Mañana AM</div>
                       <span className={`badge ${info.completion.amDone ? "b-gr" : "b-re"}`}>{info.completion.amDone ? "Hecho" : "Pendiente"}</span>
                     </div>
                     {info.visiblePlan.am.map((session, index) => (
@@ -6168,7 +6135,7 @@ function AthleteCalendario({
                 {isWeekPublished && info.visiblePlan?.pm?.length > 0 && (
                   <div className="mb3">
                     <div className="flex ic jb">
-                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--bl)",fontWeight:700,marginBottom:4}}>ðŸŒ† Tarde PM</div>
+                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--bl)",fontWeight:700,marginBottom:4}}>🌆 Tarde PM</div>
                       <span className={`badge ${info.completion.pmDone ? "b-gr" : "b-re"}`}>{info.completion.pmDone ? "Hecho" : "Pendiente"}</span>
                     </div>
                     {info.visiblePlan.pm.map((session, index) => (
@@ -6189,21 +6156,21 @@ function AthleteCalendario({
                 {isWeekPublished && info.visiblePlan?.gym && (
                   <div className="mb3">
                     <div className="flex ic jb">
-                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--pu)",fontWeight:700,marginBottom:4}}>ðŸ‹ï¸ Gym</div>
+                      <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--pu)",fontWeight:700,marginBottom:4}}>🏋️ Gym</div>
                       <span className={`badge ${info.completion.gymDone ? "b-gr" : "b-re"}`}>{info.completion.gymDone ? "Hecho" : "Pendiente"}</span>
                     </div>
                   </div>
                 )}
                 {(!isWeekPublished || (!info.visiblePlan?.am?.length && !info.visiblePlan?.pm?.length && !info.visiblePlan?.gym)) && (
                   <div style={{color:"var(--mu)",fontSize:14}}>
-                    {!isWeekPublished ? "La semana todavÃ­a no estÃ¡ publicada." : "Sin plan asignado a tus grupos para este dÃ­a."}
+                    {!isWeekPublished ? "La semana todavía no está publicada." : "Sin plan asignado a tus grupos para este día."}
                   </div>
                 )}
               </div>
 
               {info.gymExs.length > 0 && (
                 <div className="card">
-                  <div className="card-title" style={{marginBottom:12}}>ðŸ‹ï¸ {info.gymPlan?.name || "Rutina gym"}</div>
+                  <div className="card-title" style={{marginBottom:12}}>🏋️ {info.gymPlan?.name || "Rutina gym"}</div>
                   {info.gymExs.map(ex => {
                     const imgSrc = ex.imageUrl;
                     const exType = normalizeExerciseType(ex.type || "weight");
@@ -6217,8 +6184,8 @@ function AthleteCalendario({
                           <div style={{fontSize:11,color:"var(--mu)"}}>{ex.muscles}</div>
                           <div style={{fontSize:11,color:"var(--mu2)",marginTop:2}}>
                             {exType==="time_reps"
-                              ? `${ex.sets} Ã— ${ex.reps} Ã— ${formatExDuration(ex.duration)}`
-                              : `${ex.sets} Ã— ${ex.reps} reps`}
+                              ? `${ex.sets} × ${ex.reps} × ${formatExDuration(ex.duration)}`
+                              : `${ex.sets} × ${ex.reps} reps`}
                           </div>
                         </div>
                         {exType==="weight" && ex.kg && (
@@ -6237,7 +6204,7 @@ function AthleteCalendario({
   );
 }
 
-// â”€â”€â”€ MAIN APP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function TrackFlow() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -6264,7 +6231,6 @@ export default function TrackFlow() {
   const [seedMeta, setSeedMeta] = useState(null);
   const [customExercises, setCustomExercises] = useState([]);
   const [exerciseImages, setExerciseImages] = useState({});
-  const [syncStatus, setSyncStatus] = useState(() => getStorageSyncSnapshot());
   const week = normalizeWeek(
     ensureWeekInPlans(weekPlansByNumber, activeWeekNumber, routines, seasonAnchorDate),
     routines
@@ -6280,29 +6246,6 @@ export default function TrackFlow() {
       };
     });
   }, [activeWeekNumber, routines, seasonAnchorDate]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const handleSyncStatus = (event) => {
-      if (event?.detail && typeof event.detail === "object") {
-        setSyncStatus(event.detail);
-        return;
-      }
-      setSyncStatus(getStorageSyncSnapshot());
-    };
-    const handleConnectivity = () => {
-      setSyncStatus(getStorageSyncSnapshot());
-    };
-    window.addEventListener("trackflow:sync-status", handleSyncStatus);
-    window.addEventListener("online", handleConnectivity);
-    window.addEventListener("offline", handleConnectivity);
-    handleConnectivity();
-    return () => {
-      window.removeEventListener("trackflow:sync-status", handleSyncStatus);
-      window.removeEventListener("online", handleConnectivity);
-      window.removeEventListener("offline", handleConnectivity);
-    };
-  }, []);
 
   // Load persisted session
   useEffect(() => {
@@ -6543,26 +6486,26 @@ export default function TrackFlow() {
   const handleLogin = async (u, authMeta = null) => {
     if (u?.role === "coach") {
       const fallbackEmail = String(authMeta?.coachLoginInput || "").trim();
-      const configuredAdminEmail = String(import.meta.env.VITE_SUPABASE_ADMIN_EMAIL || "").trim();
+      const configuredAdminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || "").trim();
       const adminEmail = configuredAdminEmail || fallbackEmail || String(COACH?.name || "").trim();
-      const authResult = await signInSupabaseAdmin({
+      const authResult = await signInStorageSession({
         email: adminEmail,
         password: String(authMeta?.coachPassword || ""),
       });
       if (!authResult?.ok) {
-        return { ok:false, error: authResult?.error || "No se pudo validar la sesiÃ³n del entrenador." };
+        return { ok:false, error: authResult?.error || "No se pudo validar la sesión del entrenador." };
       }
     } else if (u?.role === "athlete") {
-      const authResult = await signInSupabaseAdmin({
+      const authResult = await signInStorageSession({
         email: String(authMeta?.athleteLoginInput || u?.name || "").trim(),
         password: String(authMeta?.athletePassword || u?.password || ""),
         role: "athlete",
       });
       if (!authResult?.ok) {
-        return { ok:false, error: authResult?.error || "No se pudo validar la sesiÃ³n del atleta." };
+        return { ok:false, error: authResult?.error || "No se pudo validar la sesión del atleta." };
       }
     } else {
-      return { ok:false, error: "Rol de usuario no vÃ¡lido." };
+      return { ok:false, error: "Rol de usuario no válido." };
     }
     setUser(u);
     setPage(u.role === "coach" ? "semana" : "hoy");
@@ -6607,7 +6550,7 @@ export default function TrackFlow() {
         if (!isTargeted) return;
         const entry = {
           id: `notif_${athlete.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          title: payload?.title || "ActualizaciÃ³n",
+          title: payload?.title || "Actualización",
           message: payload?.message || "",
           weekNumber: payload?.weekNumber != null ? Number(payload.weekNumber) : null,
           createdAt,
@@ -6629,8 +6572,8 @@ export default function TrackFlow() {
     pushAthleteNotifications(targets, {
       title: isUpdate ? `Semana ${safeWeekNumber} modificada` : `Semana ${safeWeekNumber} publicada`,
       message: isUpdate
-        ? "Se ha actualizado tu plan semanal (grupo o asignaciÃ³n directa)."
-        : "Tu nueva semana ya estÃ¡ publicada y disponible en calendario.",
+        ? "Se ha actualizado tu plan semanal (grupo o asignación directa)."
+        : "Tu nueva semana ya está publicada y disponible en calendario.",
       weekNumber: safeWeekNumber,
     });
   };
@@ -6742,7 +6685,7 @@ export default function TrackFlow() {
     });
   };
   const handleUpdateAthleteName = (athleteId, nextName) => {
-    if (!athleteId) return { ok:false, error:"Atleta no vÃ¡lido." };
+    if (!athleteId) return { ok:false, error:"Atleta no válido." };
     const safeName = String(nextName || "").trim();
     if (safeName.length < 2) return { ok:false, error:"El nombre debe tener al menos 2 caracteres." };
     const normalized = safeName.toLowerCase();
@@ -6838,8 +6781,8 @@ export default function TrackFlow() {
         dateIso: todayIso,
         dateLabel: now.toLocaleDateString("es-ES",{weekday:"short",day:"2-digit",month:"short",year:"numeric"}),
         time: now.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}),
-        am: (visibleToday.am || []).map((session) => session.name).join(" Â· "),
-        pm: (visibleToday.pm || []).map((session) => session.name).join(" Â· "),
+        am: (visibleToday.am || []).map((session) => session.name).join(" · "),
+        pm: (visibleToday.pm || []).map((session) => session.name).join(" · "),
         gym: !!visibleToday.gym,
         amDone,
         pmDone,
@@ -6921,9 +6864,6 @@ export default function TrackFlow() {
         notifCount={isCoach ? notifications.length : athleteNotifications.length}
       />
       <div className={mainAreaClass}>
-        <div className="global-sync-status">
-          <SyncStatusPill syncStatus={syncStatus} />
-        </div>
         <div className={pageShellClass}>
           {renderPage()}
         </div>

@@ -12,17 +12,33 @@ function requireJogatinaEnabled(res) {
   return false;
 }
 
-function requireAthleteAuth(req, res) {
+function resolveAthleteAuth(req, res) {
   const auth = req.context?.auth || null;
-  if (!auth?.userId) {
-    res.status(401).json({ ok: false, error: 'Sesion requerida.' });
+  if (auth?.userId) {
+    if (String(auth.role || '').trim() !== 'athlete' || !String(auth.athleteId || '').trim()) {
+      res.status(403).json({ ok: false, error: 'Solo atletas autenticados pueden usar Jogatina.' });
+      return null;
+    }
+    return auth;
+  }
+
+  const fallbackAthleteId = String(
+    req.headers?.['x-jogatina-athlete-id']
+    || req.query?.athleteId
+    || req.body?.athleteId
+    || ''
+  ).trim();
+  if (!fallbackAthleteId) {
+    res.status(401).json({ ok: false, error: 'Debes iniciar sesion o enviar athleteId para usar Jogatina.' });
     return null;
   }
-  if (String(auth.role || '').trim() !== 'athlete' || !String(auth.athleteId || '').trim()) {
-    res.status(403).json({ ok: false, error: 'Solo atletas autenticados pueden usar Jogatina.' });
-    return null;
-  }
-  return auth;
+  const fallbackCoachId = String(req.context?.coachId || config.defaultCoachId).trim() || config.defaultCoachId;
+  return {
+    userId: `jogatina_open:${fallbackAthleteId}`,
+    role: 'athlete',
+    athleteId: fallbackAthleteId,
+    coachId: fallbackCoachId,
+  };
 }
 
 function assertCronAuth(req, res) {
@@ -52,7 +68,7 @@ export default function createJogatinaRouter() {
   router.get('/state', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const state = await service.getState(auth);
       return res.json({ ok: true, state });
@@ -64,7 +80,7 @@ export default function createJogatinaRouter() {
   router.post('/groups', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const result = await service.createGroup(auth, req.body || {});
       return res.status(201).json({ ok: true, result });
@@ -76,7 +92,7 @@ export default function createJogatinaRouter() {
   router.post('/groups/join', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const result = await service.joinGroup(auth, req.body || {});
       return res.json({ ok: true, result });
@@ -88,7 +104,7 @@ export default function createJogatinaRouter() {
   router.post('/groups/leave', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const result = await service.leaveGroup(auth);
       return res.json({ ok: true, result });
@@ -100,7 +116,7 @@ export default function createJogatinaRouter() {
   router.patch('/groups/me', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const result = await service.updateMyGroup(auth, req.body || {});
       return res.json({ ok: true, result });
@@ -112,7 +128,7 @@ export default function createJogatinaRouter() {
   router.post('/bets', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const result = await service.createBet(auth, req.body || {});
       return res.status(201).json({ ok: true, result });
@@ -124,7 +140,7 @@ export default function createJogatinaRouter() {
   router.put('/bets/:betId/wager', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const result = await service.upsertWager(auth, req.params?.betId, req.body || {});
       return res.json({ ok: true, result });
@@ -136,7 +152,7 @@ export default function createJogatinaRouter() {
   router.post('/bets/:betId/resolve', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
       const result = await service.resolveBet(auth, req.params?.betId, req.body || {});
       return res.json({ ok: true, result });
@@ -148,7 +164,7 @@ export default function createJogatinaRouter() {
   router.get('/stream', async (req, res, next) => {
     try {
       if (!requireJogatinaEnabled(res)) return;
-      const auth = requireAthleteAuth(req, res);
+      const auth = resolveAthleteAuth(req, res);
       if (!auth) return;
 
       const state = await service.getState(auth);

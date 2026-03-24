@@ -7,7 +7,7 @@ TrackFlow es una app React (Vite) + API Express con persistencia en **MongoDB** 
 - Frontend: `frontend/` (React + Vite)
 - Backend/API: `server/` (Express)
 - Deploy: Vercel (`frontend` estatico + `/api/*` serverless)
-- Persistencia activa: `STORAGE_PROVIDER=mongo`
+- Persistencia activa: MongoDB
 - Compatibilidad UI actual: se mantiene contrato `tf_*` via `state_cache`
 
 ## Arquitectura de datos (Mongo)
@@ -83,9 +83,8 @@ Detalles:
 ### Minimas para Mongo (server)
 
 ```bash
-STORAGE_PROVIDER=mongo
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
-MONGODB_DB=trackflow
+MONGODB_DB=track-flow-db
 DEFAULT_COACH_ID=coach_default
 APP_TIMEZONE=Europe/Madrid
 ```
@@ -111,7 +110,7 @@ VITE_STORAGE_SYNC_LIMIT=200
 
 ## Migracion unica a Mongo (cutover)
 
-1. Verificar variables (`MONGODB_URI`, `MONGODB_DB`, `STORAGE_PROVIDER=mongo`).
+1. Verificar variables (`MONGODB_URI`, `MONGODB_DB`).
 2. Dry run:
 
 ```bash
@@ -152,7 +151,6 @@ npm run build --workspace frontend
 
 1. Importar repo.
 2. Definir env vars:
-   - `STORAGE_PROVIDER=mongo`
    - `MONGODB_URI`
    - `MONGODB_DB`
    - `DEFAULT_COACH_ID`
@@ -166,4 +164,3 @@ npm run build --workspace frontend
 - La UI actual sigue leyendo/escribiendo `tf_*`.
 - No hace falta reescribir pantallas para activar Mongo.
 - `VITE_STORAGE_MODE` ahora usa `api` por defecto (Mongo).
-- `supabase` queda solo como modo legacy/manual.

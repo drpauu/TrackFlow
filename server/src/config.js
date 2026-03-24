@@ -11,7 +11,6 @@ dotenv.config({ path: path.resolve(serverRoot, '..', '.env') });
 export const config = {
   port: Number(process.env.PORT || 8787),
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  storageProvider: (process.env.STORAGE_PROVIDER || 'local').trim().toLowerCase(),
   defaultCoachId: String(process.env.DEFAULT_COACH_ID || 'coach_default').trim() || 'coach_default',
   appTimezone: String(process.env.APP_TIMEZONE || 'Europe/Madrid').trim() || 'Europe/Madrid',
   dataDir: path.resolve(serverRoot, process.env.DATA_DIR || './data'),
@@ -21,7 +20,7 @@ export const config = {
   appStorageSeedFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'seeds', 'app_storage.seed.json'),
   usersCsvSeedFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'seeds', 'users.seed.csv'),
   mongoUri: String(process.env.MONGODB_URI || '').trim(),
-  mongoDbName: String(process.env.MONGODB_DB || 'trackflow').trim() || 'trackflow',
+  mongoDbName: String(process.env.MONGODB_DB || 'track-flow-db').trim() || 'track-flow-db',
   mongoRequireAuth: String(process.env.MONGO_REQUIRE_AUTH || 'false').trim().toLowerCase() === 'true',
   authJwtSecret: String(process.env.AUTH_JWT_SECRET || '').trim(),
   authJwtTtlSec: Number(process.env.AUTH_JWT_TTL_SEC || 60 * 60 * 24 * 14),
@@ -31,12 +30,5 @@ export const config = {
     || (process.env.NODE_ENV === 'production' ? 'true' : 'false')
   ).trim().toLowerCase() === 'true',
   jogatinaEnabled: String(process.env.JOGATINA_ENABLED || 'true').trim().toLowerCase() === 'true',
-  jogatinaCronSecret: String(process.env.JOGATINA_CRON_SECRET || process.env.CRON_SECRET || '').trim(),
-  supabaseUrl: process.env.SUPABASE_URL || '',
-  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  supabaseSchema: process.env.SUPABASE_SCHEMA || 'public',
-  supabaseKvTable: process.env.SUPABASE_KV_TABLE || 'app_kv',
-  supabaseUsersTable: process.env.SUPABASE_USERS_TABLE || 'users_csv_registry',
-  supabaseChangesTable: process.env.SUPABASE_CHANGES_TABLE || 'app_changes',
-  supabaseRequestTimeoutMs: Number(process.env.SUPABASE_REQUEST_TIMEOUT_MS || 12000)
+  jogatinaCronSecret: String(process.env.JOGATINA_CRON_SECRET || process.env.CRON_SECRET || '').trim()
 };

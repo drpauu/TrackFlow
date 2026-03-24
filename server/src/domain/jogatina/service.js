@@ -315,11 +315,16 @@ async function upsertWalletAbsolute(db, {
     setPayload.lastBetActivityAt = now;
   }
 
+  const setOnInsert = { createdAt: now };
+  if (joinCount == null) {
+    setOnInsert.joinCount = 0;
+  }
+
   await db.collection('jogatina_wallets').updateOne(
     { athleteId: safeAthleteId, seasonKey: safeSeasonKey },
     {
       $set: setPayload,
-      $setOnInsert: { createdAt: now, joinCount: joinCount != null ? Math.max(toPositiveInt(joinCount, 0), 0) : 0 },
+      $setOnInsert: setOnInsert,
     },
     { upsert: true, session }
   );

@@ -357,48 +357,9 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 .mt-label{font-size:10.5px;font-weight:700;letter-spacing:.2px;line-height:1.15;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mobile-notif{position:absolute;top:2px;right:8px;background:var(--or);color:white;border-radius:999px;min-width:16px;height:16px;padding:0 4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}
 
-.global-sync-status{
-  position:sticky;
-  top:4px;
-  z-index:40;
-  display:flex;
-  justify-content:flex-end;
-  margin-bottom:8px;
-  pointer-events:none;
-}
-.sync-pill{
-  pointer-events:auto;
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:7px 11px;
-  border-radius:999px;
-  border:1px solid var(--border2);
-  background:rgba(8,8,17,.88);
-  color:var(--tx);
-  font-size:11px;
-  font-weight:700;
-  letter-spacing:.02em;
-  backdrop-filter:blur(8px);
-}
-.sync-dot{
-  width:8px;
-  height:8px;
-  border-radius:999px;
-  background:var(--mu2);
-  box-shadow:0 0 0 4px rgba(136,136,170,.14);
-}
-.sync-detail{color:var(--mu2);font-weight:600}
-.sync-pill.sync-syncing .sync-dot{background:var(--bl);box-shadow:0 0 0 4px rgba(96,165,250,.2)}
-.sync-pill.sync-synced .sync-dot{background:var(--gr);box-shadow:0 0 0 4px rgba(74,222,128,.2)}
-.sync-pill.sync-queued .sync-dot,.sync-pill.sync-retrying .sync-dot{background:var(--ya);box-shadow:0 0 0 4px rgba(251,191,36,.2)}
-.sync-pill.sync-offline .sync-dot,.sync-pill.sync-readonly .sync-dot{background:var(--mu2);box-shadow:0 0 0 4px rgba(136,136,170,.18)}
-.sync-pill.sync-error .sync-dot{background:var(--re);box-shadow:0 0 0 4px rgba(248,113,113,.2)}
-
 @media (max-width: 1180px){
   .sidebar{display:none}
   .main-area{margin-left:0;max-width:100vw;height:100vh;padding:70px 12px calc(84px + env(safe-area-inset-bottom))}
-  .global-sync-status{top:2px}
   .mobile-topbar{display:flex}
   .mobile-tabbar{display:grid}
   .page-shell,.page-shell-fit,.page-shell-scroll{overflow:auto;-webkit-overflow-scrolling:touch;padding-right:0;padding-bottom:6px}
@@ -946,7 +907,6 @@ textarea:disabled{
     overflow:auto;
     -webkit-overflow-scrolling:touch;
   }
-  .global-sync-status{top:2px;margin-bottom:6px}
   .page-shell,.page-shell-fit,.page-shell-scroll{
     overflow:visible;
     min-height:auto;
@@ -1054,8 +1014,6 @@ textarea:disabled{
     overflow:auto;
     -webkit-overflow-scrolling:touch;
   }
-  .global-sync-status{top:2px;margin-bottom:6px}
-  .sync-pill{width:100%;justify-content:center}
   .page-shell,.page-shell-fit,.page-shell-scroll{
     overflow:visible;
     min-height:auto;

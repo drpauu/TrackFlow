@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { config } from '../../../config.js';
-import { hashPassword } from '../../../security/auth.js';
+import { hashPassword, verifyPassword } from '../../../security/auth.js';
 import { readJsonFile, readTextFile } from '../../../utils/fs.js';
 import {
   USERS_KEY,
@@ -184,6 +184,21 @@ async function syncCoach(db, coachId, rawValue) {
   const coach = parseJsonString(rawValue, null);
   if (!coach || typeof coach !== 'object') return;
   const now = new Date();
+  const plainPassword = String(coach?.password || '150346');
+
+  const existing = await db.collection('users').findOne(
+    { _id: `coach:${coachId}` },
+    { projection: { passwordHash: 1 } }
+  );
+
+  let passwordHash;
+  if (existing?.passwordHash) {
+    const matches = await verifyPassword(plainPassword, existing.passwordHash);
+    passwordHash = matches ? existing.passwordHash : await hashPassword(plainPassword);
+  } else {
+    passwordHash = await hashPassword(plainPassword);
+  }
+
   await db.collection('users').updateOne(
     { _id: `coach:${coachId}` },
     {
@@ -192,7 +207,7 @@ async function syncCoach(db, coachId, rawValue) {
         role: 'coach',
         usernameLower: normalizeGroupName(coach?.name || 'coach'),
         emailLower: String(coach?.email || '').trim().toLowerCase() || null,
-        passwordHash: await hashPassword(String(coach?.password || '150346')),
+        passwordHash,
         isActive: true,
         updatedAt: now,
       },

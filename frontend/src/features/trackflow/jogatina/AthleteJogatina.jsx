@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import './jogatina.css';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const JOGATINA_GUEST_ID_KEY = 'tf_jogatina_guest_id';
+const JOGATINA_GUEST_NAME_KEY = 'tf_jogatina_guest_name';
 
 function apiUrl(path) {
   return `${API_BASE}${path}`;
@@ -40,13 +42,22 @@ function formatDateTime(value) {
   });
 }
 
-async function request(path, { method = 'GET', body = null } = {}) {
+async function request(path, {
+  method = 'GET',
+  body = null,
+  athleteId = '',
+  athleteName = '',
+} = {}) {
+  const safeAthleteId = String(athleteId || '').trim();
+  const safeAthleteName = String(athleteName || '').trim();
   const response = await fetch(apiUrl(path), {
     method,
     credentials: 'include',
     headers: {
       Accept: 'application/json',
       ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(safeAthleteId ? { 'x-jogatina-athlete-id': safeAthleteId } : {}),
+      ...(safeAthleteName ? { 'x-jogatina-athlete-name': safeAthleteName } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -67,7 +78,34 @@ async function request(path, { method = 'GET', body = null } = {}) {
 }
 
 export default function AthleteJogatina({ athlete }) {
-  const athleteId = String(athlete?.id || '').trim();
+  const identity = useMemo(() => {
+    const idFromProps = String(athlete?.id || '').trim();
+    const nameFromProps = String(athlete?.name || '').trim();
+    if (idFromProps) {
+      return {
+        athleteId: idFromProps,
+        athleteName: nameFromProps || 'Atleta',
+      };
+    }
+    if (typeof window === 'undefined') {
+      return { athleteId: 'guest_local', athleteName: 'Invitado' };
+    }
+    let guestId = String(window.localStorage.getItem(JOGATINA_GUEST_ID_KEY) || '').trim();
+    if (!guestId) {
+      const randomPart = window.crypto?.randomUUID?.()
+        || `${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
+      guestId = `guest_${randomPart}`;
+      window.localStorage.setItem(JOGATINA_GUEST_ID_KEY, guestId);
+    }
+    let guestName = String(window.localStorage.getItem(JOGATINA_GUEST_NAME_KEY) || '').trim();
+    if (!guestName) {
+      guestName = 'Invitado';
+      window.localStorage.setItem(JOGATINA_GUEST_NAME_KEY, guestName);
+    }
+    return { athleteId: guestId, athleteName: guestName };
+  }, [athlete?.id, athlete?.name]);
+  const athleteId = identity.athleteId;
+  const athleteName = identity.athleteName;
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,11 +120,17 @@ export default function AthleteJogatina({ athlete }) {
   const [wagerDrafts, setWagerDrafts] = useState({});
   const [resolveDrafts, setResolveDrafts] = useState({});
 
+  const jogatinaRequest = useCallback((path, options = {}) => request(path, {
+    ...options,
+    athleteId,
+    athleteName,
+  }), [athleteId, athleteName]);
+
   const loadState = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const payload = await request('/api/jogatina/state');
+      const payload = await jogatinaRequest('/api/jogatina/state');
       const nextState = payload?.state || null;
       setState(nextState);
       setGroupNameDraft(nextState?.group?.name || '');
@@ -106,7 +150,7 @@ export default function AthleteJogatina({ athlete }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [jogatinaRequest]);
 
   useEffect(() => {
     loadState();
@@ -117,7 +161,12 @@ export default function AthleteJogatina({ athlete }) {
 
     let source = null;
     try {
-      source = new EventSource(apiUrl('/api/jogatina/stream'), { withCredentials: true });
+      const streamParams = new URLSearchParams();
+      if (athleteId) streamParams.set('athleteId', athleteId);
+      source = new EventSource(
+        apiUrl(`/api/jogatina/stream${streamParams.toString() ? `?${streamParams}` : ''}`),
+        { withCredentials: true }
+      );
       source.addEventListener('jogatina_update', () => {
         loadState().catch(() => {});
       });
@@ -128,7 +177,7 @@ export default function AthleteJogatina({ athlete }) {
     return () => {
       if (source) source.close();
     };
-  }, [state, loadState]);
+  }, [state, loadState, athleteId]);
 
   const bets = useMemo(() => state?.bets || [], [state]);
   const ranking = useMemo(() => state?.ranking || [], [state]);
@@ -154,13 +203,13 @@ export default function AthleteJogatina({ athlete }) {
       return;
     }
     runAction(async () => {
-      await request('/api/jogatina/groups', {
+      await jogatinaRequest('/api/jogatina/groups', {
         method: 'POST',
         body: { name },
       });
       setCreateGroupName('');
     });
-  }, [createGroupName, runAction]);
+  }, [createGroupName, runAction, jogatinaRequest]);
 
   const handleJoinGroup = useCallback(() => {
     const code5 = joinCode.replace(/\D/g, '').slice(0, 5);
@@ -169,23 +218,23 @@ export default function AthleteJogatina({ athlete }) {
       return;
     }
     runAction(async () => {
-      await request('/api/jogatina/groups/join', {
+      await jogatinaRequest('/api/jogatina/groups/join', {
         method: 'POST',
         body: { code5 },
       });
       setJoinCode('');
     });
-  }, [joinCode, runAction]);
+  }, [joinCode, runAction, jogatinaRequest]);
 
   const handleLeaveGroup = useCallback(() => {
     runAction(async () => {
-      await request('/api/jogatina/groups/leave', { method: 'POST' });
+      await jogatinaRequest('/api/jogatina/groups/leave', { method: 'POST' });
     });
-  }, [runAction]);
+  }, [runAction, jogatinaRequest]);
 
   const handleSaveGroupSettings = useCallback(() => {
     runAction(async () => {
-      await request('/api/jogatina/groups/me', {
+      await jogatinaRequest('/api/jogatina/groups/me', {
         method: 'PATCH',
         body: {
           name: groupNameDraft.trim(),
@@ -193,7 +242,7 @@ export default function AthleteJogatina({ athlete }) {
         },
       });
     });
-  }, [groupLimitDraft, groupNameDraft, runAction]);
+  }, [groupLimitDraft, groupNameDraft, runAction, jogatinaRequest]);
 
   const handleCreateBet = useCallback(() => {
     const questionText = questionDraft.trim();
@@ -206,7 +255,7 @@ export default function AthleteJogatina({ athlete }) {
       return;
     }
     runAction(async () => {
-      await request('/api/jogatina/bets', {
+      await jogatinaRequest('/api/jogatina/bets', {
         method: 'POST',
         body: {
           questionText,
@@ -216,7 +265,7 @@ export default function AthleteJogatina({ athlete }) {
       setQuestionDraft('');
       setCloseAtDraft(defaultCloseInput());
     });
-  }, [closeAtDraft, questionDraft, runAction]);
+  }, [closeAtDraft, questionDraft, runAction, jogatinaRequest]);
 
   const handleWagerChange = useCallback((betId, partial) => {
     setWagerDrafts((prev) => ({
@@ -241,7 +290,7 @@ export default function AthleteJogatina({ athlete }) {
       return;
     }
     runAction(async () => {
-      await request(`/api/jogatina/bets/${encodeURIComponent(betId)}/wager`, {
+      await jogatinaRequest(`/api/jogatina/bets/${encodeURIComponent(betId)}/wager`, {
         method: 'PUT',
         body: {
           pickedAthleteId,
@@ -249,7 +298,7 @@ export default function AthleteJogatina({ athlete }) {
         },
       });
     });
-  }, [runAction, wagerDrafts]);
+  }, [runAction, wagerDrafts, jogatinaRequest]);
 
   const toggleWinner = useCallback((betId, winnerId) => {
     setResolveDrafts((prev) => {
@@ -270,12 +319,12 @@ export default function AthleteJogatina({ athlete }) {
       return;
     }
     runAction(async () => {
-      await request(`/api/jogatina/bets/${encodeURIComponent(betId)}/resolve`, {
+      await jogatinaRequest(`/api/jogatina/bets/${encodeURIComponent(betId)}/resolve`, {
         method: 'POST',
         body: { winnerAthleteIds },
       });
     });
-  }, [resolveDrafts, runAction]);
+  }, [resolveDrafts, runAction, jogatinaRequest]);
 
   if (loading) {
     return (
