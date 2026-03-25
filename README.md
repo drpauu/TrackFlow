@@ -85,7 +85,7 @@ Detalles:
 ```bash
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
 MONGODB_DB=track-flow-db
-DEFAULT_COACH_ID=coach_default
+DEFAULT_COACH_ID=juancarlos
 APP_TIMEZONE=Europe/Madrid
 ```
 

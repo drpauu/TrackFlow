@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(serverRoot, '..', '.env') });
 export const config = {
   port: Number(process.env.PORT || 8787),
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  defaultCoachId: String(process.env.DEFAULT_COACH_ID || 'coach_default').trim() || 'coach_default',
+  defaultCoachId: String(process.env.DEFAULT_COACH_ID || 'juancarlos').trim() || 'juancarlos',
   appTimezone: String(process.env.APP_TIMEZONE || 'Europe/Madrid').trim() || 'Europe/Madrid',
   dataDir: path.resolve(serverRoot, process.env.DATA_DIR || './data'),
   appStorageFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'app_storage.json'),

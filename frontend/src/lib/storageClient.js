@@ -73,6 +73,22 @@ function shouldSyncKey(key) {
   return typeof key === 'string' && key.startsWith(TRACKFLOW_KEY_PREFIX);
 }
 
+function clearTrackflowLocalCache() {
+  if (!ensureNativeStorage()) return;
+  try {
+    const keysToRemove = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (shouldSyncKey(key)) keysToRemove.push(key);
+    }
+    keysToRemove.forEach((key) => localRemove(key));
+    hydratedKeys.clear();
+    setLastSeq(0);
+  } catch {
+    // ignore localStorage enumeration errors
+  }
+}
+
 function dispatchSyncStatus() {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('trackflow:sync-status', {
@@ -302,6 +318,7 @@ export async function signInStorageSession({ email, password, role = 'coach', co
         coachId: safeCoachId || undefined,
       },
     });
+    clearTrackflowLocalCache();
     writeEnabled = true;
     updateSyncStatus({ writeEnabled: true, state: 'synced', lastError: null });
     await pollChangesOnce();
@@ -318,6 +335,7 @@ export async function signOutStorageSession() {
   } catch {
     // best effort logout
   }
+  clearTrackflowLocalCache();
   writeEnabled = true;
   updateSyncStatus({ writeEnabled: true, state: isOnlineNow() ? 'synced' : 'offline', lastError: null });
 }

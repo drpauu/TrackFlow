@@ -25,7 +25,7 @@ dotenv.config({ path: path.resolve(REPO_ROOT, '.env') });
 dotenv.config({ path: path.resolve(REPO_ROOT, 'server/.env') });
 
 const DATABASE_NAME = 'track-flow-db';
-const COACH_ID = normalizeCoachId(process.env.DEFAULT_COACH_ID || 'coach_default');
+const COACH_ID = normalizeCoachId(process.env.DEFAULT_COACH_ID || 'juancarlos');
 const COACH_NAME = 'JuanCarlos';
 const COACH_EMAIL = 'coach@trackflow.app';
 const COACH_PASSWORD = '151346';

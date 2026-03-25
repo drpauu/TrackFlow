@@ -37,6 +37,7 @@ export async function ensureIndexes(db) {
     db.collection('users').createIndexes([
       { key: { coachId: 1, role: 1 }, name: 'idx_users_coach_role' },
       { key: { emailLower: 1 }, name: 'uniq_users_email_coach', unique: true, partialFilterExpression: { role: 'coach', emailLower: { $type: 'string' } } },
+      { key: { usernameLower: 1 }, name: 'uniq_users_username_coach', unique: true, partialFilterExpression: { role: 'coach', usernameLower: { $type: 'string' } } },
       { key: { coachId: 1, usernameLower: 1 }, name: 'uniq_users_username_athlete', unique: true, partialFilterExpression: { role: 'athlete', usernameLower: { $type: 'string' } } },
     ]),
     db.collection('groups').createIndexes([

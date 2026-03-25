@@ -425,7 +425,6 @@ const NAV_ITEMS = {
 };
 const getNavByRole = (role) => role === "coach" ? NAV_ITEMS.coach : NAV_ITEMS.athlete;
 
-const COACH = { id:"coach", name:"JuanCarlos", role:"coach" };
 const PESAS_DB_SOURCE = { file: "pesas2024_hardcoded_db.js", workbook: "PESAS2024.xlsx", format: "sparse-rows-trailing-null-trimmed" };
 const HARDCODED_PESAS_DB = (typeof window !== "undefined" && window.PESAS2024_HARDCODED_DB) ? window.PESAS2024_HARDCODED_DB : null;
 
@@ -1596,7 +1595,7 @@ function LoginScreen({ onLogin, athletes }) {
     setAuthLoading(true);
     try {
       const result = await onLogin(
-        COACH,
+        { role: "coach" },
         {
           coachLoginInput: username,
           coachPassword: password,
@@ -6457,8 +6456,7 @@ export default function TrackFlow() {
 
     if (u?.role === "coach") {
       const fallbackLogin = String(authMeta?.coachLoginInput || "").trim();
-      const configuredAdminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || "").trim();
-      const adminLogin = configuredAdminEmail || fallbackLogin || String(COACH?.name || "").trim();
+      const adminLogin = fallbackLogin;
       const authResult = await signInStorageSession({
         email: adminLogin,
         password: String(authMeta?.coachPassword || ""),
@@ -6466,7 +6464,25 @@ export default function TrackFlow() {
       if (!authResult?.ok) {
         return { ok:false, error: authResult?.error || "No se pudo validar la sesi?n del entrenador." };
       }
-      resolvedUser = COACH;
+      const coachId = String(authResult?.user?.coachId || "").trim();
+      const username = String(authResult?.user?.username || "").trim();
+      const email = String(authResult?.user?.email || "").trim();
+      const displayName = fallbackLogin || username || email || "Entrenador";
+      const avatar = displayName
+        .split(/\s+/)
+        .map((part) => part[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase() || "CO";
+      resolvedUser = {
+        id: String(authResult?.user?.id || `coach:${coachId || "unknown"}`),
+        role: "coach",
+        coachId,
+        username,
+        email: email || null,
+        name: displayName,
+        avatar,
+      };
     } else if (u?.role === "athlete") {
       const authResult = await signInStorageSession({
         email: String(authMeta?.athleteLoginInput || u?.name || "").trim(),
