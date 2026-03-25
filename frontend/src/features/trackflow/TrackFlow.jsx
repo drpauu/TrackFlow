@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   hydrateStorageWriteAccess,
   signInStorageSession,
@@ -38,6 +39,11 @@ async function apiRequest(path, { method = "GET", body = null } = {}) {
   return payload;
 }
 
+function ModalPortal({ children }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(children, document.body);
+}
+
 //  ZONES (km por intensidad) 
 const ZONES = [
   { id:"regen", label:"Regenerativo",       short:"REG", color:"#4ADE80" },
@@ -57,20 +63,34 @@ const safeZones = z => {
 // type: "reps" = seriesreps (sin carga externa)
 // type: "time_reps" = tiemporeps (con series)
 
+const EXERCISE_EMOJI = {
+  leg: "\u{1F9B5}",
+  foot: "\u{1F9B6}",
+  lift: "\u{1F3CB}\uFE0F",
+  push: "\u{1F4AA}",
+  row: "\u{1F6A3}",
+  core: "\u{1F9D8}",
+  power: "\u26A1",
+  target: "\u{1F3AF}",
+  timer: "\u23F1\uFE0F",
+  reps: "\u{1F501}",
+  fallback: "\u{1F3C3}",
+};
+
 const GYM_EXERCISES = [
-  { id:"sq",    name:"Sentadilla",      emoji:"SQ", muscles:"Cuádriceps  Glúteos",   category:"compound",   type:"weight" },
-  { id:"dl",    name:"Peso Muerto",     emoji:"DL", muscles:"Isquios  Espalda",      category:"compound",   type:"weight" },
-  { id:"bp",    name:"Press Banca",     emoji:"PB", muscles:"Pecho  Tríceps",        category:"upper",      type:"weight" },
-  { id:"ht",    name:"Hip Thrust",      emoji:"HT", muscles:"Glúteos  Isquios",      category:"compound",   type:"weight" },
-  { id:"lp",    name:"Prensa",          emoji:"PR", muscles:"Cuádriceps",             category:"compound",   type:"weight" },
-  { id:"row",   name:"Remo con Barra",  emoji:"RB", muscles:"Dorsal  Bíceps",        category:"upper",      type:"weight" },
-  { id:"lunge", name:"Zancadas",        emoji:"ZA", muscles:"Cuádriceps  Glúteos",   category:"unilateral", type:"reps"   },
-  { id:"rdl",   name:"RDL",             emoji:"RD", muscles:"Isquios  Glúteos",      category:"compound",   type:"weight" },
-  { id:"calf",  name:"Gemelos",         emoji:"GE", muscles:"Sóleo  Gastrocnemio",   category:"isolation",  type:"reps"   },
-  { id:"pm",    name:"Press Militar",   emoji:"PM", muscles:"Hombros  Tríceps",      category:"upper",      type:"weight" },
-  { id:"plank", name:"Plancha",         emoji:"PL", muscles:"Core  Abdomen",         category:"core",       type:"time_reps" },
-  { id:"box",   name:"Box Jump",        emoji:"BJ", muscles:"Cuádriceps  Glúteos",   category:"power",      type:"reps"   },
-  { id:"sj",    name:"Salto Vertical",  emoji:"SV", muscles:"Gemelos  Glúteos",      category:"power",      type:"reps"   },
+  { id:"sq",    name:"Sentadilla",      emoji:EXERCISE_EMOJI.leg,   muscles:"Cuádriceps  Glúteos",   category:"compound",   type:"weight" },
+  { id:"dl",    name:"Peso Muerto",     emoji:EXERCISE_EMOJI.lift,  muscles:"Isquios  Espalda",      category:"compound",   type:"weight" },
+  { id:"bp",    name:"Press Banca",     emoji:EXERCISE_EMOJI.push,  muscles:"Pecho  Tríceps",        category:"upper",      type:"weight" },
+  { id:"ht",    name:"Hip Thrust",      emoji:EXERCISE_EMOJI.lift,  muscles:"Glúteos  Isquios",      category:"compound",   type:"weight" },
+  { id:"lp",    name:"Prensa",          emoji:EXERCISE_EMOJI.leg,   muscles:"Cuádriceps",             category:"compound",   type:"weight" },
+  { id:"row",   name:"Remo con Barra",  emoji:EXERCISE_EMOJI.row,   muscles:"Dorsal  Bíceps",        category:"upper",      type:"weight" },
+  { id:"lunge", name:"Zancadas",        emoji:EXERCISE_EMOJI.leg,   muscles:"Cuádriceps  Glúteos",   category:"unilateral", type:"reps"   },
+  { id:"rdl",   name:"RDL",             emoji:EXERCISE_EMOJI.lift,  muscles:"Isquios  Glúteos",      category:"compound",   type:"weight" },
+  { id:"calf",  name:"Gemelos",         emoji:EXERCISE_EMOJI.foot,  muscles:"Sóleo  Gastrocnemio",   category:"isolation",  type:"reps"   },
+  { id:"pm",    name:"Press Militar",   emoji:EXERCISE_EMOJI.push,  muscles:"Hombros  Tríceps",      category:"upper",      type:"weight" },
+  { id:"plank", name:"Plancha",         emoji:EXERCISE_EMOJI.core,  muscles:"Core  Abdomen",         category:"core",       type:"time_reps" },
+  { id:"box",   name:"Box Jump",        emoji:EXERCISE_EMOJI.power, muscles:"Cuádriceps  Glúteos",   category:"power",      type:"reps"   },
+  { id:"sj",    name:"Salto Vertical",  emoji:EXERCISE_EMOJI.power, muscles:"Gemelos  Glúteos",      category:"power",      type:"reps"   },
 ];
 
 const createAthleteSeed = (name, group = "por-asignar") => {
@@ -377,14 +397,44 @@ const inferBuiltinExerciseCategory = (name, type) => {
   if (type === "weight") return "strength";
   return "movement";
 };
-const inferBuiltinExerciseEmoji = (type, name) => {
+const EXERCISE_MARKER_FALLBACK = EXERCISE_EMOJI.fallback;
+const EXERCISE_MARKER_EMOJI_REGEX = /\p{Extended_Pictographic}/u;
+const normalizeExerciseMarkerType = (type = "weight") => {
+  const raw = String(type || "").trim().toLowerCase();
+  if (raw === "time-reps" || raw === "time_reps" || raw === "timereps") return "time_reps";
+  if (raw === "reps") return "reps";
+  return "weight";
+};
+const hasVisualExerciseEmoji = (value = "") => EXERCISE_MARKER_EMOJI_REGEX.test(String(value || "").trim());
+const inferExerciseMarkerFromMeta = ({ name = "", type = "weight", category = "" } = {}) => {
   const key = normalizeExerciseNameKey(name);
-  if (/BANDA/.test(key)) return "BD";
-  if (/ROLLER/.test(key)) return "RL";
-  if (/SALTO|ATERRIZAJE|REBOTE/.test(key)) return "PL";
-  if (type === "time_reps") return "TM";
-  if (type === "weight") return "KG";
-  return "EX";
+  const normalizedType = normalizeExerciseMarkerType(type);
+  const normalizedCategory = String(category || "").trim().toLowerCase();
+
+  if (/BANDA/.test(key)) return EXERCISE_EMOJI.target;
+  if (/GEMELO|TOBILLO/.test(key)) return EXERCISE_EMOJI.foot;
+  if (/SENTADILLA|ZANCADA|LUNGE|PRENSA/.test(key)) return EXERCISE_EMOJI.leg;
+  if (/PESO MUERTO|RDL|HIP TRUST|HIP THRUST|ARRANCADA|CARGADA|DOS TIEMPOS|FARMER WALK/.test(key)) return EXERCISE_EMOJI.lift;
+  if (/PRESS|BANCA|HOMBRO|MILITAR/.test(key)) return EXERCISE_EMOJI.push;
+  if (/REMO/.test(key)) return EXERCISE_EMOJI.row;
+  if (/PLANCHA|DEAD BUG|PALLOP|PALOT|CORE|LOCK|ROLLER|ISO|BRACEO/.test(key)) return EXERCISE_EMOJI.core;
+  if (/SALTO|ATERRIZAJE|REBOTE|DESACELERACION|BOX JUMP|SALTO VERTICAL/.test(key)) return EXERCISE_EMOJI.power;
+
+  if (normalizedCategory === "activation") return EXERCISE_EMOJI.target;
+  if (normalizedCategory === "core" || normalizedCategory === "stability") return EXERCISE_EMOJI.core;
+  if (normalizedCategory === "power") return EXERCISE_EMOJI.power;
+
+  if (normalizedType === "weight") return EXERCISE_EMOJI.lift;
+  if (normalizedType === "time_reps") return EXERCISE_EMOJI.timer;
+  if (normalizedType === "reps") return EXERCISE_EMOJI.reps;
+  return EXERCISE_MARKER_FALLBACK;
+};
+const inferBuiltinExerciseEmoji = (type, name) => {
+  return inferExerciseMarkerFromMeta({
+    name,
+    type,
+    category: inferBuiltinExerciseCategory(name, type),
+  });
 };
 const inferBuiltinExerciseLoadProfile = (name, type) => {
   const key = normalizeExerciseNameKey(name);
@@ -479,16 +529,8 @@ const groupLabel = (g) => {
 const normalizeGroupName = (g) => String(g || "").trim().replace(/\s+/g, " ");
 const formatExerciseMarker = (exercise = {}) => {
   const raw = String(exercise?.emoji || "").trim();
-  if (raw && !/^[yszz]+$/i.test(raw)) return raw.slice(0, 3).toUpperCase();
-  const name = String(exercise?.name || "EX").trim();
-  const compact = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-  return compact || "EX";
+  if (hasVisualExerciseEmoji(raw)) return raw;
+  return inferExerciseMarkerFromMeta(exercise);
 };
 const exerciseTypeBadgeLabel = (type = "weight") => {
   const normalized = normalizeExerciseType(type);
@@ -1300,7 +1342,7 @@ const getAllExercises = (customExercises = [], exerciseImages = {}) => {
 const getExerciseByIdFull = (id, customExercises = [], exerciseImages = {}) => {
   const all = getAllExercises(customExercises, exerciseImages);
   return all.find(e => e.id === id) || {
-    id, name: labelFromExId(id), emoji:"EX", muscles:"Sin detalle", category:"custom", type:"weight", imageUrl:null,
+    id, name: labelFromExId(id), emoji:"", muscles:"Sin detalle", category:"custom", type:"weight", imageUrl:null,
   };
 };
 const getDefaultExerciseLoad = (exId, customExercises = [], exerciseImages = {}) => {
@@ -2571,7 +2613,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
                           const ex = GYM_EXERCISES.find(e => e.id === row.exId);
                           return (
                             <div key={row.exId} className="ex-row" style={{gridTemplateColumns:"42px 1fr 90px 90px 90px"}}>
-                              <div className="ex-emoji">{ex?.emoji || "Y"}</div>
+                              <div className="ex-emoji">{formatExerciseMarker(ex)}</div>
                               <div>
                                 <div className="ex-info-name">{ex?.name || row.exId}</div>
                                 <div className="ex-info-mu">{ex?.muscles || ""}</div>
@@ -2643,6 +2685,8 @@ function CoachSemanaV2({
   const [editorWeek, setEditorWeek] = useState(normalizeWeek(week, routines));
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [exercisePicker, setExercisePicker] = useState("");
+  const weekEditorOverlayRef = useRef(null);
+  const weekEditorModalRef = useRef(null);
   const targetGroups = mergeGroupOptions(groups, collectAthleteGroups(athletes));
   const targetGroupsWithAll = ["all", ...targetGroups];
   const athleteOptions = normalizeAthletes(athletes).map((athlete) => ({ value: athlete.id, label: athlete.name }));
@@ -2666,6 +2710,28 @@ function CoachSemanaV2({
     setExerciseSearch("");
     setExercisePicker("");
   }, [week, routines]);
+
+  useEffect(() => {
+    if (editing === null) return;
+    const frame = window.requestAnimationFrame(() => {
+      if (weekEditorOverlayRef.current) {
+        weekEditorOverlayRef.current.scrollTop = 0;
+      }
+      if (weekEditorModalRef.current) {
+        weekEditorModalRef.current.scrollTop = 0;
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [editing]);
+
+  useEffect(() => {
+    if (editing === null) return undefined;
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [editing]);
 
   const patchEditorWeek = (updater) => {
     setEditorWeek((prev) => {
@@ -3159,8 +3225,13 @@ function CoachSemanaV2({
       </div>
 
       {editing !== null && draft && (
-        <div className="modal-overlay week-editor-overlay" onClick={(e) => e.target === e.currentTarget && setEditing(null)}>
-          <div className="modal modal-week-editor">
+        <ModalPortal>
+          <div
+            ref={weekEditorOverlayRef}
+            className="modal-overlay week-editor-overlay"
+            onClick={(e) => e.target === e.currentTarget && setEditing(null)}
+          >
+            <div key={`week_editor_${editing}`} ref={weekEditorModalRef} className="modal modal-week-editor">
             <div className="flex ic jb mb4">
               <div className="modal-title">{canEditWeek ? "" : "Solo lectura ·"} {DAYS_FULL[editing]}</div>
               <button className="modal-close" onClick={() => { setEditing(null); setDraft(null); }}> Cerrar</button>
@@ -3486,6 +3557,7 @@ function CoachSemanaV2({
             {canEditWeek && <button className="btn btn-or mt4" style={{width:"100%"}} onClick={saveEdit}>Guardar día</button>}
           </div>
         </div>
+        </ModalPortal>
       )}
 
     </div>
@@ -3928,7 +4000,12 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
     const ex = {
       id,
       name: newExForm.name.trim(),
-      emoji: formatExerciseMarker({ emoji: newExForm.emoji, name: newExForm.name }),
+      emoji: formatExerciseMarker({
+        emoji: newExForm.emoji,
+        name: newExForm.name,
+        type: newExForm.type,
+        category: newExForm.category,
+      }),
       muscles: newExForm.muscles || "",
       category: newExForm.category || "custom",
       type: newExForm.type || "weight",
@@ -3976,8 +4053,8 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                   <input className="input" value={newExForm.name} onChange={e=>setNewExForm({...newExForm,name:e.target.value})} placeholder="Nombre del ejercicio" />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Emoji</label>
-                  <input className="input" value={newExForm.emoji} onChange={e=>setNewExForm({...newExForm,emoji:e.target.value})} style={{width:80}} />
+                  <label className="form-label">Emoji o icono (opcional)</label>
+                  <input className="input" value={newExForm.emoji} onChange={e=>setNewExForm({...newExForm,emoji:e.target.value})} style={{width:80}} placeholder="Automático" />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Msculos</label>
@@ -4114,7 +4191,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
 
                 <div>
                   {(selected.exercises||[]).map(row => {
-                    const ex = allExercises.find(e=>e.id===row.exId) || { emoji:"EX", name:row.exId, muscles:"" };
+                    const ex = allExercises.find(e=>e.id===row.exId) || { emoji:"", name:row.exId, muscles:"" };
                     const imgSrc = exerciseImages[row.exId] || row.imageUrl || ex.imageUrl;
                     const exType = normalizeExerciseType(row.type || ex.type || "weight");
                     return (
@@ -4235,7 +4312,12 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
     const exercise = {
       id,
       name: newExForm.name.trim(),
-      emoji: formatExerciseMarker({ emoji: newExForm.emoji, name: newExForm.name }),
+      emoji: formatExerciseMarker({
+        emoji: newExForm.emoji,
+        name: newExForm.name,
+        type: newExForm.type,
+        category: newExForm.category,
+      }),
       muscles: newExForm.muscles || "",
       category: newExForm.category || "custom",
       type: newExForm.type || "weight",
@@ -4307,8 +4389,8 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
               <input className="input" value={newExForm.name} onChange={(e) => setNewExForm({ ...newExForm, name:e.target.value })} placeholder="Nombre del ejercicio" />
             </div>
             <div className="form-group">
-              <label className="form-label">Emoji</label>
-              <input className="input" value={newExForm.emoji} onChange={(e) => setNewExForm({ ...newExForm, emoji:e.target.value })} style={{width:80}} />
+              <label className="form-label">Emoji o icono (opcional)</label>
+              <input className="input" value={newExForm.emoji} onChange={(e) => setNewExForm({ ...newExForm, emoji:e.target.value })} style={{width:80}} placeholder="Automático" />
             </div>
             <div className="form-group">
               <label className="form-label">Msculos</label>
