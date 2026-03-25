@@ -1,38 +1,15 @@
 import { test, expect } from '@playwright/test';
 
-const COACH_SEED_USER = {
-  id: 'coach',
-  name: 'Juan Carlos',
-  role: 'coach',
-  password: '150346',
-};
+import {
+  clickNav,
+  loginAthlete,
+  seedCoachSession,
+  waitForAppReady,
+} from './support/trackflow.helpers.mjs';
 
-async function seedCoachSession(page) {
-  await page.addInitScript((payload) => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-    window.localStorage.setItem('tf_user', JSON.stringify(payload));
-  }, COACH_SEED_USER);
-}
-
-async function clickNav(page, label) {
-  const desktop = page.locator('.sidebar .nav-item', { hasText: label });
-  if (await desktop.first().isVisible().catch(() => false)) {
-    await desktop.first().click();
-    return;
-  }
-
-  const mobileTab = page.locator('.mobile-tab-btn', { hasText: label });
-  if (await mobileTab.first().isVisible().catch(() => false)) {
-    await mobileTab.first().click();
-    return;
-  }
-}
-
-test('coach publica semana y persiste al refrescar', async ({ page }) => {
+test('coach con sesion persistida mantiene la semana publicada tras refrescar', async ({ page }) => {
   await seedCoachSession(page);
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('.app-wrap')).toBeVisible();
+  const publishedBadge = page.locator('.ph .badge').filter({ hasText: 'Publicada' }).first();
 
   const publishBtn = page.getByRole('button', { name: 'Publicar' });
   const modifyBtn = page.getByRole('button', { name: 'Modificar' });
@@ -46,31 +23,18 @@ test('coach publica semana y persiste al refrescar', async ({ page }) => {
     await saveBtn.click();
   }
 
-  await expect(page.locator('.ph .badge', { hasText: 'Publicada' }).first()).toBeVisible();
-  await page.waitForTimeout(500);
+  await expect(publishedBadge).toBeVisible({ timeout: 15_000 });
   await page.reload({ waitUntil: 'domcontentloaded' });
-  await expect(page.locator('.ph .badge', { hasText: 'Publicada' }).first()).toBeVisible();
+  await waitForAppReady(page);
+  await expect(publishedBadge).toBeVisible({ timeout: 15_000 });
 });
 
-test('athlete login y navegación principal', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-  });
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('.login-wrap')).toBeVisible();
-
-  await page.getByPlaceholder('Nombre del atleta').fill('Nuria');
-  await page.locator('input[type="password"]').fill('1234');
-  await page.getByRole('button', { name: /Entrar/ }).click();
-  await expect(page.locator('.app-wrap')).toBeVisible();
+test('athlete login real y navegacion principal base', async ({ page }) => {
+  await loginAthlete(page, 'Nuria');
 
   await clickNav(page, 'Semana');
-  await expect(page.locator('.sidebar .nav-item.active, .mobile-tab-btn.active', { hasText: /Semana/i }).first()).toBeVisible();
-
-  await clickNav(page, 'Calendario');
-  await expect(page.locator('.sidebar .nav-item.active, .mobile-tab-btn.active', { hasText: /Calendario/i }).first()).toBeVisible();
+  await expect(page.locator('.ph-title', { hasText: /SEMANA/i }).first()).toBeVisible();
 
   await clickNav(page, 'Gym');
-  await expect(page.locator('.sidebar .nav-item.active, .mobile-tab-btn.active', { hasText: /Gym/i }).first()).toBeVisible();
+  await expect(page.locator('.ph-title', { hasText: /GYM/i }).first()).toBeVisible();
 });

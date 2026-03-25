@@ -2,6 +2,8 @@
 const config = {
   testDir: './tests/visual',
   timeout: 180_000,
+  fullyParallel: false,
+  workers: 1,
   retries: 0,
   reporter: [['list']],
   use: {
@@ -9,12 +11,20 @@ const config = {
     headless: true,
     viewport: { width: 1280, height: 720 },
   },
-  webServer: {
-    command: 'npm run dev --workspace frontend -- --host 127.0.0.1 --port 4177 --strictPort',
-    url: 'http://127.0.0.1:4177',
-    timeout: 180_000,
-    reuseExistingServer: true,
-  },
+  webServer: [
+    {
+      command: 'npm run start --workspace server',
+      url: 'http://127.0.0.1:8787/api/health',
+      timeout: 180_000,
+      reuseExistingServer: true,
+    },
+    {
+      command: 'npm run dev --workspace frontend -- --host 127.0.0.1 --port 4177 --strictPort',
+      url: 'http://127.0.0.1:4177',
+      timeout: 180_000,
+      reuseExistingServer: true,
+    },
+  ],
 };
 
 export default config;

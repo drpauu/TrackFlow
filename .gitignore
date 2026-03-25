@@ -31,3 +31,9 @@ Thumbs.db
 server/data/*.bak
 .vercel
 .env*.local
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

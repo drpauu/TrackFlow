@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises';
+﻿import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { test, expect } from '@playwright/test';
@@ -16,9 +16,9 @@ const OUT_DIR = path.join(process.cwd(), 'qa', 'visual');
 
 const COACH_SEED_USER = {
   id: 'coach',
-  name: 'Juan Carlos',
+  name: 'JuanCarlos',
   role: 'coach',
-  password: '150346',
+  password: '151346',
 };
 
 function sanitize(name) {
@@ -172,3 +172,4 @@ for (const viewport of VIEWPORTS) {
     await fs.writeFile(metricsFile, JSON.stringify(metricsLog, null, 2), 'utf8');
   });
 }
+

@@ -7,7 +7,6 @@ import {
   getCurrentSyncVersion,
   getStateValue,
   nextSyncVersion,
-  seedFromLocalIfNeeded,
   upsertStateValue,
   applyProjectionForKey,
 } from './mongo/projection.js';
@@ -153,7 +152,6 @@ export function createMongoStorageProvider() {
     async init() {
       const db = await getMongoDb();
       await ensureIndexes(db);
-      await seedFromLocalIfNeeded(db, config.defaultCoachId);
       await ensureCoachUserFromLocalData(db, config.defaultCoachId);
     },
 

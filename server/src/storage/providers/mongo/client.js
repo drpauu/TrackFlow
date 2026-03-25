@@ -44,3 +44,10 @@ export async function getMongoClient() {
   }
   return await mongoClientPromise;
 }
+
+export async function closeMongoClient() {
+  if (!mongoClientPromise) return;
+  const client = await mongoClientPromise;
+  mongoClientPromise = null;
+  await client.close();
+}

@@ -184,7 +184,7 @@ async function syncCoach(db, coachId, rawValue) {
   const coach = parseJsonString(rawValue, null);
   if (!coach || typeof coach !== 'object') return;
   const now = new Date();
-  const plainPassword = String(coach?.password || '150346');
+  const plainPassword = String(coach?.password || '151346');
 
   const existing = await db.collection('users').findOne(
     { _id: `coach:${coachId}` },

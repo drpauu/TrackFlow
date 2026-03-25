@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises';
+﻿import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -28,7 +28,7 @@ dotenv.config({ path: path.resolve(REPO_ROOT, 'server/.env') });
 
 const DATABASE_NAME = 'track-flow-db';
 const COACH_ID = normalizeCoachId(process.env.DEFAULT_COACH_ID || 'coach_default');
-const COACH_NAME = 'Juan Carlos';
+const COACH_NAME = 'JuanCarlos';
 const COACH_EMAIL = 'coach@trackflow.app';
 const COACH_PASSWORD = '151346';
 const ATHLETE_DEFAULT_PASSWORD = '1234';
@@ -40,19 +40,19 @@ const APP_STORAGE_SEED_PATH = path.resolve(REPO_ROOT, 'server/data/seeds/app_sto
 const USERS_CSV_SEED_PATH = path.resolve(REPO_ROOT, 'server/data/seeds/users.seed.csv');
 
 const BUILTIN_GYM_EXERCISES = [
-  { id: 'sq', name: 'Sentadilla', type: 'weight', category: 'compound', muscles: 'Cuadriceps · Gluteos' },
-  { id: 'dl', name: 'Peso Muerto', type: 'weight', category: 'compound', muscles: 'Isquios · Espalda' },
-  { id: 'bp', name: 'Press Banca', type: 'weight', category: 'upper', muscles: 'Pecho · Triceps' },
-  { id: 'ht', name: 'Hip Thrust', type: 'weight', category: 'compound', muscles: 'Gluteos · Isquios' },
+  { id: 'sq', name: 'Sentadilla', type: 'weight', category: 'compound', muscles: 'Cuadriceps Â· Gluteos' },
+  { id: 'dl', name: 'Peso Muerto', type: 'weight', category: 'compound', muscles: 'Isquios Â· Espalda' },
+  { id: 'bp', name: 'Press Banca', type: 'weight', category: 'upper', muscles: 'Pecho Â· Triceps' },
+  { id: 'ht', name: 'Hip Thrust', type: 'weight', category: 'compound', muscles: 'Gluteos Â· Isquios' },
   { id: 'lp', name: 'Prensa', type: 'weight', category: 'compound', muscles: 'Cuadriceps' },
-  { id: 'row', name: 'Remo con Barra', type: 'weight', category: 'upper', muscles: 'Dorsal · Biceps' },
-  { id: 'lunge', name: 'Zancadas', type: 'reps', category: 'unilateral', muscles: 'Cuadriceps · Gluteos' },
-  { id: 'rdl', name: 'RDL', type: 'weight', category: 'compound', muscles: 'Isquios · Gluteos' },
-  { id: 'calf', name: 'Gemelos', type: 'reps', category: 'isolation', muscles: 'Soleo · Gastrocnemio' },
-  { id: 'pm', name: 'Press Militar', type: 'weight', category: 'upper', muscles: 'Hombros · Triceps' },
-  { id: 'plank', name: 'Plancha', type: 'time_reps', category: 'core', muscles: 'Core · Abdomen' },
-  { id: 'box', name: 'Box Jump', type: 'reps', category: 'power', muscles: 'Cuadriceps · Gluteos' },
-  { id: 'sj', name: 'Salto Vertical', type: 'reps', category: 'power', muscles: 'Gemelos · Gluteos' },
+  { id: 'row', name: 'Remo con Barra', type: 'weight', category: 'upper', muscles: 'Dorsal Â· Biceps' },
+  { id: 'lunge', name: 'Zancadas', type: 'reps', category: 'unilateral', muscles: 'Cuadriceps Â· Gluteos' },
+  { id: 'rdl', name: 'RDL', type: 'weight', category: 'compound', muscles: 'Isquios Â· Gluteos' },
+  { id: 'calf', name: 'Gemelos', type: 'reps', category: 'isolation', muscles: 'Soleo Â· Gastrocnemio' },
+  { id: 'pm', name: 'Press Militar', type: 'weight', category: 'upper', muscles: 'Hombros Â· Triceps' },
+  { id: 'plank', name: 'Plancha', type: 'time_reps', category: 'core', muscles: 'Core Â· Abdomen' },
+  { id: 'box', name: 'Box Jump', type: 'reps', category: 'power', muscles: 'Cuadriceps Â· Gluteos' },
+  { id: 'sj', name: 'Salto Vertical', type: 'reps', category: 'power', muscles: 'Gemelos Â· Gluteos' },
 ];
 
 const DEFAULT_TRAININGS = [
@@ -85,9 +85,9 @@ const DEFAULT_WEEK_DAYS = [
 
 const SYNTHETIC_CUSTOM_EXERCISES = [
   { id: 'custom_nordic', name: 'Nordic Hamstring', type: 'reps', category: 'posterior_chain', muscles: 'Isquios' },
-  { id: 'custom_stepup_drive', name: 'Step-Up Drive', type: 'weight', category: 'unilateral', muscles: 'Gluteos · Cuadriceps' },
-  { id: 'custom_copenhagens', name: 'Copenhagens', type: 'time_reps', category: 'core', muscles: 'Aductores · Core' },
-  { id: 'custom_medball_rot', name: 'Med Ball Rotation Throw', type: 'reps', category: 'power', muscles: 'Core · Hombros' },
+  { id: 'custom_stepup_drive', name: 'Step-Up Drive', type: 'weight', category: 'unilateral', muscles: 'Gluteos Â· Cuadriceps' },
+  { id: 'custom_copenhagens', name: 'Copenhagens', type: 'time_reps', category: 'core', muscles: 'Aductores Â· Core' },
+  { id: 'custom_medball_rot', name: 'Med Ball Rotation Throw', type: 'reps', category: 'power', muscles: 'Core Â· Hombros' },
   { id: 'custom_sled_push', name: 'Sled Push', type: 'time_reps', category: 'power', muscles: 'Pierna completa' },
   { id: 'custom_tibialis_raise', name: 'Tibialis Raise', type: 'reps', category: 'prehab', muscles: 'Tibial anterior' },
 ];
@@ -219,7 +219,7 @@ function normalizeAthletesFromState(appStorage, csvText) {
 }
 
 function buildAthletes(baseAthletes) {
-  const targetGroups = ['1500m', '800m', 'pequeños'];
+  const targetGroups = ['1500m', '800m', 'pequeÃ±os'];
   return baseAthletes.map((athlete, index) => {
     const primaryGroup = targetGroups[index % targetGroups.length];
     const baseVolume = primaryGroup === '1500m' ? 78 : primaryGroup === '800m' ? 62 : 46;
@@ -1328,3 +1328,4 @@ main().catch((error) => {
   console.error('seed-rich-demo failed:', error?.stack || error?.message || error);
   process.exit(1);
 });
+
