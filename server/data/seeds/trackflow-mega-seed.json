@@ -1,10 +1,10 @@
 {
   "type": "TrackFlowMegaSeed",
   "version": 1,
-  "database": "TrackFlow",
+  "database": "track-flow-db",
   "coach": {
     "coachId": "coach_default",
-    "name": "Juan Carlos",
+    "name": "JuanCarlos",
     "email": "coach@trackflow.app"
   },
   "generatedAt": "2026-03-17T15:42:26.856Z",
