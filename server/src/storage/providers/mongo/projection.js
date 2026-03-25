@@ -186,6 +186,7 @@ async function syncCoach(db, coachId, rawValue) {
   if (!coach || typeof coach !== 'object') return;
   const now = new Date();
   const plainPassword = String(coach?.password || '151346');
+  const usernameLower = normalizeGroupName(coach?.name || 'coach').replace(/\s+/g, '');
 
   const existing = await db.collection('users').findOne(
     { _id: `coach:${coachId}` },
@@ -206,7 +207,7 @@ async function syncCoach(db, coachId, rawValue) {
       $set: {
         coachId,
         role: 'coach',
-        usernameLower: normalizeGroupName(coach?.name || 'coach'),
+        usernameLower,
         emailLower: String(coach?.email || '').trim().toLowerCase() || null,
         passwordHash,
         isActive: true,

@@ -4,6 +4,7 @@ const LAST_SEQ_KEY = 'trackflow_last_seq';
 const DEFAULT_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_STORAGE_SYNC_INTERVAL_MS || 700);
 const DEFAULT_SYNC_LIMIT = Number(import.meta.env.VITE_STORAGE_SYNC_LIMIT || 200);
 const TRACKFLOW_KEY_PREFIX = 'tf_';
+const TRACKFLOW_LOCAL_PREFIX = 'trackflow_local_';
 
 let syncStarted = false;
 let syncTimer = null;
@@ -73,13 +74,19 @@ function shouldSyncKey(key) {
   return typeof key === 'string' && key.startsWith(TRACKFLOW_KEY_PREFIX);
 }
 
+function shouldClearCachedKey(key) {
+  if (shouldSyncKey(key)) return true;
+  if (typeof key !== 'string') return false;
+  return key.startsWith(`${TRACKFLOW_LOCAL_PREFIX}${TRACKFLOW_KEY_PREFIX}`);
+}
+
 function clearTrackflowLocalCache() {
   if (!ensureNativeStorage()) return;
   try {
     const keysToRemove = [];
     for (let i = 0; i < window.localStorage.length; i += 1) {
       const key = window.localStorage.key(i);
-      if (shouldSyncKey(key)) keysToRemove.push(key);
+      if (shouldClearCachedKey(key)) keysToRemove.push(key);
     }
     keysToRemove.forEach((key) => localRemove(key));
     hydratedKeys.clear();
@@ -305,7 +312,7 @@ export async function signInStorageSession({ email, password, role = 'coach', co
   const safeCoachId = String(coachId || '').trim();
 
   if (!usernameOrEmail || !safePassword) {
-    return { ok: false, error: 'Usuario y contraseña son obligatorios.' };
+    return { ok: false, error: 'Usuario y contrasena son obligatorios.' };
   }
 
   try {
@@ -340,10 +347,69 @@ export async function signOutStorageSession() {
   updateSyncStatus({ writeEnabled: true, state: isOnlineNow() ? 'synced' : 'offline', lastError: null });
 }
 
+function installWindowStorageBridge() {
+  if (typeof window === 'undefined') return;
+  window.storage = {
+    async get(key) {
+      const safeKey = String(key || '').trim();
+      if (!safeKey) return { key: safeKey, value: null, storage: 'api' };
+      if (!shouldSyncKey(safeKey)) {
+        return { key: safeKey, value: localGet(safeKey), storage: 'api' };
+      }
+
+      try {
+        const value = await fetchKeyFromApi(safeKey);
+        if (value == null) {
+          localRemove(safeKey);
+          return { key: safeKey, value: null, storage: 'api' };
+        }
+        localSet(safeKey, value);
+        return { key: safeKey, value, storage: 'api' };
+      } catch (error) {
+        updateSyncStatus({
+          state: isOnlineNow() ? 'error' : 'offline',
+          lastError: error?.message || null,
+        });
+        return { key: safeKey, value: localGet(safeKey), storage: 'api' };
+      }
+    },
+
+    async set(key, value) {
+      const safeKey = String(key || '').trim();
+      const safeValue = String(value ?? '');
+      if (!safeKey) return { ok: false, key: safeKey, value: null, storage: 'api' };
+
+      localSet(safeKey, safeValue);
+      if (!shouldSyncKey(safeKey)) {
+        return { ok: true, key: safeKey, value: safeValue, storage: 'api' };
+      }
+
+      updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
+      await pushKeyToApi(safeKey, safeValue);
+      updateSyncStatus({ state: 'synced', lastError: null, online: isOnlineNow() });
+      return { ok: true, key: safeKey, value: safeValue, storage: 'api' };
+    },
+
+    async remove(key) {
+      const safeKey = String(key || '').trim();
+      if (!safeKey) return { ok: false, key: safeKey, storage: 'api' };
+
+      localRemove(safeKey);
+      if (!shouldSyncKey(safeKey)) return { ok: true, key: safeKey, storage: 'api' };
+
+      updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
+      await pushKeyToApi(safeKey, 'null');
+      updateSyncStatus({ state: 'synced', lastError: null, online: isOnlineNow() });
+      return { ok: true, key: safeKey, storage: 'api' };
+    },
+  };
+}
+
 export function installWindowStorageShim() {
   if (typeof window === 'undefined' || !window.localStorage) return;
   ensureNativeStorage();
   startSyncPolling();
+  installWindowStorageBridge();
 
   if (shimInstalled) return;
   shimInstalled = true;
@@ -397,3 +463,4 @@ export function installWindowStorageShim() {
       });
   };
 }
+

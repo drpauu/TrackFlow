@@ -8,6 +8,15 @@ const serverRoot = path.resolve(__dirname, '..');
 
 dotenv.config({ path: path.resolve(serverRoot, '..', '.env') });
 
+const rawMongoDbName = String(process.env.MONGODB_DB || process.env.MONGODB_DATABASE || '').trim();
+const normalizedMongoDbName = rawMongoDbName.toLowerCase();
+const resolvedMongoDbName = (
+  !rawMongoDbName
+  || normalizedMongoDbName === 'trackflow'
+)
+  ? 'track-flow-db'
+  : rawMongoDbName;
+
 export const config = {
   port: Number(process.env.PORT || 8787),
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
@@ -20,7 +29,7 @@ export const config = {
   appStorageSeedFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'seeds', 'app_storage.seed.json'),
   usersCsvSeedFile: path.resolve(serverRoot, process.env.DATA_DIR || './data', 'seeds', 'users.seed.csv'),
   mongoUri: String(process.env.MONGODB_URI || '').trim(),
-  mongoDbName: String(process.env.MONGODB_DB || 'track-flow-db').trim() || 'track-flow-db',
+  mongoDbName: resolvedMongoDbName,
   mongoRequireAuth: String(process.env.MONGO_REQUIRE_AUTH || 'false').trim().toLowerCase() === 'true',
   authJwtSecret: String(process.env.AUTH_JWT_SECRET || '').trim(),
   authJwtTtlSec: Number(process.env.AUTH_JWT_TTL_SEC || 60 * 60 * 24 * 14),

@@ -42,7 +42,7 @@ async function main() {
     throw new Error('Missing MONGODB_URI in .env');
   }
 
-  const usernameLower = normalizeGroupName(usernameInput);
+  const usernameLower = normalizeGroupName(usernameInput).replace(/\s+/g, '');
   const coachId = slugify(coachIdInput || usernameInput);
   const emailLower = emailInput ? emailInput.toLowerCase() : null;
   const userId = `coach:${coachId}`;

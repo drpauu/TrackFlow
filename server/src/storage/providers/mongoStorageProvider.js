@@ -122,9 +122,23 @@ async function readCoachUser(db, usernameOrEmail) {
       isActive: { $ne: false },
     });
   }
-  return await db.collection('users').findOne({
+  const byExact = await db.collection('users').findOne({
     role: 'coach',
     usernameLower: normalized,
+    isActive: { $ne: false },
+  });
+  if (byExact) return byExact;
+
+  // Backward-compatible lookup for legacy usernames stored with spaces.
+  const compact = normalized.replace(/\s+/g, '');
+  if (!compact) return null;
+  const spacedPattern = compact
+    .split('')
+    .map((char) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('\\s*');
+  return await db.collection('users').findOne({
+    role: 'coach',
+    usernameLower: { $regex: `^${spacedPattern}$` },
     isActive: { $ne: false },
   });
 }
@@ -228,9 +242,9 @@ export function createMongoStorageProvider() {
     async authenticateCoach({ usernameOrEmail, password }) {
       const db = await getMongoDb();
       const user = await readCoachUser(db, usernameOrEmail);
-      if (!user) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
+      if (!user) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
       const valid = await verifyPassword(String(password || ''), String(user?.passwordHash || ''));
-      if (!valid) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
+      if (!valid) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
 
       await db.collection('users').updateOne(
         { _id: user._id },
@@ -257,9 +271,9 @@ export function createMongoStorageProvider() {
     async authenticateAthlete({ coachId, username, password }) {
       const db = await getMongoDb();
       const user = await readAthleteUser(db, coachId, username);
-      if (!user) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
+      if (!user) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
       const valid = await verifyPassword(String(password || ''), String(user?.passwordHash || ''));
-      if (!valid) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
+      if (!valid) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
 
       await db.collection('users').updateOne(
         { _id: user._id },
@@ -595,3 +609,4 @@ export function createMongoStorageProvider() {
     },
   };
 }
+
