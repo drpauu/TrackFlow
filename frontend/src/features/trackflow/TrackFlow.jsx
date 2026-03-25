@@ -1584,7 +1584,7 @@ const athletesFromCsv = (csvText) => {
 
 //  LOGIN SCREEN 
 function LoginScreen({ onLogin, athletes }) {
-  const [tab, setTab] = useState("athlete"); // "coach" | "athlete"
+  const [tab, setTab] = useState("coach"); // "coach" | "athlete"
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -6239,10 +6239,18 @@ export default function TrackFlow() {
   // Load persisted session
   useEffect(() => {
     (async () => {
-      await hydrateStorageWriteAccess();
+      const sessionUser = await hydrateStorageWriteAccess();
       ensureLocalStorageSchema();
+      const savedUserRaw = localRawGet("tf_user");
+      let savedUser = null;
+      if (savedUserRaw != null) {
+        try {
+          savedUser = JSON.parse(savedUserRaw);
+        } catch {
+          savedUser = null;
+        }
+      }
       const [
-        savedUser,
         savedAthletes,
         savedUsersCsv,
         savedCurrentSeasonId,
@@ -6263,7 +6271,6 @@ export default function TrackFlow() {
         savedCustomEx,
         savedExImages,
       ] = await Promise.all([
-        store.get("tf_user"),
         store.get("tf_athletes"),
         store.getRaw("tf_users_csv"),
         store.get("tf_current_season_id"),
@@ -6324,13 +6331,6 @@ export default function TrackFlow() {
       const loadedRoutines = normalizeRoutineLibrary(savedRoutines);
       setRoutines(loadedRoutines);
       setTrainings(normalizeTrainingCatalog(savedTrainings));
-
-      if (savedUser) {
-        setUser(savedUser);
-        if (savedUser.role !== "coach") {
-          await signOutStorageSession();
-        }
-      }
       if (Array.isArray(savedCalendarWeeks)) setCalendarWeeks(savedCalendarWeeks);
       if (savedSeedMeta) setSeedMeta(savedSeedMeta);
       if (savedPesasRaw && typeof window !== "undefined") {
@@ -6366,6 +6366,51 @@ export default function TrackFlow() {
       if (savedNotifs) setNotifications(savedNotifs);
       if (savedAthleteNotifs) setAthleteNotificationsById(normalizeAthleteNotificationsMap(savedAthleteNotifs));
       if (Array.isArray(savedHistory)) setHistory(savedHistory);
+
+      const sessionRole = String(sessionUser?.role || "").trim();
+      if (sessionRole === "coach") {
+        const sessionCoachId = String(sessionUser?.coachId || "").trim();
+        const sessionUsername = String(sessionUser?.username || "").trim();
+        const sessionEmail = String(sessionUser?.email || "").trim();
+        const displayName = String(
+          savedUser?.role === "coach"
+            ? savedUser?.name || sessionUsername || sessionEmail || "Entrenador"
+            : sessionUsername || sessionEmail || "Entrenador"
+        ).trim() || "Entrenador";
+        const avatar = String(savedUser?.avatar || "")
+          .trim()
+          || displayName
+            .split(/\s+/)
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase()
+          || "CO";
+        setUser({
+          id: String(sessionUser?.id || `coach:${sessionCoachId || "unknown"}`),
+          role: "coach",
+          coachId: sessionCoachId,
+          username: sessionUsername,
+          email: sessionEmail || null,
+          name: displayName,
+          avatar,
+        });
+        setPage("semana");
+      } else if (sessionRole === "athlete") {
+        const sessionAthleteId = String(sessionUser?.athleteId || "").trim();
+        const usernameLower = String(sessionUser?.username || "").trim().toLowerCase();
+        const athleteProfile = loadedAthletes.find((athlete) => String(athlete?.id || "").trim() === sessionAthleteId)
+          || loadedAthletes.find((athlete) => String(athlete?.name || "").trim().toLowerCase() === usernameLower)
+          || (savedUser?.role === "athlete" ? savedUser : null);
+        if (athleteProfile) {
+          setUser({ ...athleteProfile, role: "athlete" });
+          setPage("hoy");
+        } else {
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+      }
       setLoading(false);
     })();
   }, []);
@@ -6384,8 +6429,13 @@ export default function TrackFlow() {
     persistStateValue("tf_seasons", normalized, normalizeSeasonCollection([], DEFAULT_SEASON_ID, DEFAULT_SEASON_WEEK_ONE_START_ISO));
   }, [seasons, currentSeasonId, seasonWeekOneStartIso, persistStateValue]);
   useEffect(() => {
-    persistStateValue("tf_user", user || null, null);
-  }, [user, persistStateValue]);
+    if (loading) return;
+    const serialized = JSON.stringify(user || null);
+    const baseline = JSON.stringify(null);
+    if (!persistedStorageKeysRef.current.has("tf_user") && serialized === baseline) return;
+    persistedStorageKeysRef.current.add("tf_user");
+    localRawSet("tf_user", serialized);
+  }, [user, loading]);
   useEffect(() => {
     const normalized = normalizeAthletes(athletes);
     persistStateValue("tf_athletes", normalized, []);
@@ -6518,7 +6568,7 @@ export default function TrackFlow() {
   const handleLogout = async () => {
     setUser(null);
     await signOutStorageSession();
-    store.set("tf_user", null);
+    localRawRemove("tf_user");
   };
 
   const pushAthleteNotifications = (targets, payload) => {

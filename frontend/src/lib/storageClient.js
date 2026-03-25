@@ -128,6 +128,16 @@ function apiUrl(path) {
   return `${API_BASE}${path}`;
 }
 
+function wait(ms) {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') {
+      window.setTimeout(resolve, Math.max(Number(ms || 0), 0));
+      return;
+    }
+    setTimeout(resolve, Math.max(Number(ms || 0), 0));
+  });
+}
+
 function getClientId() {
   if (clientIdCache) return clientIdCache;
   const stored = localGet(CLIENT_ID_KEY);
@@ -198,6 +208,30 @@ async function pushKeyToApi(key, value) {
       clientId: getClientId(),
     },
   });
+}
+
+async function pushKeyToApiWithRetry(key, value, options = {}) {
+  const maxAttempts = Math.max(Number.parseInt(String(options?.maxAttempts ?? 6), 10) || 1, 1);
+  let attempt = 0;
+  let lastError = null;
+
+  while (attempt < maxAttempts) {
+    try {
+      await pushKeyToApi(key, value);
+      return;
+    } catch (error) {
+      lastError = error;
+      const status = Number(error?.status || 0);
+      const retryable = !status || status >= 500 || status === 429;
+      if (!retryable) throw error;
+      attempt += 1;
+      if (attempt >= maxAttempts) break;
+      const delayMs = Math.min(250 * (2 ** (attempt - 1)), 3000);
+      await wait(delayMs);
+    }
+  }
+
+  throw lastError || new Error('No se pudo guardar en el servidor.');
 }
 
 async function refreshKeyFromApi(key) {
@@ -287,13 +321,15 @@ function startSyncPolling() {
 export async function hydrateStorageWriteAccess() {
   startSyncPolling();
   try {
-    await apiRequest('/api/auth/me');
+    const payload = await apiRequest('/api/auth/me');
     writeEnabled = true;
     updateSyncStatus({ writeEnabled: true, state: 'synced', lastError: null });
+    return payload?.user || null;
   } catch {
     // El backend puede no tener sesion activa; mantenemos escritura local/API habilitada.
     writeEnabled = true;
     updateSyncStatus({ writeEnabled: true, state: isOnlineNow() ? syncStatus.state : 'offline' });
+    return null;
   }
 }
 
@@ -385,8 +421,8 @@ function installWindowStorageBridge() {
       }
 
       updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
-      await pushKeyToApi(safeKey, safeValue);
-      updateSyncStatus({ state: 'synced', lastError: null, online: isOnlineNow() });
+      await pushKeyToApiWithRetry(safeKey, safeValue);
+      updateSyncStatus({ state: 'synced', retries: 0, lastError: null, online: isOnlineNow() });
       return { ok: true, key: safeKey, value: safeValue, storage: 'api' };
     },
 
@@ -398,8 +434,8 @@ function installWindowStorageBridge() {
       if (!shouldSyncKey(safeKey)) return { ok: true, key: safeKey, storage: 'api' };
 
       updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
-      await pushKeyToApi(safeKey, 'null');
-      updateSyncStatus({ state: 'synced', lastError: null, online: isOnlineNow() });
+      await pushKeyToApiWithRetry(safeKey, 'null');
+      updateSyncStatus({ state: 'synced', retries: 0, lastError: null, online: isOnlineNow() });
       return { ok: true, key: safeKey, storage: 'api' };
     },
   };
@@ -433,9 +469,9 @@ export function installWindowStorageShim() {
     if (!shouldSyncKey(safeKey)) return;
 
     updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
-    void pushKeyToApi(safeKey, safeValue)
+    void pushKeyToApiWithRetry(safeKey, safeValue)
       .then(() => {
-        updateSyncStatus({ state: 'synced', lastError: null, online: isOnlineNow() });
+        updateSyncStatus({ state: 'synced', retries: 0, lastError: null, online: isOnlineNow() });
       })
       .catch((error) => {
         updateSyncStatus({
@@ -451,9 +487,9 @@ export function installWindowStorageShim() {
     if (!shouldSyncKey(safeKey)) return;
 
     updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
-    void pushKeyToApi(safeKey, 'null')
+    void pushKeyToApiWithRetry(safeKey, 'null')
       .then(() => {
-        updateSyncStatus({ state: 'synced', lastError: null, online: isOnlineNow() });
+        updateSyncStatus({ state: 'synced', retries: 0, lastError: null, online: isOnlineNow() });
       })
       .catch((error) => {
         updateSyncStatus({

@@ -136,9 +136,17 @@ async function readCoachUser(db, usernameOrEmail) {
     .split('')
     .map((char) => char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .join('\\s*');
-  return await db.collection('users').findOne({
+  const byLegacySpacing = await db.collection('users').findOne({
     role: 'coach',
     usernameLower: { $regex: `^${spacedPattern}$` },
+    isActive: { $ne: false },
+  });
+  if (byLegacySpacing) return byLegacySpacing;
+
+  const coachIdCandidates = [compact, slugify(normalized)].filter(Boolean);
+  return await db.collection('users').findOne({
+    role: 'coach',
+    coachId: { $in: coachIdCandidates },
     isActive: { $ne: false },
   });
 }

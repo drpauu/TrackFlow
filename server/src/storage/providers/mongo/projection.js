@@ -184,14 +184,20 @@ export async function upsertStateValue({ db, coachId, key, valueJsonString, upda
 async function syncCoach(db, coachId, rawValue) {
   const coach = parseJsonString(rawValue, null);
   if (!coach || typeof coach !== 'object') return;
+  const role = String(coach?.role || '').trim().toLowerCase();
+  if (role && role !== 'coach') return;
   const now = new Date();
   const plainPassword = String(coach?.password || '151346');
-  const usernameLower = normalizeGroupName(coach?.name || 'coach').replace(/\s+/g, '');
 
   const existing = await db.collection('users').findOne(
     { _id: `coach:${coachId}` },
-    { projection: { passwordHash: 1 } }
+    { projection: { passwordHash: 1, usernameLower: 1 } }
   );
+
+  const usernameFromPayload = normalizeGroupName(coach?.username || '').replace(/\s+/g, '');
+  const usernameFromExisting = String(existing?.usernameLower || '').trim();
+  const usernameFromName = normalizeGroupName(coach?.name || coachId || 'coach').replace(/\s+/g, '');
+  const usernameLower = usernameFromPayload || usernameFromExisting || usernameFromName || 'coach';
 
   let passwordHash;
   if (existing?.passwordHash) {
