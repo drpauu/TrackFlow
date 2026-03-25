@@ -144,7 +144,7 @@ const DEFAULT_WEEK = {
   name: "Semana Base",
   type: "Inicial",
   targetGroup: "all",
-  days: DAYS_FULL.map(() => ({
+  days: Array.from({ length: 7 }, () => ({
     am:"",
     pm:"",
     targetGroup:"all",
