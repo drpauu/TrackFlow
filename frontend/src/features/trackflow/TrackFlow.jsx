@@ -444,7 +444,7 @@ const NAV_ITEMS = {
 };
 const getNavByRole = (role) => role === "coach" ? NAV_ITEMS.coach : NAV_ITEMS.athlete;
 
-const COACH = { id:"coach", name:"Juan Carlos", role:"coach", password:"150346" };
+const COACH = { id:"coach", name:"Juan Carlos", role:"coach" };
 const PESAS_DB_SOURCE = { file: "pesas2024_hardcoded_db.js", workbook: "PESAS2024.xlsx", format: "sparse-rows-trailing-null-trimmed" };
 const HARDCODED_PESAS_DB = (typeof window !== "undefined" && window.PESAS2024_HARDCODED_DB) ? window.PESAS2024_HARDCODED_DB : null;
 
@@ -1587,66 +1587,38 @@ function LoginScreen({ onLogin, athletes }) {
 
   const handleCoachLogin = async () => {
     if (authLoading) return;
-    const normalized = String(username || "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLowerCase();
-    const coachUser = String(COACH.name || "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .toLowerCase();
-    if (normalized !== coachUser) {
-      setError("Usuario no encontrado");
-      return;
-    }
-    if (password === COACH.password) {
-      setAuthLoading(true);
-      try {
-        const result = await onLogin(
-          COACH,
-          {
-            coachLoginInput: username,
-            coachPassword: password,
-          }
-        );
-        if (result?.ok === false) {
-          setError(result.error || "No se pudo iniciar sesión como entrenador.");
-          return;
+    setAuthLoading(true);
+    try {
+      const result = await onLogin(
+        COACH,
+        {
+          coachLoginInput: username,
+          coachPassword: password,
         }
-        setError("");
-      } finally {
-        setAuthLoading(false);
+      );
+      if (result?.ok === false) {
+        setError(result.error || "No se pudo iniciar sesi?n como entrenador.");
+        return;
       }
-      return;
+      setError("");
+    } finally {
+      setAuthLoading(false);
     }
-    setError("Contraseña incorrecta");
   };
 
   const handleAthleteLogin = async () => {
     if (authLoading) return;
-    const normalized = username.trim().toLowerCase();
-    const found = normalizeAthletes(athletes).find((a) => a.name.trim().toLowerCase() === normalized);
-    if (!found) {
-      setError("Atleta no encontrado. Contacta con tu entrenador.");
-      return;
-    }
-    const expectedPassword = String(found.password || "1234");
-    if (String(password || "") !== expectedPassword) {
-      setError("Contraseña incorrecta");
-      return;
-    }
     setAuthLoading(true);
     try {
       const result = await onLogin(
-        { ...found, role: "athlete" },
+        { role: "athlete", name: String(username || "").trim() },
         {
           athleteLoginInput: username,
           athletePassword: password,
-          athleteId: found.id,
         }
       );
       if (result?.ok === false) {
-        setError(result.error || "No se pudo iniciar sesión.");
+        setError(result.error || "No se pudo iniciar sesi?n.");
         return;
       }
       setError("");
@@ -6484,17 +6456,20 @@ export default function TrackFlow() {
   }, [loading, seasonWeekOneStartIso]);
 
   const handleLogin = async (u, authMeta = null) => {
+    let resolvedUser = u || null;
+
     if (u?.role === "coach") {
-      const fallbackEmail = String(authMeta?.coachLoginInput || "").trim();
+      const fallbackLogin = String(authMeta?.coachLoginInput || "").trim();
       const configuredAdminEmail = String(import.meta.env.VITE_ADMIN_EMAIL || "").trim();
-      const adminEmail = configuredAdminEmail || fallbackEmail || String(COACH?.name || "").trim();
+      const adminLogin = configuredAdminEmail || fallbackLogin || String(COACH?.name || "").trim();
       const authResult = await signInStorageSession({
-        email: adminEmail,
+        email: adminLogin,
         password: String(authMeta?.coachPassword || ""),
       });
       if (!authResult?.ok) {
-        return { ok:false, error: authResult?.error || "No se pudo validar la sesión del entrenador." };
+        return { ok:false, error: authResult?.error || "No se pudo validar la sesi?n del entrenador." };
       }
+      resolvedUser = COACH;
     } else if (u?.role === "athlete") {
       const authResult = await signInStorageSession({
         email: String(authMeta?.athleteLoginInput || u?.name || "").trim(),
@@ -6502,14 +6477,29 @@ export default function TrackFlow() {
         role: "athlete",
       });
       if (!authResult?.ok) {
-        return { ok:false, error: authResult?.error || "No se pudo validar la sesión del atleta." };
+        return { ok:false, error: authResult?.error || "No se pudo validar la sesi?n del atleta." };
       }
+
+      const roster = normalizeAthletes(athletes);
+      const resolvedAthleteId = String(authResult?.user?.athleteId || "").trim();
+      const requestedName = String(authMeta?.athleteLoginInput || u?.name || "")
+        .trim()
+        .toLowerCase();
+      const athleteProfile = roster.find((athlete) => athlete.id === resolvedAthleteId)
+        || roster.find((athlete) => athlete.name.trim().toLowerCase() === requestedName);
+
+      if (!athleteProfile) {
+        return { ok:false, error: "El atleta autenticado no existe en el roster cargado." };
+      }
+
+      resolvedUser = { ...athleteProfile, role: "athlete" };
     } else {
-      return { ok:false, error: "Rol de usuario no válido." };
+      return { ok:false, error: "Rol de usuario no v?lido." };
     }
-    setUser(u);
-    setPage(u.role === "coach" ? "semana" : "hoy");
-    return { ok:true };
+
+    setUser(resolvedUser);
+    setPage(resolvedUser.role === "coach" ? "semana" : "hoy");
+    return { ok:true, user: resolvedUser };
   };
 
   const handleLogout = async () => {

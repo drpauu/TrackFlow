@@ -603,24 +603,6 @@ function buildBetRows({ bets, wagers, athletesById, currentAthleteId, memberIds 
   });
 }
 
-async function markExpiredBetsAsClosed(db, coachId) {
-  const now = new Date();
-  const result = await db.collection('jogatina_bets_open').updateMany(
-    {
-      coachId: normalizeCoachId(coachId),
-      status: BET_STATUS_OPEN,
-      closeAt: { $lte: now },
-    },
-    {
-      $set: {
-        status: BET_STATUS_CLOSED,
-        updatedAt: now,
-      },
-    }
-  );
-  return toPositiveInt(result?.modifiedCount, 0);
-}
-
 async function finalizeResolvedBet(betId) {
   const safeBetId = String(betId || '').trim();
   if (!safeBetId) return { finalized: false };
@@ -777,6 +759,82 @@ async function markTimedOutBetsAsCancelled(db, coachId = null) {
   return toPositiveInt(result?.modifiedCount, 0);
 }
 
+async function finalizeResolvedBetsForCoach(db, coachId = null, limit = 200) {
+  const now = new Date();
+  const safeLimit = Math.max(toPositiveInt(limit, 200), 1);
+  const filter = {
+    status: BET_STATUS_RESOLVED_PENDING_FINAL,
+    resolvedEditableUntil: { $lte: now },
+  };
+  if (coachId) filter.coachId = normalizeCoachId(coachId);
+
+  const candidates = await db.collection('jogatina_bets_open')
+    .find(filter, { projection: { _id: 1 } })
+    .sort({ resolvedEditableUntil: 1 })
+    .limit(safeLimit)
+    .toArray();
+
+  let finalized = 0;
+  for (const candidate of candidates) {
+    const row = await finalizeResolvedBet(candidate?._id);
+    if (!row?.finalized) continue;
+    finalized += 1;
+    publishJogatinaEvent({
+      coachId: row.coachId,
+      groupId: row.groupId,
+      type: 'bet_finalized',
+      payload: row.outcome,
+    });
+  }
+
+  return finalized;
+}
+
+async function finalizeCancelledBetsForCoach(db, coachId = null, limit = 200) {
+  const safeLimit = Math.max(toPositiveInt(limit, 200), 1);
+  const filter = { status: BET_STATUS_CANCELLED_PENDING_FINAL };
+  if (coachId) filter.coachId = normalizeCoachId(coachId);
+
+  const candidates = await db.collection('jogatina_bets_open')
+    .find(filter, { projection: { _id: 1 } })
+    .sort({ updatedAt: 1 })
+    .limit(safeLimit)
+    .toArray();
+
+  let finalized = 0;
+  for (const candidate of candidates) {
+    const row = await finalizeCancelledBet(candidate?._id);
+    if (!row?.finalized) continue;
+    finalized += 1;
+    publishJogatinaEvent({
+      coachId: row.coachId,
+      groupId: row.groupId,
+      type: 'bet_cancelled_finalized',
+      payload: row.outcome,
+    });
+  }
+
+  return finalized;
+}
+
+async function runRealtimeMaintenance({ coachId = null, limit = 100 } = {}) {
+  const safeCoachId = coachId ? normalizeCoachId(coachId) : null;
+  const client = await getMongoClient();
+  const db = client.db(config.mongoDbName);
+
+  const closed = await closeExpiredBets(db, safeCoachId);
+  const marked = await markTimedOutBetsAsCancelled(db, safeCoachId);
+  const finalizedResolved = await finalizeResolvedBetsForCoach(db, safeCoachId, limit);
+  const finalizedCancelled = await finalizeCancelledBetsForCoach(db, safeCoachId, limit);
+
+  return {
+    closed,
+    marked,
+    finalizedResolved,
+    finalizedCancelled,
+  };
+}
+
 async function awardDailyBonusForAthleteDate(_db, {
   coachId,
   athleteId,
@@ -867,10 +925,10 @@ export function createJogatinaService() {
   return {
     async getState(auth) {
       const { coachId, athleteId } = assertAthleteAuth(auth);
+      await runRealtimeMaintenance({ coachId, limit: 100 });
+
       const client = await getMongoClient();
       const db = client.db(config.mongoDbName);
-
-      await markExpiredBetsAsClosed(db, coachId);
 
       const membership = await getMembership(db, athleteId);
       const seasonKey = await resolveSeasonKey(db, coachId);
@@ -1133,6 +1191,7 @@ export function createJogatinaService() {
 
     async leaveGroup(auth) {
       const { coachId, athleteId } = assertAthleteAuth(auth);
+      await runRealtimeMaintenance({ coachId, limit: 100 });
 
       const result = await runTransaction(async ({ db, session }) => {
         const membership = await getMembership(db, athleteId, session);
@@ -1204,13 +1263,14 @@ export function createJogatinaService() {
       const { coachId, athleteId } = assertAthleteAuth(auth);
       const name = payload?.name != null ? normalizeName(payload.name) : null;
       const openBetLimit = payload?.openBetLimit != null ? toPositiveInt(payload.openBetLimit, 0) : null;
+      await runRealtimeMaintenance({ coachId, limit: 100 });
 
       const result = await runTransaction(async ({ db, session }) => {
         const { group } = await assertAthleteInGroup(db, coachId, athleteId, session);
         const groupId = String(group._id || '').trim();
 
         if (String(group.ownerAthleteId || '').trim() !== athleteId) {
-          throw createHttpError(403, 'Solo el owner del grupo puede editar esta configuracion.');
+          throw createHttpError(403, 'Solo el propietario del grupo puede editar esta configuracion.');
         }
 
         const update = {};
@@ -1223,7 +1283,7 @@ export function createJogatinaService() {
 
         if (openBetLimit != null) {
           if (openBetLimit < 1) {
-            throw createHttpError(400, 'openBetLimit debe ser al menos 1.');
+            throw createHttpError(400, 'El limite de apuestas activas debe ser al menos 1.');
           }
           const currentOpen = await db.collection('jogatina_bets_open').countDocuments(
             { groupId, status: { $in: BET_ACTIVE_STATUSES } },
@@ -1275,6 +1335,7 @@ export function createJogatinaService() {
         throw createHttpError(400, 'La pregunta debe tener al menos 3 caracteres.');
       }
       const closeAt = parseCloseAtOrThrow(payload?.closeAt);
+      await runRealtimeMaintenance({ coachId, limit: 100 });
 
       const result = await runTransaction(async ({ db, session }) => {
         const { group } = await assertAthleteInGroup(db, coachId, athleteId, session);
@@ -1572,64 +1633,14 @@ export function createJogatinaService() {
     async finalizeResolvedBets({ coachId = null, limit = 200 } = {}) {
       const client = await getMongoClient();
       const db = client.db(config.mongoDbName);
-      const now = new Date();
-      const safeLimit = Math.max(toPositiveInt(limit, 200), 1);
-
-      const filter = {
-        status: BET_STATUS_RESOLVED_PENDING_FINAL,
-        resolvedEditableUntil: { $lte: now },
-      };
-      if (coachId) filter.coachId = normalizeCoachId(coachId);
-
-      const candidates = await db.collection('jogatina_bets_open')
-        .find(filter, { projection: { _id: 1 } })
-        .sort({ resolvedEditableUntil: 1 })
-        .limit(safeLimit)
-        .toArray();
-
-      let finalized = 0;
-      for (const candidate of candidates) {
-        const row = await finalizeResolvedBet(candidate?._id);
-        if (!row?.finalized) continue;
-        finalized += 1;
-        publishJogatinaEvent({
-          coachId: row.coachId,
-          groupId: row.groupId,
-          type: 'bet_finalized',
-          payload: row.outcome,
-        });
-      }
-
+      const finalized = await finalizeResolvedBetsForCoach(db, coachId, limit);
       return { finalized };
     },
 
     async finalizeCancelledBets({ coachId = null, limit = 200 } = {}) {
       const client = await getMongoClient();
       const db = client.db(config.mongoDbName);
-      const safeLimit = Math.max(toPositiveInt(limit, 200), 1);
-
-      const filter = { status: BET_STATUS_CANCELLED_PENDING_FINAL };
-      if (coachId) filter.coachId = normalizeCoachId(coachId);
-
-      const candidates = await db.collection('jogatina_bets_open')
-        .find(filter, { projection: { _id: 1 } })
-        .sort({ updatedAt: 1 })
-        .limit(safeLimit)
-        .toArray();
-
-      let finalized = 0;
-      for (const candidate of candidates) {
-        const row = await finalizeCancelledBet(candidate?._id);
-        if (!row?.finalized) continue;
-        finalized += 1;
-        publishJogatinaEvent({
-          coachId: row.coachId,
-          groupId: row.groupId,
-          type: 'bet_cancelled_finalized',
-          payload: row.outcome,
-        });
-      }
-
+      const finalized = await finalizeCancelledBetsForCoach(db, coachId, limit);
       return { finalized };
     },
 

@@ -611,19 +611,48 @@ export async function ensureCoachUserFromLocalData(db, coachId) {
   );
   if (existing) return;
 
-  // Try from state_cache (previously synced tf_user)
-  const cachedDoc = await db.collection('state_cache').findOne({ coachId: safeCoachId, key: 'tf_user' });
-  if (cachedDoc?.value && cachedDoc.value !== 'null') {
-    await syncCoach(db, safeCoachId, cachedDoc.value);
+  const extractBootstrapCoach = (rawValue) => {
+    const parsed = parseJsonString(rawValue, null);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const coach = parsed?.bootstrapCoach;
+    return coach && typeof coach === 'object' ? coach : null;
+  };
+
+  // Try from state_cache (legacy tf_user)
+  const cachedUserDoc = await db.collection('state_cache').findOne(
+    { coachId: safeCoachId, key: 'tf_user' },
+    { projection: { valueJsonString: 1 } }
+  );
+  const cachedUserValue = cachedUserDoc?.valueJsonString ?? null;
+  if (cachedUserValue && cachedUserValue !== 'null') {
+    await syncCoach(db, safeCoachId, cachedUserValue);
+    return;
+  }
+
+  // Try from state_cache seed metadata bootstrapCoach
+  const cachedSeedMetaDoc = await db.collection('state_cache').findOne(
+    { coachId: safeCoachId, key: 'tf_seed_meta' },
+    { projection: { valueJsonString: 1 } }
+  );
+  const cachedBootstrapCoach = extractBootstrapCoach(cachedSeedMetaDoc?.valueJsonString ?? null);
+  if (cachedBootstrapCoach) {
+    await syncCoach(db, safeCoachId, JSON.stringify(cachedBootstrapCoach));
     return;
   }
 
   // Try from local app_storage.json
   const storageJson = await readJsonFile(config.appStorageFile, {});
-  const localValue = storageJson?.tf_user;
-  const localStr = toStoredString(localValue);
-  if (localStr && localStr !== 'null') {
-    await syncCoach(db, safeCoachId, localStr);
+  const localUserValue = storageJson?.tf_user;
+  const localUserStr = toStoredString(localUserValue);
+  if (localUserStr && localUserStr !== 'null') {
+    await syncCoach(db, safeCoachId, localUserStr);
+    return;
+  }
+
+  const localBootstrapCoach = storageJson?.bootstrap_coach || storageJson?.tf_seed_meta?.bootstrapCoach;
+  const localBootstrapStr = toStoredString(localBootstrapCoach);
+  if (localBootstrapStr && localBootstrapStr !== 'null') {
+    await syncCoach(db, safeCoachId, localBootstrapStr);
   }
 }
 

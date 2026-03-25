@@ -42,6 +42,29 @@ function formatDateTime(value) {
   });
 }
 
+function formatBetStatusLabel(status) {
+  const safeStatus = String(status || '').trim();
+  if (safeStatus === 'open') return 'Abierta';
+  if (safeStatus === 'closed') return 'Cerrada';
+  if (safeStatus === 'resolved_pending_final') return 'Resultado editable';
+  if (safeStatus === 'cancelled_pending_final') return 'Cancelandose';
+  return safeStatus || 'Activa';
+}
+
+function getBetLifecycleNote(bet) {
+  const status = String(bet?.status || '').trim();
+  if (status === 'closed' && bet?.resolveDeadlineAt) {
+    return `El creador debe resolverla antes del ${formatDateTime(bet.resolveDeadlineAt)}.`;
+  }
+  if (status === 'resolved_pending_final' && bet?.resolvedEditableUntil) {
+    return `El resultado se puede editar hasta el ${formatDateTime(bet.resolvedEditableUntil)}.`;
+  }
+  if (status === 'cancelled_pending_final') {
+    return 'Se esta cancelando y devolviendo los puntos apostados.';
+  }
+  return '';
+}
+
 async function request(path, {
   method = 'GET',
   body = null,
@@ -400,7 +423,7 @@ export default function AthleteJogatina({ athlete }) {
                   />
                 </label>
                 <label>
-                  Limite apuestas abiertas
+                  Limite de apuestas activas
                   <input
                     type="number"
                     min={1}
@@ -469,15 +492,19 @@ export default function AthleteJogatina({ athlete }) {
                     && (bet.status === 'closed' || bet.status === 'resolved_pending_final');
                   const resolveSelection = resolveDrafts[bet.id] || bet.winnerAthleteIds || [];
                   const wagerDraft = wagerDrafts[bet.id] || { pickedAthleteId: '', stake: '1' };
+                  const lifecycleNote = getBetLifecycleNote(bet);
                   return (
                     <section key={bet.id} className="jogatina-bet">
                       <header className="jogatina-bet-head">
                         <h4>{bet.questionText}</h4>
-                        <span className={`status status-${bet.status}`}>{bet.status}</span>
+                        <span className={`status status-${bet.status}`}>{formatBetStatusLabel(bet.status)}</span>
                       </header>
                       <p>Creador: <strong>{bet.creatorName}</strong></p>
                       <p>Cierra: <strong>{formatDateTime(bet.closeAt)}</strong></p>
                       <p>Pozo total: <strong>{bet.pool.total} pts</strong> (carryover {bet.pool.carryoverIn})</p>
+                      {!!lifecycleNote && (
+                        <p className="jogatina-note">{lifecycleNote}</p>
+                      )}
 
                       <div className="jogatina-bet-table-wrap">
                         <table className="jogatina-bet-table">
@@ -534,6 +561,7 @@ export default function AthleteJogatina({ athlete }) {
                           Guardar apuesta
                         </button>
                       </div>
+                      <p className="jogatina-note">Puedes apostar por cualquier miembro del grupo, incluido tu propio atleta.</p>
 
                       {canResolve && (
                         <div className="jogatina-resolve">

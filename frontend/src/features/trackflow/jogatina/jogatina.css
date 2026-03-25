@@ -184,6 +184,12 @@
   color: var(--tx);
 }
 
+.jogatina-note {
+  margin-top: 6px;
+  color: var(--mu2);
+  font-size: 12px;
+}
+
 .status {
   border-radius: 999px;
   border: 1px solid transparent;
