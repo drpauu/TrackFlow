@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+﻿const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 const CLIENT_ID_KEY = 'trackflow_client_id';
 const LAST_SEQ_KEY = 'trackflow_last_seq';
 const DEFAULT_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_STORAGE_SYNC_INTERVAL_MS || 700);
@@ -11,7 +11,10 @@ let syncTimer = null;
 let syncInFlight = false;
 let shimInstalled = false;
 let clientIdCache = null;
-let writeEnabled = true;
+let writeEnabled = false;
+let sessionActive = false;
+let onlineHandler = null;
+let offlineHandler = null;
 const hydratedKeys = new Set();
 
 let nativeGetItem = null;
@@ -20,12 +23,12 @@ let nativeRemoveItem = null;
 
 let syncStatus = {
   mode: 'mongo',
-  state: 'synced',
+  state: 'unauthenticated',
   pendingWrites: 0,
   retries: 0,
   inFlight: false,
   online: true,
-  writeEnabled: true,
+  writeEnabled: false,
   realtimeStatus: 'DISABLED',
   lastError: null,
 };
@@ -285,6 +288,19 @@ async function pollChangesOnce() {
 
     updateSyncStatus({ inFlight: false, state: 'synced', lastError: null, online: isOnlineNow() });
   } catch (error) {
+    if (Number(error?.status || 0) === 401) {
+      sessionActive = false;
+      writeEnabled = false;
+      stopSyncPolling();
+      updateSyncStatus({
+        inFlight: false,
+        state: 'unauthenticated',
+        lastError: null,
+        online: isOnlineNow(),
+        writeEnabled: false,
+      });
+      return;
+    }
     updateSyncStatus({
       inFlight: false,
       state: isOnlineNow() ? 'error' : 'offline',
@@ -297,19 +313,19 @@ async function pollChangesOnce() {
 }
 
 function startSyncPolling() {
-  if (syncStarted || typeof window === 'undefined') return;
+  if (syncStarted || typeof window === 'undefined' || !sessionActive) return;
   syncStarted = true;
 
-  const handleOnline = () => {
+  onlineHandler = () => {
     updateSyncStatus({ state: 'syncing', online: true, lastError: null });
     void pollChangesOnce();
   };
-  const handleOffline = () => {
+  offlineHandler = () => {
     updateSyncStatus({ state: 'offline', online: false });
   };
 
-  window.addEventListener('online', handleOnline);
-  window.addEventListener('offline', handleOffline);
+  window.addEventListener('online', onlineHandler);
+  window.addEventListener('offline', offlineHandler);
 
   syncTimer = window.setInterval(() => {
     void pollChangesOnce();
@@ -318,17 +334,41 @@ function startSyncPolling() {
   void pollChangesOnce();
 }
 
+function stopSyncPolling() {
+  if (typeof window === 'undefined') return;
+  if (syncTimer) {
+    window.clearInterval(syncTimer);
+    syncTimer = null;
+  }
+  if (onlineHandler) {
+    window.removeEventListener('online', onlineHandler);
+    onlineHandler = null;
+  }
+  if (offlineHandler) {
+    window.removeEventListener('offline', offlineHandler);
+    offlineHandler = null;
+  }
+  syncInFlight = false;
+  syncStarted = false;
+}
+
 export async function hydrateStorageWriteAccess() {
-  startSyncPolling();
   try {
     const payload = await apiRequest('/api/auth/me');
+    sessionActive = true;
     writeEnabled = true;
+    startSyncPolling();
     updateSyncStatus({ writeEnabled: true, state: 'synced', lastError: null });
     return payload?.user || null;
   } catch {
-    // El backend puede no tener sesion activa; mantenemos escritura local/API habilitada.
-    writeEnabled = true;
-    updateSyncStatus({ writeEnabled: true, state: isOnlineNow() ? syncStatus.state : 'offline' });
+    sessionActive = false;
+    writeEnabled = false;
+    stopSyncPolling();
+    updateSyncStatus({
+      writeEnabled: false,
+      state: isOnlineNow() ? 'unauthenticated' : 'offline',
+      lastError: null,
+    });
     return null;
   }
 }
@@ -348,7 +388,7 @@ export async function signInStorageSession({ email, password, role = 'coach', co
   const safeCoachId = String(coachId || '').trim();
 
   if (!usernameOrEmail || !safePassword) {
-    return { ok: false, error: 'Usuario y contrasena son obligatorios.' };
+    return { ok: false, error: 'Usuario y contraseña son obligatorios.' };
   }
 
   try {
@@ -362,13 +402,18 @@ export async function signInStorageSession({ email, password, role = 'coach', co
       },
     });
     clearTrackflowLocalCache();
+    sessionActive = true;
     writeEnabled = true;
+    startSyncPolling();
     updateSyncStatus({ writeEnabled: true, state: 'synced', lastError: null });
     await pollChangesOnce();
     return { ok: true, user: payload?.user || null };
   } catch (error) {
+    sessionActive = false;
+    writeEnabled = false;
+    stopSyncPolling();
     updateSyncStatus({ state: isOnlineNow() ? 'error' : 'offline', lastError: error?.message || null });
-    return { ok: false, error: error?.message || 'No se pudo iniciar sesion.' };
+    return { ok: false, error: error?.message || 'No se pudo iniciar sesión.' };
   }
 }
 
@@ -378,9 +423,15 @@ export async function signOutStorageSession() {
   } catch {
     // best effort logout
   }
+  sessionActive = false;
+  stopSyncPolling();
   clearTrackflowLocalCache();
-  writeEnabled = true;
-  updateSyncStatus({ writeEnabled: true, state: isOnlineNow() ? 'synced' : 'offline', lastError: null });
+  writeEnabled = false;
+  updateSyncStatus({
+    writeEnabled: false,
+    state: isOnlineNow() ? 'unauthenticated' : 'offline',
+    lastError: null,
+  });
 }
 
 function installWindowStorageBridge() {
@@ -390,6 +441,9 @@ function installWindowStorageBridge() {
       const safeKey = String(key || '').trim();
       if (!safeKey) return { key: safeKey, value: null, storage: 'api' };
       if (!shouldSyncKey(safeKey)) {
+        return { key: safeKey, value: localGet(safeKey), storage: 'api' };
+      }
+      if (!sessionActive) {
         return { key: safeKey, value: localGet(safeKey), storage: 'api' };
       }
 
@@ -419,6 +473,9 @@ function installWindowStorageBridge() {
       if (!shouldSyncKey(safeKey)) {
         return { ok: true, key: safeKey, value: safeValue, storage: 'api' };
       }
+      if (!sessionActive || !writeEnabled) {
+        return { ok: true, key: safeKey, value: safeValue, storage: 'api' };
+      }
 
       updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
       await pushKeyToApiWithRetry(safeKey, safeValue);
@@ -432,6 +489,7 @@ function installWindowStorageBridge() {
 
       localRemove(safeKey);
       if (!shouldSyncKey(safeKey)) return { ok: true, key: safeKey, storage: 'api' };
+      if (!sessionActive || !writeEnabled) return { ok: true, key: safeKey, storage: 'api' };
 
       updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
       await pushKeyToApiWithRetry(safeKey, 'null');
@@ -444,7 +502,6 @@ function installWindowStorageBridge() {
 export function installWindowStorageShim() {
   if (typeof window === 'undefined' || !window.localStorage) return;
   ensureNativeStorage();
-  startSyncPolling();
   installWindowStorageBridge();
 
   if (shimInstalled) return;
@@ -453,7 +510,7 @@ export function installWindowStorageShim() {
   window.localStorage.getItem = (key) => {
     const safeKey = String(key || '');
     const value = localGet(safeKey);
-    if (shouldSyncKey(safeKey) && !hydratedKeys.has(safeKey)) {
+    if (sessionActive && shouldSyncKey(safeKey) && !hydratedKeys.has(safeKey)) {
       hydratedKeys.add(safeKey);
       void refreshKeyFromApi(safeKey).catch((error) => {
         updateSyncStatus({ state: isOnlineNow() ? 'error' : 'offline', lastError: error?.message || null });
@@ -467,6 +524,7 @@ export function installWindowStorageShim() {
     const safeValue = String(value ?? '');
     localSet(safeKey, safeValue);
     if (!shouldSyncKey(safeKey)) return;
+    if (!sessionActive || !writeEnabled) return;
 
     updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
     void pushKeyToApiWithRetry(safeKey, safeValue)
@@ -485,6 +543,7 @@ export function installWindowStorageShim() {
     const safeKey = String(key || '');
     localRemove(safeKey);
     if (!shouldSyncKey(safeKey)) return;
+    if (!sessionActive || !writeEnabled) return;
 
     updateSyncStatus({ state: isOnlineNow() ? 'syncing' : 'offline', lastError: null });
     void pushKeyToApiWithRetry(safeKey, 'null')
@@ -499,4 +558,5 @@ export function installWindowStorageShim() {
       });
   };
 }
+
 

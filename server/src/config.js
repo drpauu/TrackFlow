@@ -17,9 +17,27 @@ const resolvedMongoDbName = (
   ? 'track-flow-db'
   : rawMongoDbName;
 
+function parseOrigins(rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return [];
+  return raw
+    .split(',')
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+}
+
+const corsOrigins = (() => {
+  const explicit = parseOrigins(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN);
+  if (explicit.length) return explicit;
+  return [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+  ];
+})();
+
 export const config = {
   port: Number(process.env.PORT || 8787),
-  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  corsOrigins,
   defaultCoachId: String(process.env.DEFAULT_COACH_ID || 'juancarlos').trim() || 'juancarlos',
   appTimezone: String(process.env.APP_TIMEZONE || 'Europe/Madrid').trim() || 'Europe/Madrid',
   dataDir: path.resolve(serverRoot, process.env.DATA_DIR || './data'),
@@ -34,6 +52,10 @@ export const config = {
   authJwtSecret: String(process.env.AUTH_JWT_SECRET || '').trim(),
   authJwtTtlSec: Number(process.env.AUTH_JWT_TTL_SEC || 60 * 60 * 24 * 14),
   authCookieName: String(process.env.AUTH_COOKIE_NAME || 'tf_session').trim() || 'tf_session',
+  authCookieSameSite: String(
+    process.env.AUTH_COOKIE_SAMESITE
+    || (process.env.NODE_ENV === 'production' ? 'None' : 'Lax')
+  ).trim() || 'Lax',
   authCookieSecure: String(
     process.env.AUTH_COOKIE_SECURE
     || (process.env.NODE_ENV === 'production' ? 'true' : 'false')

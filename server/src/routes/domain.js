@@ -1,9 +1,9 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 
 function requireRole(req, res, role) {
   const auth = req.context?.auth || null;
   if (!auth?.userId) {
-    res.status(401).json({ ok: false, error: 'Sesion requerida.' });
+    res.status(401).json({ ok: false, error: 'Sesión requerida.' });
     return null;
   }
   if (role && auth.role !== role) {
@@ -176,3 +176,4 @@ export default function createDomainRouter({ storage }) {
 
   return router;
 }
+

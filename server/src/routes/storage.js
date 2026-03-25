@@ -1,8 +1,17 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 
 function toFiniteInt(value, fallback = 0) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function requireSession(req, res) {
+  const auth = req.context?.auth || null;
+  if (!auth?.userId) {
+    res.status(401).json({ ok: false, error: 'Sesión requerida.' });
+    return null;
+  }
+  return auth;
 }
 
 export default function createStorageRouter({ storage }) {
@@ -14,12 +23,13 @@ export default function createStorageRouter({ storage }) {
 
   router.get('/storage/changes', async (req, res, next) => {
     try {
+      const auth = requireSession(req, res);
+      if (!auth) return;
       res.set('Cache-Control', 'no-store');
       const since = Math.max(toFiniteInt(req.query?.since, 0), 0);
       const limit = Math.min(Math.max(toFiniteInt(req.query?.limit, 200), 1), 500);
       const clientId = String(req.query?.clientId || req.get('x-trackflow-client-id') || '').trim() || null;
       const coachId = req.context?.coachId || null;
-      const auth = req.context?.auth || null;
 
       const payload = await storage.getChanges({ since, limit, clientId, coachId, auth });
       return res.json({
@@ -36,11 +46,13 @@ export default function createStorageRouter({ storage }) {
 
   router.get('/storage/:key', async (req, res, next) => {
     try {
+      const auth = requireSession(req, res);
+      if (!auth) return;
       res.set('Cache-Control', 'no-store');
       const { key } = req.params;
       const value = await storage.get(key, {
         coachId: req.context?.coachId || null,
-        auth: req.context?.auth || null,
+        auth,
       });
       return res.json({ key, value: value == null ? null : value, storage: storage?.name || 'unknown' });
     } catch (err) {
@@ -50,6 +62,8 @@ export default function createStorageRouter({ storage }) {
 
   router.put('/storage/:key', async (req, res, next) => {
     try {
+      const auth = requireSession(req, res);
+      if (!auth) return;
       const { key } = req.params;
       const value = req.body?.value;
       if (typeof value !== 'string') {
@@ -59,7 +73,7 @@ export default function createStorageRouter({ storage }) {
       const result = await storage.set(key, value, {
         clientId,
         coachId: req.context?.coachId || null,
-        auth: req.context?.auth || null,
+        auth,
       });
       return res.json({
         ok: true,
@@ -75,9 +89,11 @@ export default function createStorageRouter({ storage }) {
 
   router.get('/users-csv', async (_req, res, next) => {
     try {
+      const auth = requireSession(_req, res);
+      if (!auth) return;
       const csv = await storage.get('tf_users_csv', {
         coachId: _req.context?.coachId || null,
-        auth: _req.context?.auth || null,
+        auth,
       });
       res.type('text/csv').send(csv || '');
     } catch (err) {
@@ -87,3 +103,4 @@ export default function createStorageRouter({ storage }) {
 
   return router;
 }
+

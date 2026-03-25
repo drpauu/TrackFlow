@@ -11,16 +11,16 @@
     "touchViolationsList": [
       {
         "width": 177,
-        "height": 37,
-        "text": "🏃 Atleta",
-        "className": "tab-btn active",
+        "height": 36,
+        "text": "Atleta",
+        "className": "tab-btn",
         "tag": "button"
       },
       {
         "width": 177,
-        "height": 37,
-        "text": "📋 Entrenador",
-        "className": "tab-btn",
+        "height": 36,
+        "text": "Entrenador",
+        "className": "tab-btn active",
         "tag": "button"
       }
     ]
@@ -33,7 +33,7 @@
     "horizontalOverflow": 0,
     "hasTopbar": false,
     "hasTabbar": false,
-    "touchViolations": 7,
+    "touchViolations": 8,
     "touchViolationsList": [
       {
         "width": 195,
@@ -44,43 +44,50 @@
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "⚡Hoy",
+        "height": 42,
+        "text": "Hoy",
         "className": "nav-item active",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "📅Mi Semana",
+        "height": 42,
+        "text": "Mi Semana",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🏋️Mi Gym",
+        "height": 42,
+        "text": "Jogatina",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🗓️Mi Calendario",
+        "height": 42,
+        "text": "Mi Gym",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "👤Mi Perfil",
+        "height": 42,
+        "text": "Mi Calendario",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🚪 Cerrar sesión",
+        "height": 42,
+        "text": "Mi Perfil",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Cerrar sesión",
         "className": "nav-item nav-item-danger mt3",
         "tag": "button"
       }
@@ -94,7 +101,7 @@
     "horizontalOverflow": 0,
     "hasTopbar": false,
     "hasTabbar": false,
-    "touchViolations": 7,
+    "touchViolations": 8,
     "touchViolationsList": [
       {
         "width": 195,
@@ -105,43 +112,50 @@
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "⚡Hoy",
+        "height": 42,
+        "text": "Hoy",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "📅Mi Semana",
+        "height": 42,
+        "text": "Mi Semana",
         "className": "nav-item active",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🏋️Mi Gym",
+        "height": 42,
+        "text": "Jogatina",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🗓️Mi Calendario",
+        "height": 42,
+        "text": "Mi Gym",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "👤Mi Perfil",
+        "height": 42,
+        "text": "Mi Calendario",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🚪 Cerrar sesión",
+        "height": 42,
+        "text": "Mi Perfil",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Cerrar sesión",
         "className": "nav-item nav-item-danger mt3",
         "tag": "button"
       }
@@ -155,7 +169,7 @@
     "horizontalOverflow": 0,
     "hasTopbar": false,
     "hasTabbar": false,
-    "touchViolations": 7,
+    "touchViolations": 9,
     "touchViolationsList": [
       {
         "width": 195,
@@ -166,49 +180,287 @@
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "⚡Hoy",
+        "height": 42,
+        "text": "Hoy",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "📅Mi Semana",
+        "height": 42,
+        "text": "Mi Semana",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🏋️Mi Gym",
+        "height": 42,
+        "text": "Jogatina",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🗓️Mi Calendario",
+        "height": 42,
+        "text": "Mi Gym",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Mi Calendario",
         "className": "nav-item active",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "👤Mi Perfil",
+        "height": 42,
+        "text": "Mi Perfil",
         "className": "nav-item",
         "tag": "button"
       },
       {
         "width": 219,
-        "height": 43,
-        "text": "🚪 Cerrar sesión",
+        "height": 42,
+        "text": "Cerrar sesión",
         "className": "nav-item nav-item-danger mt3",
+        "tag": "button"
+      },
+      {
+        "width": 143.9,
+        "height": 36,
+        "text": "Añadir competición",
+        "className": "btn btn-or btn-sm",
         "tag": "button"
       }
     ]
   },
-  "1440x900:coach-seed-error": {
-    "error": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.app-wrap')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.app-wrap')\u001b[22m\n"
+  "1440x900:coach-semana": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": false,
+    "hasTabbar": false,
+    "touchViolations": 18,
+    "touchViolationsList": [
+      {
+        "width": 195,
+        "height": 32,
+        "text": "TRACKFLOW",
+        "className": "sb-home",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Plan Semanal",
+        "className": "nav-item active",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Calendario",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Calendario Semanal",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Dataset Ejercicios",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Dataset Entrenos",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Gestión Atletas",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Temporadas",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Cerrar sesión",
+        "className": "nav-item nav-item-danger mt3",
+        "tag": "button"
+      },
+      {
+        "width": 130,
+        "height": 36,
+        "text": "Semana anterior",
+        "className": "btn btn-ghost btn-sm",
+        "tag": "button"
+      },
+      {
+        "width": 136.8,
+        "height": 36,
+        "text": "Semana siguiente",
+        "className": "btn btn-ghost btn-sm",
+        "tag": "button"
+      },
+      {
+        "width": 131.7,
+        "height": 36,
+        "text": "Editar",
+        "className": "btn btn-ghost btn-sm mt3",
+        "tag": "button"
+      },
+      {
+        "width": 131.7,
+        "height": 36,
+        "text": "Editar",
+        "className": "btn btn-ghost btn-sm mt3",
+        "tag": "button"
+      },
+      {
+        "width": 131.7,
+        "height": 36,
+        "text": "Editar",
+        "className": "btn btn-ghost btn-sm mt3",
+        "tag": "button"
+      },
+      {
+        "width": 131.7,
+        "height": 36,
+        "text": "Editar",
+        "className": "btn btn-ghost btn-sm mt3",
+        "tag": "button"
+      },
+      {
+        "width": 131.7,
+        "height": 36,
+        "text": "Editar",
+        "className": "btn btn-ghost btn-sm mt3",
+        "tag": "button"
+      },
+      {
+        "width": 131.7,
+        "height": 36,
+        "text": "Editar",
+        "className": "btn btn-ghost btn-sm mt3",
+        "tag": "button"
+      },
+      {
+        "width": 131.7,
+        "height": 36,
+        "text": "Editar",
+        "className": "btn btn-ghost btn-sm mt3",
+        "tag": "button"
+      }
+    ]
+  },
+  "1440x900:coach-calendario": {
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": false,
+    "hasTabbar": false,
+    "touchViolations": 11,
+    "touchViolationsList": [
+      {
+        "width": 195,
+        "height": 32,
+        "text": "TRACKFLOW",
+        "className": "sb-home",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Plan Semanal",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Calendario",
+        "className": "nav-item active",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Calendario Semanal",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Dataset Ejercicios",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Dataset Entrenos",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Gestión Atletas",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Temporadas",
+        "className": "nav-item",
+        "tag": "button"
+      },
+      {
+        "width": 219,
+        "height": 42,
+        "text": "Cerrar sesión",
+        "className": "nav-item nav-item-danger mt3",
+        "tag": "button"
+      },
+      {
+        "width": 61.8,
+        "height": 36,
+        "text": "Ant.",
+        "className": "btn btn-ghost btn-sm",
+        "tag": "button"
+      },
+      {
+        "width": 58.9,
+        "height": 36,
+        "text": "Sig.",
+        "className": "btn btn-ghost btn-sm",
+        "tag": "button"
+      }
+    ]
   }
 }

@@ -2,6 +2,11 @@
 import path from 'node:path';
 
 import { test, expect } from '@playwright/test';
+import {
+  COACH_CREDENTIALS,
+  createTemporaryAthlete,
+  removeTemporaryAthlete,
+} from '../e2e/support/trackflow.helpers.mjs';
 
 const VIEWPORTS = [
   { name: '360x800', width: 360, height: 800 },
@@ -13,13 +18,6 @@ const VIEWPORTS = [
 ];
 
 const OUT_DIR = path.join(process.cwd(), 'qa', 'visual');
-
-const COACH_SEED_USER = {
-  id: 'coach',
-  name: 'JuanCarlos',
-  role: 'coach',
-  password: '151346',
-};
 
 function sanitize(name) {
   return String(name || '')
@@ -68,18 +66,20 @@ async function logout(page) {
 }
 
 async function loginAthlete(page, name = 'Nuria', password = '1234') {
-  await page.getByPlaceholder('Nombre del atleta').fill(name);
-  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole('button', { name: /Atleta/i }).click();
+  const inputs = page.locator('.login-card .input');
+  await inputs.nth(0).fill(name);
+  await inputs.nth(1).fill(password);
   await page.getByRole('button', { name: /Entrar/ }).click();
   await expect(page.locator('.app-wrap')).toBeVisible();
 }
 
-async function seedCoachSession(page) {
-  await page.evaluate((payload) => {
-    window.localStorage.setItem('tf_user', JSON.stringify(payload));
-  }, COACH_SEED_USER);
-  await page.waitForTimeout(300);
-  await page.reload({ waitUntil: 'domcontentloaded' });
+async function loginCoach(page, username = COACH_CREDENTIALS.username, password = COACH_CREDENTIALS.password) {
+  await page.getByRole('button', { name: /Entrenador/i }).click();
+  const inputs = page.locator('.login-card .input');
+  await inputs.nth(0).fill(username);
+  await inputs.nth(1).fill(password);
+  await page.getByRole('button', { name: /Entrar/ }).click();
   await expect(page.locator('.app-wrap')).toBeVisible();
 }
 
@@ -134,28 +134,32 @@ test.beforeAll(async () => {
 
 for (const viewport of VIEWPORTS) {
   test(`QA visual ${viewport.name}`, async ({ page }) => {
+    const seed = await createTemporaryAthlete({ name: `Atleta Visual ${viewport.name}` });
     const metricsLog = {};
-    await page.setViewportSize({ width: viewport.width, height: viewport.height });
-    await page.addInitScript(() => {
-      window.localStorage.clear();
-      window.sessionStorage.clear();
-    });
-
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('.login-wrap')).toBeVisible();
-    await capture(page, viewport.name, 'login', metricsLog);
-
-    await loginAthlete(page);
-    await capture(page, viewport.name, 'athlete-hoy', metricsLog);
-
-    await clickNav(page, 'Semana');
-    await capture(page, viewport.name, 'athlete-semana', metricsLog);
-
-    await clickNav(page, 'Calendario');
-    await capture(page, viewport.name, 'athlete-calendario', metricsLog);
-
     try {
-      await seedCoachSession(page);
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.addInitScript(() => {
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+      });
+
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.login-wrap')).toBeVisible();
+      await capture(page, viewport.name, 'login', metricsLog);
+
+      await loginAthlete(page, seed.athleteName, seed.password);
+      await capture(page, viewport.name, 'athlete-hoy', metricsLog);
+
+      await clickNav(page, 'Semana');
+      await capture(page, viewport.name, 'athlete-semana', metricsLog);
+
+      await clickNav(page, 'Calendario');
+      await capture(page, viewport.name, 'athlete-calendario', metricsLog);
+
+      await logout(page);
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.login-wrap')).toBeVisible();
+      await loginCoach(page);
       await capture(page, viewport.name, 'coach-semana', metricsLog);
 
       await clickNav(page, 'Calendario');
@@ -166,6 +170,7 @@ for (const viewport of VIEWPORTS) {
       };
     } finally {
       await logout(page);
+      await removeTemporaryAthlete(seed);
     }
 
     const metricsFile = path.join(OUT_DIR, `${sanitize(viewport.name)}-metrics.json`);

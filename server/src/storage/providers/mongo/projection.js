@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 import { config } from '../../../config.js';
-import { hashPassword, verifyPassword } from '../../../security/auth.js';
 import { readJsonFile, readTextFile } from '../../../utils/fs.js';
 import {
   USERS_KEY,
@@ -20,7 +19,6 @@ import {
 } from './shared.js';
 
 const PROJECTION_KEYS = new Set([
-  'tf_user',
   'tf_groups',
   'tf_athletes',
   'tf_trainings',
@@ -187,25 +185,19 @@ async function syncCoach(db, coachId, rawValue) {
   const role = String(coach?.role || '').trim().toLowerCase();
   if (role && role !== 'coach') return;
   const now = new Date();
-  const plainPassword = String(coach?.password || '151346');
+  const payloadPassword = String(coach?.password || '').trim();
 
   const existing = await db.collection('users').findOne(
     { _id: `coach:${coachId}` },
-    { projection: { passwordHash: 1, usernameLower: 1 } }
+    { projection: { password: 1, usernameLower: 1 } }
   );
 
   const usernameFromPayload = normalizeGroupName(coach?.username || '').replace(/\s+/g, '');
   const usernameFromExisting = String(existing?.usernameLower || '').trim();
   const usernameFromName = normalizeGroupName(coach?.name || coachId || 'coach').replace(/\s+/g, '');
   const usernameLower = usernameFromPayload || usernameFromExisting || usernameFromName || 'coach';
-
-  let passwordHash;
-  if (existing?.passwordHash) {
-    const matches = await verifyPassword(plainPassword, existing.passwordHash);
-    passwordHash = matches ? existing.passwordHash : await hashPassword(plainPassword);
-  } else {
-    passwordHash = await hashPassword(plainPassword);
-  }
+  const existingPassword = String(existing?.password || '').trim();
+  const password = payloadPassword || existingPassword || '151346';
 
   await db.collection('users').updateOne(
     { _id: `coach:${coachId}` },
@@ -215,9 +207,12 @@ async function syncCoach(db, coachId, rawValue) {
         role: 'coach',
         usernameLower,
         emailLower: String(coach?.email || '').trim().toLowerCase() || null,
-        passwordHash,
+        password,
         isActive: true,
         updatedAt: now,
+      },
+      $unset: {
+        passwordHash: '',
       },
       $setOnInsert: { createdAt: now },
     },
@@ -302,7 +297,7 @@ async function syncAthletesAndCompetitions(db, coachId, rawValue) {
       athleteId,
       usernameLower: normalizeGroupName(name),
       emailLower: null,
-      passwordHash: await hashPassword(String(athlete?.password || '1234')),
+      password: String(athlete?.password || '1234').trim() || '1234',
       isActive: true,
       updatedAt: now,
       createdAt: now,
@@ -599,7 +594,6 @@ async function syncHistory(db, coachId, rawValue) {
 
 export async function applyProjectionForKey({ db, coachId, key, rawValue }) {
   if (!PROJECTION_KEYS.has(key)) return;
-  if (key === 'tf_user') await syncCoach(db, coachId, rawValue);
   if (key === 'tf_groups') await syncGroups(db, coachId, rawValue);
   if (key === 'tf_athletes') await syncAthletesAndCompetitions(db, coachId, rawValue);
   if (key === 'tf_trainings') await syncTrainings(db, coachId, rawValue);
@@ -615,9 +609,9 @@ export async function ensureCoachUserFromLocalData(db, coachId) {
   const safeCoachId = normalizeCoachId(coachId);
   const existing = await db.collection('users').findOne(
     { _id: `coach:${safeCoachId}`, role: 'coach' },
-    { projection: { _id: 1 } }
+    { projection: { _id: 1, password: 1 } }
   );
-  if (existing) return;
+  if (existing && String(existing?.password || '').trim()) return;
 
   const extractBootstrapCoach = (rawValue) => {
     const parsed = parseJsonString(rawValue, null);

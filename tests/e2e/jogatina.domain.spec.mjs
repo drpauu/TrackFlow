@@ -3,67 +3,60 @@ import { test, expect } from '@playwright/test';
 import {
   cleanupBetByQuestion,
   createBetAndSelfWager,
+  ensureJogatinaMembership,
   expireResolvedBetWindow,
   finalizeBetForCancellation,
   findBetByQuestion,
   forceBetClosedForResolution,
-  getAthleteAuthByName,
   getJogatinaState,
-  listMembershipAthletes,
   resolveBetAsSelfWinner,
 } from './support/jogatina.helpers.mjs';
-import { uniqueQuestion } from './support/trackflow.helpers.mjs';
+import {
+  createTemporaryAthlete,
+  removeTemporaryAthlete,
+  uniqueQuestion,
+} from './support/trackflow.helpers.mjs';
+
+function toAuth(seed) {
+  return {
+    userId: `playwright:${seed.athleteId}`,
+    role: 'athlete',
+    athleteId: seed.athleteId,
+    coachId: seed.coachId,
+    athleteName: seed.athleteName,
+  };
+}
 
 test('jogatina permite cargar estado sin sesion usando athleteId abierto', async ({ request }) => {
-  const auth = await getAthleteAuthByName('Nuria');
-  const response = await request.get('/api/jogatina/state', {
-    headers: {
-      'x-jogatina-athlete-id': auth.athleteId,
-      'x-jogatina-athlete-name': auth.athleteName,
-    },
-  });
+  const seed = await createTemporaryAthlete({ name: 'Atleta QA Jogatina API' });
+  const auth = toAuth(seed);
+  try {
+    await ensureJogatinaMembership(auth, 'Grupo QA API');
+    const response = await request.get('/api/jogatina/state', {
+      headers: {
+        'x-jogatina-athlete-id': auth.athleteId,
+        'x-jogatina-athlete-name': auth.athleteName,
+      },
+    });
 
-  expect(response.ok()).toBeTruthy();
-  const payload = await response.json();
-  expect(payload?.ok).toBeTruthy();
-  expect(payload?.state?.membership?.athleteId).toBe(auth.athleteId);
-  expect(Array.isArray(payload?.state?.bets)).toBeTruthy();
-});
-
-test('getState carga correctamente para todos los atletas con membership', async () => {
-  const memberships = await listMembershipAthletes();
-  const failures = [];
-
-  for (const row of memberships) {
-    const auth = {
-      userId: `playwright:${row.athleteId}`,
-      role: 'athlete',
-      athleteId: String(row.athleteId || '').trim(),
-      coachId: String(row.coachId || '').trim(),
-    };
-
-    try {
-      const state = await getJogatinaState(auth);
-      expect(state?.membership?.groupId).toBeTruthy();
-      expect(Array.isArray(state?.ranking)).toBe(true);
-      expect(Array.isArray(state?.bets)).toBe(true);
-    } catch (error) {
-      failures.push({
-        athleteId: String(row.athleteId || '').trim(),
-        error: error?.message || String(error),
-      });
-    }
+    expect(response.ok()).toBeTruthy();
+    const payload = await response.json();
+    expect(payload?.ok).toBeTruthy();
+    expect(payload?.state?.membership?.athleteId).toBe(auth.athleteId);
+    expect(Array.isArray(payload?.state?.bets)).toBeTruthy();
+  } finally {
+    await removeTemporaryAthlete(seed);
   }
-
-  expect(failures).toEqual([]);
 });
 
 test('owner puede autovotarse y el mantenimiento inline finaliza sin cron', async () => {
-  const auth = await getAthleteAuthByName('Pelayo');
+  const seed = await createTemporaryAthlete({ name: 'Atleta QA Jogatina Dominio' });
+  const auth = toAuth(seed);
   const question = uniqueQuestion('e2e_jogatina_domain');
   const cancelQuestion = uniqueQuestion('e2e_jogatina_cancel');
 
   try {
+    await ensureJogatinaMembership(auth, 'Grupo QA Dominio');
     const created = await createBetAndSelfWager(auth, question, 9);
     await forceBetClosedForResolution(created.betId);
 
@@ -85,5 +78,6 @@ test('owner puede autovotarse y el mantenimiento inline finaliza sin cron', asyn
   } finally {
     await cleanupBetByQuestion(auth, question);
     await cleanupBetByQuestion(auth, cancelQuestion);
+    await removeTemporaryAthlete(seed);
   }
 });

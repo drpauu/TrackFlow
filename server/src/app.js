@@ -8,13 +8,31 @@ import createJogatinaRouter from './routes/jogatina.js';
 import { attachRequestContext } from './middleware/requestContext.js';
 import { createStorageProvider } from './storage/provider.js';
 
+function isLocalDevOrigin(origin) {
+  try {
+    const parsed = new URL(String(origin || ''));
+    return parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
 export async function buildTrackFlowApp() {
   const storageProvider = createStorageProvider();
   await storageProvider.init();
 
   const app = express();
   app.disable('x-powered-by');
-  app.use(cors({ origin: config.corsOrigin, credentials: true }));
+  const allowedOrigins = new Set((config.corsOrigins || []).map((origin) => String(origin || '').trim()).filter(Boolean));
+  app.use(cors({
+    origin(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (isLocalDevOrigin(origin)) return callback(null, true);
+      if (!allowedOrigins.size || allowedOrigins.has(origin)) return callback(null, true);
+      return callback(new Error(`CORS origin no permitido: ${origin}`));
+    },
+    credentials: true,
+  }));
   app.use(express.json({ limit: '2mb' }));
   app.use(attachRequestContext);
 

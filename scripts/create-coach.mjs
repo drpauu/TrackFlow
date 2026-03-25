@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
 import { MongoClient } from 'mongodb';
-import { hashPassword } from '../server/src/security/auth.js';
 import { normalizeGroupName, slugify } from '../server/src/storage/providers/mongo/shared.js';
 
 dotenv.config({ path: '.env' });
@@ -78,7 +77,6 @@ async function main() {
     }
 
     const now = new Date();
-    const passwordHash = await hashPassword(password);
     await db.collection('users').insertOne({
       _id: userId,
       coachId,
@@ -86,7 +84,7 @@ async function main() {
       athleteId: null,
       usernameLower,
       emailLower: emailLower || null,
-      passwordHash,
+      password: String(password || '').trim(),
       isActive: true,
       createdAt: now,
       updatedAt: now,

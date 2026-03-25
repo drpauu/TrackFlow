@@ -43,6 +43,15 @@ export async function getAthleteAuthByName(name) {
   };
 }
 
+export async function ensureJogatinaMembership(auth, groupNamePrefix = 'Grupo QA') {
+  const state = await jogatinaService.getState(auth);
+  if (state?.membership?.groupId) return state;
+  await jogatinaService.createGroup(auth, {
+    name: `${groupNamePrefix} ${Date.now().toString(36)}`,
+  });
+  return await jogatinaService.getState(auth);
+}
+
 export async function listMembershipAthletes() {
   const db = await getDb();
   return await db.collection('jogatina_memberships')

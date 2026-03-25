@@ -11,16 +11,16 @@
     "touchViolationsList": [
       {
         "width": 171,
-        "height": 37,
-        "text": "🏃 Atleta",
-        "className": "tab-btn active",
+        "height": 33,
+        "text": "Atleta",
+        "className": "tab-btn",
         "tag": "button"
       },
       {
         "width": 171,
-        "height": 37,
-        "text": "📋 Entrenador",
-        "className": "tab-btn",
+        "height": 33,
+        "text": "Entrenador",
+        "className": "tab-btn active",
         "tag": "button"
       }
     ]
@@ -58,7 +58,34 @@
     "touchViolations": 0,
     "touchViolationsList": []
   },
-  "412x915:coach-seed-error": {
-    "error": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: locator('.app-wrap')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('.app-wrap')\u001b[22m\n"
+  "412x915:coach-semana": {
+    "viewport": {
+      "width": 412,
+      "height": 915
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": true,
+    "hasTabbar": true,
+    "touchViolations": 0,
+    "touchViolationsList": []
+  },
+  "412x915:coach-calendario": {
+    "viewport": {
+      "width": 412,
+      "height": 915
+    },
+    "horizontalOverflow": 0,
+    "hasTopbar": true,
+    "hasTabbar": true,
+    "touchViolations": 1,
+    "touchViolationsList": [
+      {
+        "width": 42.9,
+        "height": 44,
+        "text": "Sig.",
+        "className": "btn btn-ghost btn-sm",
+        "tag": "button"
+      }
+    ]
   }
 }

@@ -2,10 +2,25 @@ import { test, expect } from '@playwright/test';
 
 import {
   clickNav,
+  createTemporaryAthlete,
   loginAthlete,
+  removeTemporaryAthlete,
   seedCoachSession,
   waitForAppReady,
 } from './support/trackflow.helpers.mjs';
+
+let qaAthlete = null;
+
+test.beforeEach(async () => {
+  qaAthlete = await createTemporaryAthlete({ name: 'Atleta QA Critico' });
+});
+
+test.afterEach(async () => {
+  if (qaAthlete) {
+    await removeTemporaryAthlete(qaAthlete);
+    qaAthlete = null;
+  }
+});
 
 test('coach con sesion persistida mantiene la semana publicada tras refrescar', async ({ page }) => {
   await seedCoachSession(page);
@@ -30,7 +45,7 @@ test('coach con sesion persistida mantiene la semana publicada tras refrescar', 
 });
 
 test('athlete login real y navegacion principal base', async ({ page }) => {
-  await loginAthlete(page, 'Nuria');
+  await loginAthlete(page, qaAthlete.athleteName, qaAthlete.password);
 
   await clickNav(page, 'Semana');
   await expect(page.locator('.ph-title', { hasText: /SEMANA/i }).first()).toBeVisible();

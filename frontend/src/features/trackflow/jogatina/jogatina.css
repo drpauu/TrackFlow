@@ -88,6 +88,16 @@
   font-size: 13px;
 }
 
+.jogatina-inline-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.jogatina-inline-form input {
+  flex: 1;
+}
+
 .jogatina-card label {
   display: grid;
   gap: 6px;
@@ -116,6 +126,11 @@
   font-size: 12px;
   padding: 9px 12px;
   transition: all 0.15s ease;
+}
+
+.jogatina-card > button,
+.jogatina-card form > button {
+  margin-top: 10px;
 }
 
 .jogatina-panel button:hover:not(:disabled) {
@@ -258,6 +273,11 @@
   align-items: end;
 }
 
+.jogatina-bet-actions > button {
+  min-width: 120px;
+  height: 39px;
+}
+
 .jogatina-resolve {
   margin-top: 12px;
   border-top: 1px solid var(--border2);
@@ -297,5 +317,14 @@
 
   .jogatina-bet-actions {
     grid-template-columns: 1fr;
+  }
+
+  .jogatina-inline-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .jogatina-bet-actions > button {
+    width: 100%;
   }
 }

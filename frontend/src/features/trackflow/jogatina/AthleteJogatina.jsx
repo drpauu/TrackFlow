@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import './jogatina.css';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
@@ -47,7 +47,7 @@ function formatBetStatusLabel(status) {
   if (safeStatus === 'open') return 'Abierta';
   if (safeStatus === 'closed') return 'Cerrada';
   if (safeStatus === 'resolved_pending_final') return 'Resultado editable';
-  if (safeStatus === 'cancelled_pending_final') return 'Cancelandose';
+  if (safeStatus === 'cancelled_pending_final') return 'Cancelándose';
   return safeStatus || 'Activa';
 }
 
@@ -60,7 +60,7 @@ function getBetLifecycleNote(bet) {
     return `El resultado se puede editar hasta el ${formatDateTime(bet.resolvedEditableUntil)}.`;
   }
   if (status === 'cancelled_pending_final') {
-    return 'Se esta cancelando y devolviendo los puntos apostados.';
+    return 'Se está cancelando y devolviendo los puntos apostados.';
   }
   return '';
 }
@@ -213,7 +213,7 @@ export default function AthleteJogatina({ athlete }) {
       await task();
       await loadState();
     } catch (actionError) {
-      setError(actionError?.message || 'Operacion no disponible.');
+      setError(actionError?.message || 'Operación no disponible.');
     } finally {
       setBusy(false);
     }
@@ -237,7 +237,7 @@ export default function AthleteJogatina({ athlete }) {
   const handleJoinGroup = useCallback(() => {
     const code5 = joinCode.replace(/\D/g, '').slice(0, 5);
     if (code5.length !== 5) {
-      setError('El codigo de grupo debe tener 5 digitos.');
+      setError('El código de grupo debe tener 5 dígitos.');
       return;
     }
     runAction(async () => {
@@ -309,7 +309,7 @@ export default function AthleteJogatina({ athlete }) {
       return;
     }
     if (!Number.isFinite(stake) || stake < 1) {
-      setError('La apuesta minima es 1 punto.');
+      setError('La apuesta mínima es 1 punto.');
       return;
     }
     runAction(async () => {
@@ -379,24 +379,28 @@ export default function AthleteJogatina({ athlete }) {
         <div className="jogatina-grid">
           <article className="jogatina-card">
             <h3>Crear grupo</h3>
-            <input
-              type="text"
-              value={createGroupName}
-              placeholder="Nombre del grupo"
-              onChange={(event) => setCreateGroupName(event.target.value)}
-            />
-            <button type="button" disabled={busy} onClick={handleCreateGroup}>Crear</button>
+            <div className="jogatina-inline-form">
+              <input
+                type="text"
+                value={createGroupName}
+                placeholder="Nombre del grupo"
+                onChange={(event) => setCreateGroupName(event.target.value)}
+              />
+              <button type="button" disabled={busy} onClick={handleCreateGroup}>Crear</button>
+            </div>
           </article>
 
           <article className="jogatina-card">
-            <h3>Unirse por codigo</h3>
-            <input
-              type="text"
-              value={joinCode}
-              placeholder="12345"
-              onChange={(event) => setJoinCode(event.target.value.replace(/\D/g, '').slice(0, 5))}
-            />
-            <button type="button" disabled={busy} onClick={handleJoinGroup}>Unirse</button>
+            <h3>Unirse por código</h3>
+            <div className="jogatina-inline-form">
+              <input
+                type="text"
+                value={joinCode}
+                placeholder="12345"
+                onChange={(event) => setJoinCode(event.target.value.replace(/\D/g, '').slice(0, 5))}
+              />
+              <button type="button" disabled={busy} onClick={handleJoinGroup}>Unirse</button>
+            </div>
           </article>
         </div>
       )}
@@ -407,7 +411,7 @@ export default function AthleteJogatina({ athlete }) {
             <article className="jogatina-card">
               <h3>Tu grupo</h3>
               <p><strong>{state?.group?.name}</strong></p>
-              <p>Codigo: <strong>{state?.group?.code5}</strong></p>
+              <p>Código: <strong>{state?.group?.code5}</strong></p>
               <button type="button" disabled={busy} onClick={handleLeaveGroup}>Salir del grupo</button>
             </article>
 
@@ -423,7 +427,7 @@ export default function AthleteJogatina({ athlete }) {
                   />
                 </label>
                 <label>
-                  Limite de apuestas activas
+                  Límite de apuestas activas
                   <input
                     type="number"
                     min={1}
@@ -444,7 +448,7 @@ export default function AthleteJogatina({ athlete }) {
                 type="text"
                 value={questionDraft}
                 onChange={(event) => setQuestionDraft(event.target.value)}
-                placeholder="¿Quien hara mejor tiempo hoy?"
+                placeholder="¿Quién hará mejor tiempo hoy?"
               />
             </label>
             <label>
@@ -466,7 +470,7 @@ export default function AthleteJogatina({ athlete }) {
                 <ol className="jogatina-ranking">
                   {ranking.map((row) => (
                     <li key={row.athleteId}>
-                      <span>{row.name}{row.athleteId === athleteId ? ' (tu)' : ''}</span>
+                      <span>{row.name}{row.athleteId === athleteId ? ' (tú)' : ''}</span>
                       <strong>{row.points}</strong>
                     </li>
                   ))}
@@ -518,7 +522,7 @@ export default function AthleteJogatina({ athlete }) {
                           <tbody>
                             {(bet.wagers || []).map((row) => (
                               <tr key={`${bet.id}-${row.athleteId}`}>
-                                <td>{row.athleteName}{row.isMine ? ' (tu)' : ''}</td>
+                                <td>{row.athleteName}{row.isMine ? ' (tú)' : ''}</td>
                                 <td>{row.pickedAthleteName}</td>
                                 <td>{row.stake}</td>
                               </tr>
@@ -595,3 +599,5 @@ export default function AthleteJogatina({ athlete }) {
     </section>
   );
 }
+
+

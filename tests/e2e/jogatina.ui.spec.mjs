@@ -5,25 +5,46 @@ import {
   expireResolvedBetWindow,
   findBetByQuestion,
   forceBetClosedForResolution,
-  getAthleteAuthByName,
 } from './support/jogatina.helpers.mjs';
 import {
+  createTemporaryAthlete,
   openJogatina,
   loginAthlete,
+  removeTemporaryAthlete,
   uniqueQuestion,
 } from './support/trackflow.helpers.mjs';
 
+function toAuth(seed) {
+  return {
+    userId: `playwright:${seed.athleteId}`,
+    role: 'athlete',
+    athleteId: seed.athleteId,
+    coachId: seed.coachId,
+    athleteName: seed.athleteName,
+  };
+}
+
 test('owner puede crear apuesta, apostar por si mismo y resolverla desde la UI', async ({ page }) => {
-  const auth = await getAthleteAuthByName('Nuria');
+  const seed = await createTemporaryAthlete({ name: 'Atleta QA Jogatina UI' });
+  const auth = toAuth(seed);
   const question = uniqueQuestion('e2e_jogatina_owner');
 
   try {
-    await loginAthlete(page, auth.athleteName);
+    await loginAthlete(page, auth.athleteName, seed.password);
     await openJogatina(page);
 
     const createBetCard = page.locator('.jogatina-card', {
       has: page.getByRole('heading', { name: 'Crear apuesta' }),
     });
+
+    const createGroupCard = page.locator('.jogatina-card', {
+      has: page.getByRole('heading', { name: 'Crear grupo' }),
+    }).first();
+    if (await createGroupCard.isVisible().catch(() => false)) {
+      await createGroupCard.getByPlaceholder('Nombre del grupo').fill(`Grupo ${Date.now()}`);
+      await createGroupCard.getByRole('button', { name: 'Crear' }).click();
+    }
+    await expect(createBetCard).toBeVisible();
 
     await createBetCard.getByLabel('Pregunta').fill(question);
     await createBetCard.getByRole('button', { name: 'Publicar apuesta' }).click();
@@ -35,7 +56,7 @@ test('owner puede crear apuesta, apostar por si mismo y resolverla desde la UI',
     await bet.getByLabel('Stake').fill('7');
     await bet.getByRole('button', { name: 'Guardar apuesta' }).click();
 
-    await expect(bet.locator('tbody tr', { hasText: `${auth.athleteName} (tu)` }).first()).toContainText('7');
+    await expect(bet.locator('tbody tr', { hasText: `${auth.athleteName} (tú)` }).first()).toContainText('7');
 
     const createdBet = await findBetByQuestion(question);
     if (!createdBet?._id) {
@@ -69,5 +90,6 @@ test('owner puede crear apuesta, apostar por si mismo y resolverla desde la UI',
     await expect(page.locator('.jogatina-bet', { hasText: question })).toHaveCount(0);
   } finally {
     await cleanupBetByQuestion(auth, question);
+    await removeTemporaryAthlete(seed);
   }
 });

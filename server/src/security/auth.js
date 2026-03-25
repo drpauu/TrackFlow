@@ -1,8 +1,5 @@
-import crypto from 'node:crypto';
-import { promisify } from 'node:util';
+﻿import crypto from 'node:crypto';
 import { config } from '../config.js';
-
-const scryptAsync = promisify(crypto.scrypt);
 
 function base64UrlEncode(input) {
   const raw = Buffer.isBuffer(input) ? input : Buffer.from(String(input), 'utf8');
@@ -23,25 +20,25 @@ function getJwtSecret() {
 
 export async function hashPassword(password) {
   const safe = String(password || '');
-  if (!safe) throw new Error('Password vacio.');
-  const salt = crypto.randomBytes(16).toString('hex');
-  const derived = await scryptAsync(safe, salt, 64);
-  return `scrypt$${salt}$${Buffer.from(derived).toString('hex')}`;
+  if (!safe) throw new Error('Password vacío.');
+  return safe;
+}
+
+function resolveCookieSameSite() {
+  const raw = String(config.authCookieSameSite || '').trim().toLowerCase();
+  if (raw === 'none') return 'None';
+  if (raw === 'strict') return 'Strict';
+  return 'Lax';
 }
 
 export async function verifyPassword(password, passwordHash) {
   const safePassword = String(password || '');
-  const safeHash = String(passwordHash || '');
-  if (!safePassword || !safeHash) return false;
-  const parts = safeHash.split('$');
-  if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
-  const salt = parts[1];
-  const stored = parts[2];
-  const derived = await scryptAsync(safePassword, salt, 64);
-  const storedBuf = Buffer.from(stored, 'hex');
-  const derivedBuf = Buffer.from(derived);
-  if (storedBuf.length !== derivedBuf.length) return false;
-  return crypto.timingSafeEqual(storedBuf, derivedBuf);
+  const safeStored = String(passwordHash || '');
+  if (!safePassword || !safeStored) return false;
+  const passwordBuf = Buffer.from(safePassword, 'utf8');
+  const storedBuf = Buffer.from(safeStored, 'utf8');
+  if (passwordBuf.length !== storedBuf.length) return false;
+  return crypto.timingSafeEqual(passwordBuf, storedBuf);
 }
 
 export function signSessionToken(payload = {}) {
@@ -106,27 +103,30 @@ export function parseCookieHeader(rawCookie = '') {
 export function buildAuthCookie(token, options = {}) {
   const name = config.authCookieName;
   const maxAge = Math.max(Number(config.authJwtTtlSec || 0), 60);
-  const secure = options?.secure ?? config.authCookieSecure;
+  const sameSite = options?.sameSite || resolveCookieSameSite();
+  const secure = options?.secure ?? (sameSite === 'None' ? true : config.authCookieSecure);
   const attrs = [
     `${name}=${encodeURIComponent(token)}`,
     `Max-Age=${maxAge}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${sameSite}`,
   ];
   if (secure) attrs.push('Secure');
   return attrs.join('; ');
 }
 
 export function buildClearAuthCookie(options = {}) {
-  const secure = options?.secure ?? config.authCookieSecure;
+  const sameSite = options?.sameSite || resolveCookieSameSite();
+  const secure = options?.secure ?? (sameSite === 'None' ? true : config.authCookieSecure);
   const attrs = [
     `${config.authCookieName}=`,
     'Max-Age=0',
     'Path=/',
     'HttpOnly',
-    'SameSite=Lax',
+    `SameSite=${sameSite}`,
   ];
   if (secure) attrs.push('Secure');
   return attrs.join('; ');
 }
+

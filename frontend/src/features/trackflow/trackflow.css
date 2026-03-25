@@ -283,6 +283,10 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 .modal-title{font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;text-transform:uppercase;margin-bottom:4px}
 .modal-close{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:6px 14px;color:var(--mu2);font-size:13px;font-weight:700}
 .modal-close:hover{background:var(--s3);color:var(--tx)}
+.modal-overlay.week-editor-overlay{align-items:center}
+.modal.modal-week-editor{width:min(1240px,96vw);max-width:96vw;max-height:92dvh;padding:24px}
+.modal.modal-week-editor .card{min-width:0}
+.modal.modal-week-editor .inline-routine-row{grid-template-columns:42px minmax(0,1fr) 120px 86px 86px 92px auto !important}
 
 /* Pulse animation */
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
@@ -388,6 +392,7 @@ input,select,textarea{font-family:'Nunito',sans-serif}
   .login-card{width:calc(100vw - 16px);padding:28px 18px;border-radius:18px}
   .login-logo{font-size:48px}
   .modal{width:calc(100vw - 14px);padding:18px;max-height:88vh}
+  .modal.modal-week-editor{width:calc(100vw - 12px);max-width:calc(100vw - 12px)}
 }
 
 @media (max-width: 640px){
@@ -995,6 +1000,14 @@ textarea:disabled{
     padding:16px 14px calc(14px + env(safe-area-inset-bottom));
     animation:sheetUp .22s ease;
   }
+  .modal.modal-week-editor{
+    width:100%;
+    max-width:100%;
+    border-radius:18px 18px 0 0;
+    border-left:none;
+    border-right:none;
+    border-bottom:none;
+  }
   .tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .coach-temporadas-page .table-scroll .tbl{min-width:460px}
 }
@@ -1102,6 +1115,14 @@ textarea:disabled{
     border-bottom:none;
     padding:15px 12px calc(14px + env(safe-area-inset-bottom));
     animation:sheetUp .22s ease;
+  }
+  .modal.modal-week-editor{
+    width:100%;
+    max-width:100%;
+    border-radius:18px 18px 0 0;
+    border-left:none;
+    border-right:none;
+    border-bottom:none;
   }
   .tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .coach-temporadas-page .table-scroll .tbl{min-width:440px}

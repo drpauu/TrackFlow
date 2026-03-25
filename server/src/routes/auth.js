@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { buildAuthCookie, buildClearAuthCookie } from '../security/auth.js';
 
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
@@ -68,17 +68,17 @@ export default function createAuthRouter({ storage }) {
         result = await storage.authenticateCoach({ usernameOrEmail, password });
       } else if (role === 'athlete') {
         result = await storage.authenticateAthlete({
-          coachId: req.body?.coachId || req.context?.coachId,
+          coachId: req.body?.coachId || null,
           username: usernameOrEmail,
           password,
         });
       } else {
-        return res.status(400).json({ ok: false, error: 'role invalido. Usa coach o athlete.' });
+        return res.status(400).json({ ok: false, error: 'role inválido. Usa coach o athlete.' });
       }
 
       if (!result?.ok) {
         registerLoginFailure(bucket);
-        return res.status(401).json({ ok: false, error: result?.error || 'Credenciales invalidas.' });
+        return res.status(401).json({ ok: false, error: result?.error || 'Credenciales inválidas.' });
       }
       registerLoginSuccess(bucket);
       res.setHeader('Set-Cookie', buildAuthCookie(result.token));
@@ -96,9 +96,9 @@ export default function createAuthRouter({ storage }) {
   router.get('/me', async (req, res, next) => {
     try {
       const auth = req.context?.auth || null;
-      if (!auth?.userId) return res.status(401).json({ ok: false, error: 'Sesion no valida.' });
+      if (!auth?.userId) return res.status(401).json({ ok: false, error: 'Sesión no válida.' });
       const user = await storage.getUserById(auth.userId);
-      if (!user) return res.status(401).json({ ok: false, error: 'Sesion no valida.' });
+      if (!user) return res.status(401).json({ ok: false, error: 'Sesión no válida.' });
       return res.json({ ok: true, user });
     } catch (error) {
       return next(error);
@@ -107,3 +107,4 @@ export default function createAuthRouter({ storage }) {
 
   return router;
 }
+

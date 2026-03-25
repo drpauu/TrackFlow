@@ -1,4 +1,4 @@
-import { config } from '../../config.js';
+﻿import { config } from '../../config.js';
 import { verifyPassword, signSessionToken } from '../../security/auth.js';
 import { getMongoDb } from './mongo/client.js';
 import {
@@ -152,15 +152,29 @@ async function readCoachUser(db, usernameOrEmail) {
 }
 
 async function readAthleteUser(db, coachId, username) {
-  const safeCoachId = normalizeCoachId(coachId);
   const normalized = String(username || '').trim().toLowerCase();
-  if (!normalized) return null;
-  return await db.collection('users').findOne({
+  if (!normalized) return { user: null, ambiguous: false };
+
+  const safeCoachId = String(coachId || '').trim();
+  if (safeCoachId) {
+    const user = await db.collection('users').findOne({
+      role: 'athlete',
+      coachId: normalizeCoachId(safeCoachId),
+      usernameLower: normalized,
+      isActive: { $ne: false },
+    });
+    return { user: user || null, ambiguous: false };
+  }
+
+  const candidates = await db.collection('users').find({
     role: 'athlete',
-    coachId: safeCoachId,
     usernameLower: normalized,
     isActive: { $ne: false },
-  });
+  }).limit(2).toArray();
+  if (candidates.length > 1) {
+    return { user: null, ambiguous: true };
+  }
+  return { user: candidates[0] || null, ambiguous: false };
 }
 
 export function createMongoStorageProvider() {
@@ -250,9 +264,9 @@ export function createMongoStorageProvider() {
     async authenticateCoach({ usernameOrEmail, password }) {
       const db = await getMongoDb();
       const user = await readCoachUser(db, usernameOrEmail);
-      if (!user) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
-      const valid = await verifyPassword(String(password || ''), String(user?.passwordHash || ''));
-      if (!valid) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
+      if (!user) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
+      const valid = await verifyPassword(String(password || ''), String(user?.password || ''));
+      if (!valid) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
 
       await db.collection('users').updateOne(
         { _id: user._id },
@@ -278,10 +292,16 @@ export function createMongoStorageProvider() {
 
     async authenticateAthlete({ coachId, username, password }) {
       const db = await getMongoDb();
-      const user = await readAthleteUser(db, coachId, username);
-      if (!user) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
-      const valid = await verifyPassword(String(password || ''), String(user?.passwordHash || ''));
-      if (!valid) return { ok: false, error: 'Usuario o contrasena incorrectos.' };
+      const { user, ambiguous } = await readAthleteUser(db, coachId, username);
+      if (ambiguous) {
+        return {
+          ok: false,
+          error: 'Hay varios atletas con ese usuario. Pide a tu entrenador iniciar sesión desde su grupo.',
+        };
+      }
+      if (!user) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
+      const valid = await verifyPassword(String(password || ''), String(user?.password || ''));
+      if (!valid) return { ok: false, error: 'Usuario o contraseña incorrectos.' };
 
       await db.collection('users').updateOne(
         { _id: user._id },
@@ -334,7 +354,7 @@ export function createMongoStorageProvider() {
       const db = await getMongoDb();
       const safeCoachId = normalizeCoachId(coachId);
       const safeWeekPlanId = String(weekPlanId || '').trim();
-      if (!safeWeekPlanId) throw new Error('weekPlanId vacio.');
+      if (!safeWeekPlanId) throw new Error('weekPlanId vacío.');
 
       const nowIso = new Date().toISOString();
       const weekDoc = await db.collection('week_plans').findOneAndUpdate(
@@ -549,7 +569,7 @@ export function createMongoStorageProvider() {
       const safeAthleteId = String(athleteId || '').trim();
       const dateIso = normalizeIsoDate(payload?.dateIso || payload?.date);
       if (!safeAthleteId || !dateIso) throw new Error('athleteId/dateIso obligatorios.');
-      const name = String(payload?.name || 'Competicion').trim() || 'Competicion';
+      const name = String(payload?.name || 'Competición').trim() || 'Competición';
       const competitionId = String(payload?.id || '').trim() || slugify(`${dateIso}-${name}`);
       const id = `${safeCoachId}:${safeAthleteId}:${competitionId}`;
       await db.collection('competitions').updateOne(
@@ -617,4 +637,6 @@ export function createMongoStorageProvider() {
     },
   };
 }
+
+
 

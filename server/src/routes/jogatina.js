@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { config } from '../config.js';
 import { createJogatinaService } from '../domain/jogatina/service.js';
 import { subscribeJogatinaEvents } from '../domain/jogatina/events.js';
@@ -7,7 +7,7 @@ function requireJogatinaEnabled(res) {
   if (config.jogatinaEnabled) return true;
   res.status(404).json({
     ok: false,
-    error: 'Jogatina esta desactivado por feature flag.',
+    error: 'Jogatina está desactivado por feature flag.',
   });
   return false;
 }
@@ -29,7 +29,7 @@ function resolveAthleteAuth(req, res) {
     || ''
   ).trim();
   if (!fallbackAthleteId) {
-    res.status(401).json({ ok: false, error: 'Debes iniciar sesion o enviar athleteId para usar Jogatina.' });
+    res.status(401).json({ ok: false, error: 'Debes iniciar sesión o enviar athleteId para usar Jogatina.' });
     return null;
   }
   const fallbackCoachId = String(req.context?.coachId || config.defaultCoachId).trim() || config.defaultCoachId;
@@ -234,3 +234,5 @@ export default function createJogatinaRouter() {
 
   return router;
 }
+
+

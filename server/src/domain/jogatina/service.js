@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+﻿import crypto from 'node:crypto';
 import { config } from '../../config.js';
 import { getMongoClient } from '../../storage/providers/mongo/client.js';
 import { normalizeCoachId, parseJsonString, safeArray } from '../../storage/providers/mongo/shared.js';
@@ -464,7 +464,7 @@ async function assertAthleteInGroup(db, coachId, athleteId, session = null) {
   const safeCoachId = normalizeCoachId(coachId);
   const membership = await getMembership(db, athleteId, session);
   if (!membership) {
-    throw createHttpError(404, 'El atleta no pertenece a ningun grupo de Jogatina.');
+    throw createHttpError(404, 'El atleta no pertenece a ningún grupo de Jogatina.');
   }
   if (String(membership.coachId || '').trim() !== safeCoachId) {
     throw createHttpError(403, 'No puedes operar en un grupo de otro entrenador.');
@@ -496,7 +496,7 @@ async function ensureGroupCodeAvailable(db, session = null) {
     );
     if (!existing) return code5;
   }
-  throw createHttpError(500, 'No se pudo generar un codigo unico para el grupo.');
+  throw createHttpError(500, 'No se pudo generar un código único para el grupo.');
 }
 
 function parseCloseAtOrThrow(closeAt) {
@@ -510,10 +510,10 @@ function parseCloseAtOrThrow(closeAt) {
   const min = now + BET_MIN_CLOSE_MS;
   const max = now + BET_MAX_CLOSE_MS;
   if (ms < min) {
-    throw createHttpError(400, 'La apuesta debe cerrar al menos 5 minutos despues de crearla.');
+    throw createHttpError(400, 'La apuesta debe cerrar al menos 5 minutos después de crearla.');
   }
   if (ms > max) {
-    throw createHttpError(400, 'La apuesta no puede cerrar mas alla de 48 horas.');
+    throw createHttpError(400, 'La apuesta no puede cerrar más allá de 48 horas.');
   }
 
   return parsed;
@@ -915,7 +915,7 @@ function assertAthleteAuth(auth) {
   const coachId = normalizeCoachId(auth?.coachId);
   const userId = String(auth?.userId || '').trim();
 
-  if (!userId) throw createHttpError(401, 'Sesion requerida.');
+  if (!userId) throw createHttpError(401, 'Sesión requerida.');
   if (role !== 'athlete' || !athleteId) throw createHttpError(403, 'Solo atletas autenticados pueden usar Jogatina.');
 
   return { coachId, athleteId, userId };
@@ -1120,7 +1120,7 @@ export function createJogatinaService() {
       const { coachId, athleteId } = assertAthleteAuth(auth);
       const code5 = normalizeCode5(payload?.code5);
       if (!code5) {
-        throw createHttpError(400, 'El codigo de grupo debe tener 5 digitos.');
+        throw createHttpError(400, 'El código de grupo debe tener 5 dígitos.');
       }
 
       const result = await runTransaction(async ({ db, session }) => {
@@ -1134,7 +1134,7 @@ export function createJogatinaService() {
           { session }
         );
         if (!group) {
-          throw createHttpError(404, 'No existe ningun grupo con ese codigo.');
+          throw createHttpError(404, 'No existe ningún grupo con ese código.');
         }
         if (String(group.coachId || '').trim() !== coachId) {
           throw createHttpError(403, 'Solo puedes unirte a grupos de tu entrenador.');
@@ -1196,7 +1196,7 @@ export function createJogatinaService() {
       const result = await runTransaction(async ({ db, session }) => {
         const membership = await getMembership(db, athleteId, session);
         if (!membership) {
-          throw createHttpError(404, 'No perteneces a ningun grupo de Jogatina.');
+          throw createHttpError(404, 'No perteneces a ningún grupo de Jogatina.');
         }
         if (String(membership.coachId || '').trim() !== coachId) {
           throw createHttpError(403, 'No autorizado para salir de este grupo.');
@@ -1270,7 +1270,7 @@ export function createJogatinaService() {
         const groupId = String(group._id || '').trim();
 
         if (String(group.ownerAthleteId || '').trim() !== athleteId) {
-          throw createHttpError(403, 'Solo el propietario del grupo puede editar esta configuracion.');
+          throw createHttpError(403, 'Solo el propietario del grupo puede editar esta configuración.');
         }
 
         const update = {};
@@ -1283,14 +1283,14 @@ export function createJogatinaService() {
 
         if (openBetLimit != null) {
           if (openBetLimit < 1) {
-            throw createHttpError(400, 'El limite de apuestas activas debe ser al menos 1.');
+            throw createHttpError(400, 'El límite de apuestas activas debe ser al menos 1.');
           }
           const currentOpen = await db.collection('jogatina_bets_open').countDocuments(
             { groupId, status: { $in: BET_ACTIVE_STATUSES } },
             { session }
           );
           if (openBetLimit < currentOpen) {
-            throw createHttpError(400, 'No puedes fijar un limite menor que las apuestas activas actuales.');
+            throw createHttpError(400, 'No puedes fijar un límite menor que las apuestas activas actuales.');
           }
           update.openBetLimit = openBetLimit;
         }
@@ -1347,7 +1347,7 @@ export function createJogatinaService() {
           { session }
         );
         if (activeCount >= openBetLimit) {
-          throw createHttpError(409, 'El grupo ha alcanzado su limite de apuestas activas.');
+          throw createHttpError(409, 'El grupo ha alcanzado su límite de apuestas activas.');
         }
 
         const carryoverIn = await getGroupCarryoverAmount(db, groupId, session);
@@ -1403,7 +1403,7 @@ export function createJogatinaService() {
       const { coachId, athleteId } = assertAthleteAuth(auth);
       const safeBetId = String(betId || '').trim();
       if (!safeBetId) {
-        throw createHttpError(400, 'betId invalido.');
+        throw createHttpError(400, 'betId inválido.');
       }
 
       const pickedAthleteId = String(payload?.pickedAthleteId || '').trim();
@@ -1412,7 +1412,7 @@ export function createJogatinaService() {
         throw createHttpError(400, 'Debes indicar el atleta seleccionado para la apuesta.');
       }
       if (stake < 1) {
-        throw createHttpError(400, 'La apuesta minima es de 1 punto.');
+        throw createHttpError(400, 'La apuesta mínima es de 1 punto.');
       }
 
       const result = await runTransaction(async ({ db, session }) => {
@@ -1429,7 +1429,7 @@ export function createJogatinaService() {
 
         const now = new Date();
         if (String(bet.status || '') !== BET_STATUS_OPEN || new Date(bet.closeAt).getTime() <= now.getTime()) {
-          throw createHttpError(409, 'La apuesta ya esta cerrada y no admite cambios.');
+          throw createHttpError(409, 'La apuesta ya está cerrada y no admite cambios.');
         }
 
         const memberIds = (await listGroupMemberships(db, groupId, session))
@@ -1521,7 +1521,7 @@ export function createJogatinaService() {
       const { coachId, athleteId } = assertAthleteAuth(auth);
       const safeBetId = String(betId || '').trim();
       if (!safeBetId) {
-        throw createHttpError(400, 'betId invalido.');
+        throw createHttpError(400, 'betId inválido.');
       }
 
       const winnerAthleteIds = uniqueStrings(payload?.winnerAthleteIds);
@@ -1553,7 +1553,7 @@ export function createJogatinaService() {
 
         const status = String(bet.status || BET_STATUS_OPEN);
         if (![BET_STATUS_OPEN, BET_STATUS_CLOSED, BET_STATUS_RESOLVED_PENDING_FINAL].includes(status)) {
-          throw createHttpError(409, 'Esta apuesta ya no admite resolucion manual.');
+          throw createHttpError(409, 'Esta apuesta ya no admite resolución manual.');
         }
 
         const memberIds = (await listGroupMemberships(db, groupId, session))
@@ -1766,3 +1766,5 @@ export function createJogatinaService() {
     },
   };
 }
+
+

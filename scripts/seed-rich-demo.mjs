@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { getMongoClient } from '../server/src/storage/providers/mongo/client.js';
 import { ensureIndexes } from '../server/src/storage/providers/mongo/projection.js';
-import { hashPassword } from '../server/src/security/auth.js';
 import {
   addDaysIso,
   buildAthleteDayStatusColor,
@@ -548,12 +547,7 @@ function buildAppState(appStorage, athletes, seasons, weekPlans, trainings, rout
   };
 }
 
-async function buildUsersCollection(athletes, now) {
-  const hashes = await Promise.all([
-    hashPassword(COACH_PASSWORD),
-    ...athletes.map((athlete) => hashPassword(athlete.password || ATHLETE_DEFAULT_PASSWORD)),
-  ]);
-  const [coachHash, ...athleteHashes] = hashes;
+function buildUsersCollection(athletes, now) {
   const users = [
     {
       _id: `coach:${COACH_ID}`,
@@ -562,7 +556,7 @@ async function buildUsersCollection(athletes, now) {
       athleteId: null,
       usernameLower: normalizeGroupName(COACH_NAME),
       emailLower: COACH_EMAIL.toLowerCase(),
-      passwordHash: coachHash,
+      password: COACH_PASSWORD,
       isActive: true,
       updatedAt: now,
       createdAt: now,
@@ -577,7 +571,7 @@ async function buildUsersCollection(athletes, now) {
       athleteId: athlete.id,
       usernameLower: normalizeGroupName(athlete.name),
       emailLower: null,
-      passwordHash: athleteHashes[index],
+      password: athlete.password || ATHLETE_DEFAULT_PASSWORD,
       isActive: true,
       updatedAt: now,
       createdAt: now,
@@ -1219,7 +1213,7 @@ async function main() {
   const appState = buildAppState(appStorage, athletes, seasons, weekPlans, trainings, routines);
   appState.tf_users_csv = usersCsvSeed;
 
-  const usersCollection = await buildUsersCollection(athletes, now);
+  const usersCollection = buildUsersCollection(athletes, now);
   const groupsCollection = buildGroupsCollection(appState.tf_groups, now);
   const athletesCollection = buildAthletesCollection(athletes, now);
   const gymExercisesCollection = buildGymExercisesCollection(appState.tf_custom_exercises, now);
