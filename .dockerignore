@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+
+# builds
+frontend/dist/
+.next/
+out/
+
+# env
+.env
+*.local
+frontend/.env
+server/.env
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+qa-frontend.log
+test-results/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# runtime data backups
+server/data/*.bak
+.vercel
+.env*.local
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
