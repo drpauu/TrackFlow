@@ -308,6 +308,69 @@ export async function seedPublishedThursdayOutsideActiveWeek({
   };
 }
 
+export async function seedPublishedCurrentWeekOnly({
+  coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos',
+  targetDateIso = '2026-03-26',
+  sessionName = 'Control QA semana actual publicada',
+} = {}) {
+  const db = await getDb();
+  const targetDate = new Date(`${targetDateIso}T12:00:00`);
+  const weekNumber = getSeasonWeekNumber(targetDate);
+  const weekStart = getSeasonWeekStartDate(weekNumber);
+  const weekEnd = new Date(
+    weekStart.getFullYear(),
+    weekStart.getMonth(),
+    weekStart.getDate() + 6
+  );
+  const days = Array.from({ length: 7 }, () => buildEmptyWeekDay());
+  days[3] = {
+    ...buildEmptyWeekDay(),
+    am: sessionName,
+    sessions: {
+      am: {
+        id: `session_current_${weekNumber}_thu_am`,
+        slot: 'am',
+        trainingId: '',
+        name: sessionName,
+        description: 'Sesión QA visible en tf_week aunque falte tf_week_plans.',
+        targetAll: true,
+        targetGroups: [],
+        targetAthleteIds: [],
+        targetGroup: 'all',
+        zones: { regen: 3, ua: 1, uan: 0, anae: 0 },
+      },
+      pm: null,
+    },
+  };
+
+  const week = {
+    id: `week_${weekNumber}`,
+    name: `Semana ${weekNumber}`,
+    type: 'Inicial',
+    targetGroup: 'all',
+    weekNumber,
+    startDate: toIsoDate(weekStart),
+    endDate: toIsoDate(weekEnd),
+    published: true,
+    publishedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEditingPublished: false,
+    publishedVersion: null,
+    days,
+  };
+
+  await db.collection('state_cache').deleteOne({ coachId, key: 'tf_week_plans' });
+  await writeStateCacheValue(db, coachId, 'tf_week', week);
+  await writeStateCacheValue(db, coachId, 'tf_active_week_number', weekNumber);
+
+  return {
+    coachId,
+    weekNumber,
+    targetDateIso,
+    sessionName,
+  };
+}
+
 export async function createTemporaryAthlete({ name = 'Atleta QA', password = DEFAULT_ATHLETE_PASSWORD } = {}) {
   const db = await getDb();
   const coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos';

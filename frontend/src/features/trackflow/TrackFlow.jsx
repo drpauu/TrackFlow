@@ -1436,6 +1436,29 @@ const listPublishedWeeks = (
     .sort((a, b) => normalizeWeekNumber(a?.weekNumber, 0) - normalizeWeekNumber(b?.weekNumber, 0))
 );
 
+const buildPublishedWeeksForCalendar = (
+  currentWeek,
+  weekPlansByNumber,
+  routines = DEFAULT_ROUTINE_LIBRARY,
+  seasonAnchorDate = SEASON_ANCHOR_DATE
+) => {
+  const fromPlans = listPublishedWeeks(weekPlansByNumber, routines, seasonAnchorDate);
+  const currentPublishedWeek = resolvePublishedWeek(currentWeek, routines);
+  if (!currentPublishedWeek) return fromPlans;
+
+  const exists = fromPlans.some((week) => {
+    if (!week || !currentPublishedWeek) return false;
+    const sameNumber = normalizeWeekNumber(week?.weekNumber, 0) === normalizeWeekNumber(currentPublishedWeek?.weekNumber, 0);
+    const sameStart = String(week?.startDate || '').trim() === String(currentPublishedWeek?.startDate || '').trim();
+    return sameNumber || (!!sameStart && sameStart.length > 0);
+  });
+
+  if (exists) return fromPlans;
+  return [...fromPlans, currentPublishedWeek]
+    .filter(Boolean)
+    .sort((a, b) => normalizeWeekNumber(a?.weekNumber, 0) - normalizeWeekNumber(b?.weekNumber, 0));
+};
+
 const buildCalendarDayMap = ({
   weeks = [],
   routines = DEFAULT_ROUTINE_LIBRARY,
@@ -4854,7 +4877,7 @@ function CoachCalendario({ week, weekPlansByNumber, routines, history, activeWee
     activeWeekNumber,
     week.weekNumber || getTodaySeasonWeekNumber(seasonAnchorDate)
   );
-  const publishedWeeks = listPublishedWeeks(weekPlansByNumber, routines, seasonAnchorDate);
+  const publishedWeeks = buildPublishedWeeksForCalendar(week, weekPlansByNumber, routines, seasonAnchorDate);
   const calendarDayMap = buildCalendarDayMap({
     weeks: publishedWeeks,
     routines,
@@ -6361,7 +6384,7 @@ function AthleteCalendario({
   const [competitionError, setCompetitionError] = useState("");
   const [competitionSaving, setCompetitionSaving] = useState(false);
   const competitions = normalizeCompetitionList(user.competitions || []);
-  const publishedWeeks = listPublishedWeeks(weekPlansByNumber, routines, seasonAnchorDate);
+  const publishedWeeks = buildPublishedWeeksForCalendar(week, weekPlansByNumber, routines, seasonAnchorDate);
   const publishedPlansByDate = buildCalendarDayMap({
     weeks: publishedWeeks,
     routines,

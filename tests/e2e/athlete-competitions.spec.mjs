@@ -7,6 +7,7 @@ import {
   loginAthlete,
   removeTemporaryAthlete,
   restoreWeekPlanState,
+  seedPublishedCurrentWeekOnly,
   seedPublishedThursdayOnlyWeek,
   seedPublishedThursdayOutsideActiveWeek,
   snapshotWeekPlanState,
@@ -124,5 +125,30 @@ test('el calendario del coach muestra días publicados aunque la semana activa s
     await expect(detail).toContainText(seededWeek.sessionName);
   } finally {
     await restoreWeekPlanState(snapshot);
+  }
+});
+
+test('el calendario diario sigue mostrando la semana publicada actual aunque tf_week_plans falte', async ({ page }) => {
+  const seed = await createTemporaryAthlete({ name: 'Atleta QA Calendario Fallback' });
+  const snapshot = await snapshotWeekPlanState();
+  const seededWeek = await seedPublishedCurrentWeekOnly({
+    sessionName: `Control fallback ${Date.now()}`,
+  });
+
+  try {
+    await loginAthlete(page, seed.athleteName, seed.password);
+    await clickNav(page, 'Mi Calendario');
+
+    const targetDay = page.locator('.cal-cell').filter({ hasText: /^26$/ }).first();
+    await expect(targetDay).toBeVisible();
+    await expect(targetDay).toHaveClass(/has-training/);
+
+    await targetDay.click();
+    const detail = page.locator('.athlete-cal-detail').first();
+    await expect(detail).toContainText('Jueves 2026-03-26');
+    await expect(detail).toContainText(seededWeek.sessionName);
+  } finally {
+    await restoreWeekPlanState(snapshot);
+    await removeTemporaryAthlete(seed);
   }
 });
