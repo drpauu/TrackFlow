@@ -217,6 +217,97 @@ export async function seedPublishedThursdayOnlyWeek({
   };
 }
 
+export async function seedPublishedThursdayOutsideActiveWeek({
+  coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos',
+  targetDateIso = '2026-03-26',
+  sessionName = 'Control QA jueves fuera de activa',
+} = {}) {
+  const db = await getDb();
+  const targetDate = new Date(`${targetDateIso}T12:00:00`);
+  const publishedWeekNumber = getSeasonWeekNumber(targetDate);
+  const publishedWeekStart = getSeasonWeekStartDate(publishedWeekNumber);
+  const publishedWeekEnd = new Date(
+    publishedWeekStart.getFullYear(),
+    publishedWeekStart.getMonth(),
+    publishedWeekStart.getDate() + 6
+  );
+
+  const publishedDays = Array.from({ length: 7 }, () => buildEmptyWeekDay());
+  publishedDays[3] = {
+    ...buildEmptyWeekDay(),
+    am: sessionName,
+    sessions: {
+      am: {
+        id: `session_${publishedWeekNumber}_thu_am`,
+        slot: 'am',
+        trainingId: '',
+        name: sessionName,
+        description: 'Sesión QA publicada fuera de la semana activa.',
+        targetAll: true,
+        targetGroups: [],
+        targetAthleteIds: [],
+        targetGroup: 'all',
+        zones: { regen: 4, ua: 1, uan: 0, anae: 0 },
+      },
+      pm: null,
+    },
+  };
+
+  const publishedWeek = {
+    id: `week_${publishedWeekNumber}`,
+    name: `Semana ${publishedWeekNumber}`,
+    type: 'Inicial',
+    targetGroup: 'all',
+    weekNumber: publishedWeekNumber,
+    startDate: toIsoDate(publishedWeekStart),
+    endDate: toIsoDate(publishedWeekEnd),
+    published: true,
+    publishedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEditingPublished: false,
+    publishedVersion: null,
+    days: publishedDays,
+  };
+
+  const activeWeekNumber = publishedWeekNumber + 1;
+  const activeWeekStart = getSeasonWeekStartDate(activeWeekNumber);
+  const activeWeekEnd = new Date(
+    activeWeekStart.getFullYear(),
+    activeWeekStart.getMonth(),
+    activeWeekStart.getDate() + 6
+  );
+  const draftWeek = {
+    id: `week_${activeWeekNumber}`,
+    name: `Semana ${activeWeekNumber}`,
+    type: 'Inicial',
+    targetGroup: 'all',
+    weekNumber: activeWeekNumber,
+    startDate: toIsoDate(activeWeekStart),
+    endDate: toIsoDate(activeWeekEnd),
+    published: false,
+    publishedAt: null,
+    updatedAt: new Date().toISOString(),
+    isEditingPublished: false,
+    publishedVersion: null,
+    days: Array.from({ length: 7 }, () => buildEmptyWeekDay()),
+  };
+
+  await writeStateCacheValue(db, coachId, 'tf_week_plans', {
+    [publishedWeekNumber]: publishedWeek,
+    [activeWeekNumber]: draftWeek,
+  });
+  await writeStateCacheValue(db, coachId, 'tf_week', draftWeek);
+  await writeStateCacheValue(db, coachId, 'tf_active_week_number', activeWeekNumber);
+
+  return {
+    coachId,
+    publishedWeekNumber,
+    activeWeekNumber,
+    targetDateIso,
+    sessionName,
+  };
+}
+
 export async function createTemporaryAthlete({ name = 'Atleta QA', password = DEFAULT_ATHLETE_PASSWORD } = {}) {
   const db = await getDb();
   const coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos';

@@ -3,10 +3,12 @@
 import {
   clickNav,
   createTemporaryAthlete,
+  loginCoach,
   loginAthlete,
   removeTemporaryAthlete,
   restoreWeekPlanState,
   seedPublishedThursdayOnlyWeek,
+  seedPublishedThursdayOutsideActiveWeek,
   snapshotWeekPlanState,
   waitForAppReady,
 } from './support/trackflow.helpers.mjs';
@@ -66,7 +68,7 @@ test('el calendario del atleta no replica un jueves publicado en otros jueves de
     await previousThursday.click();
     const detail = page.locator('.athlete-cal-detail').first();
     await expect(detail).toContainText('Jueves 2026-03-19');
-    await expect(detail).toContainText('Sin plan asignado a tus grupos para este día.');
+    await expect(detail).toContainText('No hay semana publicada para este día.');
     await expect(detail).not.toContainText(seededWeek.sessionName);
 
     await targetDay.click();
@@ -75,5 +77,52 @@ test('el calendario del atleta no replica un jueves publicado en otros jueves de
   } finally {
     await restoreWeekPlanState(snapshot);
     await removeTemporaryAthlete(seed);
+  }
+});
+
+test('el calendario del atleta muestra días publicados aunque la semana activa sea otra distinta', async ({ page }) => {
+  const seed = await createTemporaryAthlete({ name: 'Atleta QA Calendario Multiweek' });
+  const snapshot = await snapshotWeekPlanState();
+  const seededWeek = await seedPublishedThursdayOutsideActiveWeek({
+    sessionName: `Control fuera activa ${Date.now()}`,
+  });
+
+  try {
+    await loginAthlete(page, seed.athleteName, seed.password);
+    await clickNav(page, 'Mi Calendario');
+
+    const targetDay = page.locator('.cal-cell').filter({ hasText: /^26$/ }).first();
+    await expect(targetDay).toBeVisible();
+    await expect(targetDay).toHaveClass(/has-training/);
+
+    await targetDay.click();
+    const detail = page.locator('.athlete-cal-detail').first();
+    await expect(detail).toContainText('Jueves 2026-03-26');
+    await expect(detail).toContainText(seededWeek.sessionName);
+  } finally {
+    await restoreWeekPlanState(snapshot);
+    await removeTemporaryAthlete(seed);
+  }
+});
+
+test('el calendario del coach muestra días publicados aunque la semana activa sea otra distinta', async ({ page }) => {
+  const snapshot = await snapshotWeekPlanState();
+  const seededWeek = await seedPublishedThursdayOutsideActiveWeek({
+    sessionName: `Control coach fuera activa ${Date.now()}`,
+  });
+
+  try {
+    await loginCoach(page);
+    await clickNav(page, 'Calendario');
+
+    const targetDay = page.locator('.cal-cell').filter({ hasText: /^26$/ }).first();
+    await expect(targetDay).toBeVisible();
+    await expect(targetDay).toHaveClass(/has-training/);
+
+    await targetDay.click();
+    const detail = page.locator('.card').filter({ hasText: /Jueves 2026-03-26/ }).first();
+    await expect(detail).toContainText(seededWeek.sessionName);
+  } finally {
+    await restoreWeekPlanState(snapshot);
   }
 });

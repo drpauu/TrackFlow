@@ -1425,6 +1425,82 @@ const mapWeekPlansByDate = (week, seasonAnchorDate = SEASON_ANCHOR_DATE) => {
   }, {});
 };
 
+const listPublishedWeeks = (
+  weekPlansByNumber,
+  routines = DEFAULT_ROUTINE_LIBRARY,
+  seasonAnchorDate = SEASON_ANCHOR_DATE
+) => (
+  Object.values(normalizeWeekPlansByNumber(weekPlansByNumber, routines, seasonAnchorDate))
+    .map((candidate) => resolvePublishedWeek(candidate, routines))
+    .filter(Boolean)
+    .sort((a, b) => normalizeWeekNumber(a?.weekNumber, 0) - normalizeWeekNumber(b?.weekNumber, 0))
+);
+
+const buildCalendarDayMap = ({
+  weeks = [],
+  routines = DEFAULT_ROUTINE_LIBRARY,
+  seasonAnchorDate = SEASON_ANCHOR_DATE,
+  athlete = null,
+} = {}) => {
+  const out = {};
+
+  (Array.isArray(weeks) ? weeks : []).forEach((week) => {
+    const weekByDate = mapWeekPlansByDate(week, seasonAnchorDate);
+    Object.entries(weekByDate).forEach(([dateIso, mapped]) => {
+      const dayPlan = mapped?.dayPlan || {};
+      const dayIndex = mapped?.dayIndex ?? null;
+
+      if (athlete) {
+        const visiblePlan = getVisibleDayPlanForAthlete(week, dayPlan, athlete, routines);
+        out[dateIso] = {
+          dateIso,
+          week,
+          dayIndex,
+          dayPlan,
+          visiblePlan,
+          hasContent: !!visiblePlan?.hasContent,
+        };
+        return;
+      }
+
+      const gymPlan = getDayResolvedGymPlan(dayPlan, routines);
+      const am = getSlotSessions(dayPlan, "am", week);
+      const pm = getSlotSessions(dayPlan, "pm", week);
+      const gym = !!gymPlan;
+      out[dateIso] = {
+        dateIso,
+        week,
+        dayIndex,
+        dayPlan,
+        visiblePlan: {
+          am,
+          pm,
+          gym,
+          gymPlan,
+          hasContent: am.length > 0 || pm.length > 0 || gym,
+        },
+        hasContent: am.length > 0 || pm.length > 0 || gym,
+      };
+    });
+  });
+
+  return out;
+};
+
+const getCalendarMonthZoneSummary = (calendarDayMap, viewYear, viewMonth) => {
+  const out = emptyZones();
+  Object.entries(calendarDayMap || {}).forEach(([dateIso, mapped]) => {
+    const [year, month] = String(dateIso || "").split("-").map((value) => Number(value || 0));
+    if (year !== Number(viewYear) || month !== Number(viewMonth) + 1) return;
+    const daySummary = dayZoneSummary(mapped?.dayPlan || {}, mapped?.week || null);
+    ZONES.forEach((zone) => {
+      out[zone.id] += Number(daySummary?.[zone.id] || 0);
+    });
+  });
+  out.total = zonesTotal(out);
+  return out;
+};
+
 const pickActiveCalendarWeek = (weeks) => {
   if (!Array.isArray(weeks) || !weeks.length) return null;
   const today = toIsoDate();
@@ -4764,7 +4840,7 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
 }
 
 //  COACH: CALENDARIO 
-function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnchorDate }) {
+function CoachCalendario({ week, weekPlansByNumber, routines, history, activeWeekNumber, seasonAnchorDate }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
@@ -4778,10 +4854,13 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
     activeWeekNumber,
     week.weekNumber || getTodaySeasonWeekNumber(seasonAnchorDate)
   );
-  const publishedWeek = resolvePublishedWeek(week, routines);
-  const calendarWeek = publishedWeek || null;
-  const weekPlansByDate = calendarWeek ? mapWeekPlansByDate(calendarWeek, seasonAnchorDate) : {};
-  const weekSummary = calendarWeek ? weekZoneSummary(calendarWeek) : { ...emptyZones(), total:0 };
+  const publishedWeeks = listPublishedWeeks(weekPlansByNumber, routines, seasonAnchorDate);
+  const calendarDayMap = buildCalendarDayMap({
+    weeks: publishedWeeks,
+    routines,
+    seasonAnchorDate,
+  });
+  const weekSummary = getCalendarMonthZoneSummary(calendarDayMap, viewYear, viewMonth);
 
   const historyByDate = {};
   (history || []).forEach((row) => {
@@ -4802,15 +4881,17 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
 
   const selectedInfo = (() => {
     if (!selected) return null;
-    const mapped = weekPlansByDate[selected.dateIso] || null;
+    const mapped = calendarDayMap[selected.dateIso] || null;
     const dayPlan = mapped?.dayPlan || {};
+    const selectedWeek = mapped?.week || null;
     return {
       dayIndex: mapped?.dayIndex ?? null,
+      week: selectedWeek,
       dayPlan,
-      am: mapped ? getSlotSessions(dayPlan, "am", calendarWeek) : [],
-      pm: mapped ? getSlotSessions(dayPlan, "pm", calendarWeek) : [],
+      am: mapped ? getSlotSessions(dayPlan, "am", selectedWeek) : [],
+      pm: mapped ? getSlotSessions(dayPlan, "pm", selectedWeek) : [],
       gymPlan: mapped ? getDayResolvedGymPlan(dayPlan, routines) : null,
-      dayZones: mapped ? dayZoneSummary(dayPlan, calendarWeek) : { ...emptyZones(), total:0 },
+      dayZones: mapped ? dayZoneSummary(dayPlan, selectedWeek) : { ...emptyZones(), total:0 },
       records: historyByDate[selected.dateIso] || [],
     };
   })();
@@ -4820,7 +4901,7 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
       <div className="ph">
         <div className="ph-title">CALENDARIO <span>COACH</span></div>
         <div className="ph-sub">
-          Semana {currentWeekNumber}  {calendarWeek ? "Haz clic en un día para ver entreno, gym, kms y estado." : "La semana aún no está publicada."}
+          Semana {currentWeekNumber}  {publishedWeeks.length ? "Haz clic en un día publicado para ver entreno, gym, kms y estado." : "Todavía no hay semanas publicadas."}
         </div>
       </div>
 
@@ -4840,17 +4921,16 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
               const day = i + 1;
               const dateIso = `${String(viewYear).padStart(4, "0")}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               const isToday = dateIso === todayIso;
-              const mapped = weekPlansByDate[dateIso] || null;
-              const dayPlan = mapped?.dayPlan || null;
-              const hasTrain = !!dayPlan && !!calendarWeek && (getSlotSessions(dayPlan, "am", calendarWeek).length > 0 || getSlotSessions(dayPlan, "pm", calendarWeek).length > 0);
-              const hasGym = !!dayPlan?.gym;
+              const mapped = calendarDayMap[dateIso] || null;
+              const hasContent = !!mapped?.hasContent;
+              const hasGym = !!mapped?.visiblePlan?.gym;
               const records = historyByDate[dateIso] || [];
               const isSelected = selected?.dateIso === dateIso;
               return (
-                <div key={day} className={`cal-cell ${hasTrain ? "has-training" : ""} ${isToday ? "today-cell" : ""}`} style={isSelected ? {borderColor:"var(--or)",background:"rgba(255,107,26,.1)"} : {}} onClick={() => setSelected({ dateIso })}>
+                <div key={day} className={`cal-cell ${hasContent ? "has-training" : ""} ${isToday ? "today-cell" : ""}`} style={isSelected ? {borderColor:"var(--or)",background:"rgba(255,107,26,.1)"} : {}} onClick={() => setSelected({ dateIso })}>
                   <div className="cal-day-num" style={{color:isToday ? "var(--or)" : "var(--tx)"}}>{day}</div>
                   {records.length > 0 && <span className="cal-dot" style={{background:"var(--gr)"}} />}
-                  {!records.length && hasTrain && <span className="cal-dot" style={{background:"var(--or)"}} />}
+                  {!records.length && hasContent && <span className="cal-dot" style={{background:"var(--or)"}} />}
                   {hasGym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
                 </div>
               );
@@ -4903,7 +4983,7 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
                     {selectedInfo.records.length > 0
                       ? <span className="badge b-gr">Realizado  {selectedInfo.records.length} registro(s)</span>
                       : selectedInfo.dayIndex == null
-                        ? <span className="badge b-mu">Sin plan semanal</span>
+                        ? <span className="badge b-mu">Sin día publicado</span>
                         : selected.dateIso <= todayIso
                         ? <span className="badge b-re">Sin registro</span>
                         : <span className="badge b-bl">Planificado</span>}
@@ -6260,11 +6340,12 @@ function AthletePerfil({ user, onUpdatePassword, onUpdateName, onLogout }) {
 function AthleteCalendario({
   user,
   week,
+  weekPlansByNumber,
   routines,
   history,
   customExercises,
   exerciseImages,
-  isWeekPublished,
+  seasonAnchorDate,
   onAddCompetition,
   onRemoveCompetition,
 }) {
@@ -6280,7 +6361,14 @@ function AthleteCalendario({
   const [competitionError, setCompetitionError] = useState("");
   const [competitionSaving, setCompetitionSaving] = useState(false);
   const competitions = normalizeCompetitionList(user.competitions || []);
-  const publishedPlansByDate = isWeekPublished ? mapWeekPlansByDate(week) : {};
+  const publishedWeeks = listPublishedWeeks(weekPlansByNumber, routines, seasonAnchorDate);
+  const publishedPlansByDate = buildCalendarDayMap({
+    weeks: publishedWeeks,
+    routines,
+    seasonAnchorDate,
+    athlete: user,
+  });
+  const hasPublishedWeeks = publishedWeeks.length > 0;
   const competitionsByDate = competitions.reduce((acc, competition) => {
     if (!acc[competition.dateIso]) acc[competition.dateIso] = [];
     acc[competition.dateIso].push(competition);
@@ -6355,9 +6443,7 @@ function AthleteCalendario({
     const selectedDate = parseIsoDateToLocalDate(selected.dateIso);
     const selectedDayIndex = selectedDate ? (selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1) : 0;
     const dayPlan = mapped?.dayPlan || {};
-    const visiblePlan = mapped
-      ? getVisibleDayPlanForAthlete(week, dayPlan, user, routines)
-      : { am:[], pm:[], gym:false, gymPlan:null, hasContent:false };
+    const visiblePlan = mapped?.visiblePlan || { am:[], pm:[], gym:false, gymPlan:null, hasContent:false };
     const completion = getDayCompletionFromHistory(visiblePlan, hist);
     const gymExs  = mapped && visiblePlan.gym ? getDayGymExercisesForAthlete(dayPlan, routines, user, customExercises, exerciseImages) : [];
     const gymPlan = mapped && visiblePlan.gym ? getDayResolvedGymPlan(dayPlan, routines) : null;
@@ -6514,7 +6600,7 @@ function AthleteCalendario({
                   </div>
                 )}
 
-                {isWeekPublished && info.visiblePlan?.am?.length > 0 && (
+                {info.visiblePlan?.am?.length > 0 && (
                   <div className="mb3">
                     <div className="flex ic jb">
                       <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--or)",fontWeight:700,marginBottom:4}}>Mañana AM</div>
@@ -6535,7 +6621,7 @@ function AthleteCalendario({
                     ))}
                   </div>
                 )}
-                {isWeekPublished && info.visiblePlan?.pm?.length > 0 && (
+                {info.visiblePlan?.pm?.length > 0 && (
                   <div className="mb3">
                     <div className="flex ic jb">
                       <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--bl)",fontWeight:700,marginBottom:4}}>Tarde PM</div>
@@ -6556,7 +6642,7 @@ function AthleteCalendario({
                     ))}
                   </div>
                 )}
-                {isWeekPublished && info.visiblePlan?.gym && (
+                {info.visiblePlan?.gym && (
                   <div className="mb3">
                     <div className="flex ic jb">
                       <div style={{fontSize:10,letterSpacing:2,textTransform:"uppercase",color:"var(--pu)",fontWeight:700,marginBottom:4}}>Gym</div>
@@ -6564,9 +6650,11 @@ function AthleteCalendario({
                     </div>
                   </div>
                 )}
-                {(!isWeekPublished || (!info.visiblePlan?.am?.length && !info.visiblePlan?.pm?.length && !info.visiblePlan?.gym)) && (
+                {(!info.visiblePlan?.am?.length && !info.visiblePlan?.pm?.length && !info.visiblePlan?.gym) && (
                   <div style={{color:"var(--mu)",fontSize:14}}>
-                    {!isWeekPublished ? "La semana todavía no está publicada." : "Sin plan asignado a tus grupos para este día."}
+                    {!info.mapped
+                      ? (hasPublishedWeeks ? "No hay semana publicada para este día." : "Todavía no hay semanas publicadas.")
+                      : "Sin plan asignado a tus grupos para este día."}
                   </div>
                 )}
               </div>
@@ -7444,7 +7532,7 @@ export default function TrackFlow() {
     if (isCoach) {
       switch(page) {
         case "semana":     return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} athletes={athletes} groups={groups} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
-        case "calendario": return <CoachCalendario week={week} routines={routines} history={history} activeWeekNumber={activeWeekNumber} seasonAnchorDate={seasonAnchorDate} />;
+        case "calendario": return <CoachCalendario week={week} weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} activeWeekNumber={activeWeekNumber} seasonAnchorDate={seasonAnchorDate} />;
         case "calendario_semanal": return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} setGroups={setGroups} onRenameAthlete={handleUpdateAthleteName} onDeleteAthlete={handleDeleteAthlete} view="history" seasonAnchorDate={seasonAnchorDate} />;
         case "gym":        return <CoachGymV2 customExercises={customExercises} setCustomExercises={setCustomExercises} exerciseImages={exerciseImages} setExerciseImages={setExerciseImages} />;
         case "dataset":    return <CoachTrainingsDataset trainings={trainings} setTrainings={setTrainings} />;
@@ -7461,7 +7549,7 @@ export default function TrackFlow() {
         case "jogatina":   return <AthleteJogatina athlete={currentUser} />;
         case "gym":        return <AthleteGym user={currentUser} routines={routines} week={athleteWeek} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
         case "perfil":     return <AthletePerfil user={currentUser} onUpdateName={(nextName) => handleUpdateAthleteName(currentUser?.id, nextName)} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} onLogout={handleLogout} />;
-        case "calendario": return <AthleteCalendario user={currentUser} week={athleteWeek} routines={routines} history={history} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} onAddCompetition={(competition) => handleAddCompetition(currentUser.id, competition)} onRemoveCompetition={(competitionId) => handleRemoveCompetition(currentUser.id, competitionId)} />;
+        case "calendario": return <AthleteCalendario user={currentUser} week={athleteWeek} weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} customExercises={customExercises} exerciseImages={exerciseImages} seasonAnchorDate={seasonAnchorDate} onAddCompetition={(competition) => handleAddCompetition(currentUser.id, competition)} onRemoveCompetition={(competitionId) => handleRemoveCompetition(currentUser.id, competitionId)} />;
         default: return null;
       }
     }
