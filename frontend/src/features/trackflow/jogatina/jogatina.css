@@ -784,7 +784,17 @@
   }
 
   .jogatina-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .jogatina-hero-actions .jogatina-primary-btn {
     display: none;
+  }
+
+  .jogatina-hero-actions .jogatina-secondary-btn {
+    width: 100%;
   }
 
   .jogatina-ranking-list li {
