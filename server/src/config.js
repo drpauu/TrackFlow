@@ -21,21 +21,38 @@ function parseOrigins(rawValue) {
   const raw = String(rawValue || '').trim();
   if (!raw) return [];
   return raw
-    .split(',')
-    .map((value) => String(value || '').trim())
+    .split(/[\n,]/)
+    .map((value) => normalizeOrigin(value))
     .filter(Boolean);
 }
 
+function normalizeOrigin(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return raw.replace(/\/+$/, '');
+  }
+}
+
 const corsOrigins = (() => {
-  const explicit = parseOrigins(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN);
-  if (explicit.length) return explicit;
-  return [
+  const defaults = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
+    'https://track-flow-frontend.vercel.app',
   ];
+  const explicit = [
+    ...parseOrigins(process.env.CORS_ORIGINS || process.env.CORS_ORIGIN),
+    ...parseOrigins(process.env.FRONTEND_URL),
+    ...parseOrigins(process.env.FRONTEND_ORIGIN),
+    ...parseOrigins(process.env.APP_URL),
+  ];
+  return [...new Set([...defaults, ...explicit].map((origin) => normalizeOrigin(origin)).filter(Boolean))];
 })();
 
 export const config = {
+  nodeEnv: String(process.env.NODE_ENV || 'development').trim() || 'development',
   port: Number(process.env.PORT || 8787),
   corsOrigins,
   defaultCoachId: String(process.env.DEFAULT_COACH_ID || 'juancarlos').trim() || 'juancarlos',
@@ -54,7 +71,7 @@ export const config = {
   authCookieName: String(process.env.AUTH_COOKIE_NAME || 'tf_session').trim() || 'tf_session',
   authCookieSameSite: String(
     process.env.AUTH_COOKIE_SAMESITE
-    || (process.env.NODE_ENV === 'production' ? 'None' : 'Lax')
+    || (process.env.NODE_ENV === 'production' ? 'Lax' : 'Lax')
   ).trim() || 'Lax',
   authCookieSecure: String(
     process.env.AUTH_COOKIE_SECURE

@@ -72,7 +72,7 @@ Endpoints:
 
 Detalles:
 
-- hash de password con `scrypt` (salt por usuario)
+- password persistida en texto plano por decision actual del producto
 - sesion con token firmado HS256 en cookie `HttpOnly`
 - roles: `coach` y `athlete`
 - rate limit basico en login
@@ -92,21 +92,27 @@ APP_TIMEZONE=Europe/Madrid
 ### Auth (recomendado)
 
 ```bash
-MONGO_REQUIRE_AUTH=false
+MONGO_REQUIRE_AUTH=true
 AUTH_JWT_SECRET=change_this_super_secret
 AUTH_JWT_TTL_SEC=1209600
 AUTH_COOKIE_NAME=tf_session
+AUTH_COOKIE_SAMESITE=Lax
 AUTH_COOKIE_SECURE=true
+CRON_SECRET=change_this_cron_secret
+JOGATINA_ENABLED=true
+CORS_ORIGINS=https://track-flow-frontend.vercel.app,http://localhost:5173,http://127.0.0.1:5173
 ```
 
 ### Frontend
 
 ```bash
 VITE_STORAGE_MODE=api
-VITE_API_BASE_URL=
 VITE_STORAGE_SYNC_INTERVAL_MS=2500
 VITE_STORAGE_SYNC_LIMIT=200
 ```
+
+En produccion en Vercel no definas `VITE_API_BASE_URL`.
+La app publica debe consumir `/api/*` en el mismo origen (`https://track-flow-frontend.vercel.app`).
 
 ## Migracion unica a Mongo (cutover)
 
@@ -149,15 +155,51 @@ npm run build --workspace frontend
 
 ## Deploy en Vercel
 
-1. Importar repo.
-2. Definir env vars:
-   - `MONGODB_URI`
-   - `MONGODB_DB`
-   - `DEFAULT_COACH_ID`
-   - `APP_TIMEZONE=Europe/Madrid`
-   - `VITE_STORAGE_MODE=api`
-3. Build command: `npm run build`
-4. Output directory: `frontend/dist`
+TrackFlow esta preparado para desplegarse como un unico proyecto Vercel:
+
+- frontend estatico servido desde `frontend/dist`
+- API Express serverless en `api/index.mjs`
+- rewrites `same-origin` para que el frontend llame a `/api/*`
+
+### Variables recomendadas en Produccion
+
+```bash
+NODE_ENV=production
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority
+MONGODB_DB=track-flow-db
+MONGO_REQUIRE_AUTH=true
+DEFAULT_COACH_ID=juancarlos
+APP_TIMEZONE=Europe/Madrid
+AUTH_JWT_SECRET=change_this_super_secret
+AUTH_JWT_TTL_SEC=1209600
+AUTH_COOKIE_NAME=tf_session
+AUTH_COOKIE_SAMESITE=Lax
+AUTH_COOKIE_SECURE=true
+CRON_SECRET=change_this_cron_secret
+JOGATINA_ENABLED=true
+CORS_ORIGINS=https://track-flow-frontend.vercel.app,http://localhost:5173,http://127.0.0.1:5173
+VITE_STORAGE_MODE=api
+```
+
+### Pasos
+
+1. Importar el repo en Vercel.
+2. Mantener el proyecto como un solo deploy, sin backend separado.
+3. Definir las variables de entorno anteriores.
+4. No definir `VITE_API_BASE_URL` en produccion.
+5. Build command: `npm run build`
+6. Output directory: `frontend/dist`
+7. Verificar en produccion:
+   - `GET /api/health`
+   - login `POST /api/auth/login`
+   - `GET /api/auth/me` tras refrescar
+   - escrituras reales en Mongo Atlas
+
+### Notas de runtime
+
+- `vercel.json` ya incluye `fluid` y una cron diaria para `/api/jogatina/cron/run`.
+- Jogatina usa SSE y el navegador reconecta automaticamente cuando Vercel cierra la funcion.
+- El deploy publico no depende del PC local ni de `npm run dev`.
 
 ## Notas de compatibilidad
 

@@ -15,6 +15,9 @@ function base64UrlDecode(input) {
 function getJwtSecret() {
   const secret = String(config.authJwtSecret || '').trim();
   if (secret) return secret;
+  if (config.nodeEnv === 'production' || config.mongoRequireAuth === true) {
+    throw new Error('AUTH_JWT_SECRET es obligatorio en producción cuando la autenticación está activa.');
+  }
   return `dev-trackflow-secret-${config.defaultCoachId}`;
 }
 

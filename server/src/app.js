@@ -17,19 +17,37 @@ function isLocalDevOrigin(origin) {
   }
 }
 
+function normalizeOrigin(origin) {
+  const raw = String(origin || '').trim();
+  if (!raw) return '';
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return raw.replace(/\/+$/, '');
+  }
+}
+
+function validateRuntimeConfig() {
+  if (config.nodeEnv === 'production' && config.mongoRequireAuth === true && !String(config.authJwtSecret || '').trim()) {
+    throw new Error('AUTH_JWT_SECRET es obligatorio en producción cuando MONGO_REQUIRE_AUTH=true.');
+  }
+}
+
 export async function buildTrackFlowApp() {
+  validateRuntimeConfig();
   const storageProvider = createStorageProvider();
   await storageProvider.init();
 
   const app = express();
   app.disable('x-powered-by');
-  const allowedOrigins = new Set((config.corsOrigins || []).map((origin) => String(origin || '').trim()).filter(Boolean));
+  const allowedOrigins = new Set((config.corsOrigins || []).map((origin) => normalizeOrigin(origin)).filter(Boolean));
   app.use(cors({
     origin(origin, callback) {
       if (!origin) return callback(null, true);
-      if (isLocalDevOrigin(origin)) return callback(null, true);
-      if (!allowedOrigins.size || allowedOrigins.has(origin)) return callback(null, true);
-      return callback(new Error(`CORS origin no permitido: ${origin}`));
+      const normalizedOrigin = normalizeOrigin(origin);
+      if (isLocalDevOrigin(normalizedOrigin)) return callback(null, true);
+      if (!allowedOrigins.size || allowedOrigins.has(normalizedOrigin)) return callback(null, true);
+      return callback(new Error(`CORS origin no permitido: ${normalizedOrigin}`));
     },
     credentials: true,
   }));
