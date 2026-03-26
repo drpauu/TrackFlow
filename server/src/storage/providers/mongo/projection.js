@@ -323,6 +323,7 @@ async function syncAthletesAndCompetitions(db, coachId, rawValue) {
         athleteId,
         dateIso,
         name,
+        mark: String(competition?.mark || competition?.targetMark || '').trim() || null,
         notes: String(competition?.notes || '').trim() || null,
         createdBy: athleteId,
         updatedAt: now,

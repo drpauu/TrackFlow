@@ -360,8 +360,7 @@ input,select,textarea{font-family:'Nunito',sans-serif}
 .mobile-brand{border:none;background:none;color:var(--tx);display:flex;flex-direction:column;align-items:flex-start;line-height:1;min-width:98px}
 .mobile-brand-main{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;letter-spacing:.2px}
 .mobile-brand-sub{font-size:10px;color:var(--mu);letter-spacing:.8px;text-transform:uppercase;margin-top:2px}
-.mobile-current{flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mobile-logout{border:1px solid var(--border2);background:var(--s2);color:var(--mu2);border-radius:10px;padding:8px 10px;font-size:14px}
+.mobile-current{flex:1;min-width:0;text-align:right;font-size:12px;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mobile-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:210;display:flex;justify-content:flex-start;align-items:stretch}
 .mobile-menu-sheet{width:min(420px,92vw);height:100%;background:var(--s1);border-right:1px solid var(--border2);padding:14px 12px 16px;display:flex;flex-direction:column;gap:12px}
 .mobile-menu-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
@@ -519,7 +518,6 @@ body{
 .tab-nav-btn,
 .week-nav-btn,
 .mobile-menu-btn,
-.mobile-logout,
 .mobile-tab-btn,
 .login-btn,
 .modal-close,
@@ -602,6 +600,7 @@ body{
   font-weight:900;
   line-height:1;
   letter-spacing:.01em;
+  overflow-wrap:anywhere;
 }
 
 .season-hero-value-accent{
@@ -685,8 +684,7 @@ body{
   height:calc(var(--topbar-h) + env(safe-area-inset-top));
 }
 
-.mobile-menu-btn,
-.mobile-logout{
+.mobile-menu-btn{
   min-width:var(--touch-target);
   min-height:var(--touch-target);
   padding:0;
@@ -1030,7 +1028,7 @@ textarea:disabled{
     padding:0;
   }
   .tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .coach-temporadas-page .table-scroll .tbl{min-width:460px}
+  .coach-temporadas-page .table-scroll .tbl{min-width:380px}
 }
 
 /* < 480 */
@@ -1150,10 +1148,14 @@ textarea:disabled{
     padding:0;
   }
   .tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .coach-temporadas-page .table-scroll .tbl{min-width:440px}
+  .coach-temporadas-page .table-scroll .tbl{min-width:320px}
   .season-actions .btn{
     width:100%;
     justify-content:center;
+  }
+  .season-card .g2,
+  .coach-temporadas-page .g2{
+    grid-template-columns:1fr;
   }
 }
 

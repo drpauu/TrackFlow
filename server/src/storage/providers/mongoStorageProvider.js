@@ -580,6 +580,7 @@ export function createMongoStorageProvider() {
             athleteId: safeAthleteId,
             dateIso,
             name,
+            mark: String(payload?.mark || '').trim() || null,
             notes: String(payload?.notes || '').trim() || null,
             createdBy: String(createdBy || safeAthleteId),
             updatedAt: new Date(),

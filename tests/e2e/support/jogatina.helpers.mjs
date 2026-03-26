@@ -82,6 +82,21 @@ export async function forceBetClosedForResolution(betId) {
   );
 }
 
+export async function forceBetExpiredButStillOpen(betId) {
+  const db = await getDb();
+  await db.collection('jogatina_bets_open').updateOne(
+    { _id: String(betId || '').trim() },
+    {
+      $set: {
+        status: 'open',
+        closeAt: toPastDate(),
+        resolveDeadlineAt: toFutureDate(),
+        updatedAt: new Date(),
+      },
+    }
+  );
+}
+
 export async function expireResolvedBetWindow(betId) {
   const db = await getDb();
   await db.collection('jogatina_bets_open').updateOne(

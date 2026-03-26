@@ -77,6 +77,14 @@ const EXERCISE_EMOJI = {
   fallback: "\u{1F3C3}",
 };
 
+const UI_EMOJI = {
+  routine: "\u{1F4CB}",
+  calendar: "\u{1F4C5}",
+  lock: "\u{1F512}",
+  groups: "\u{1F465}",
+  rest: "\u{1F6CC}",
+};
+
 const GYM_EXERCISES = [
   { id:"sq",    name:"Sentadilla",      emoji:EXERCISE_EMOJI.leg,   muscles:"Cuádriceps  Glúteos",   category:"compound",   type:"weight" },
   { id:"dl",    name:"Peso Muerto",     emoji:EXERCISE_EMOJI.lift,  muscles:"Isquios  Espalda",      category:"compound",   type:"weight" },
@@ -486,24 +494,25 @@ const DAYS_FULL  = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","
 const GROUPS = ["por-asignar","1500m","800m","pequenos"];
 const NAV_ITEMS = {
   coach: [
-    { id:"semana", icon:"", label:"Plan Semanal", shortLabel:"Plan" },
-    { id:"calendario", icon:"", label:"Calendario", shortLabel:"Calendario" },
-    { id:"calendario_semanal", icon:"", label:"Calendario Semanal", shortLabel:"Semanal" },
-    { id:"gym", icon:"", label:"Dataset Ejercicios", shortLabel:"Ejercicios" },
-    { id:"dataset", icon:"", label:"Dataset Entrenos", shortLabel:"Entrenos" },
-    { id:"athletes", icon:"", label:"Gestión Atletas", shortLabel:"Atletas" },
-    { id:"temporadas", icon:"", label:"Temporadas", shortLabel:"Temporadas" },
+    { id:"semana", icon:"📋", label:"Plan Semanal", shortLabel:"Plan", mobilePrimary:true },
+    { id:"calendario", icon:"📅", label:"Calendario", shortLabel:"Calendario", mobilePrimary:true },
+    { id:"calendario_semanal", icon:"🗂️", label:"Calendario Semanal", shortLabel:"Semanal", mobilePrimary:false },
+    { id:"gym", icon:"🏋️", label:"Dataset Ejercicios", shortLabel:"Ejercicios", mobilePrimary:false },
+    { id:"dataset", icon:"🏃", label:"Dataset Entrenos", shortLabel:"Entrenos", mobilePrimary:false },
+    { id:"athletes", icon:"👥", label:"Gestión Atletas", shortLabel:"Atletas", mobilePrimary:true },
+    { id:"temporadas", icon:"🏁", label:"Temporadas", shortLabel:"Temporadas", mobilePrimary:true },
   ],
   athlete: [
-    { id:"hoy", icon:"", label:"Hoy", shortLabel:"Hoy" },
-    { id:"semana", icon:"", label:"Mi Semana", shortLabel:"Semana" },
-    { id:"jogatina", icon:"", label:"Jogatina", shortLabel:"Jogatina" },
-    { id:"gym", icon:"", label:"Mi Gym", shortLabel:"Gym" },
-    { id:"calendario", icon:"", label:"Mi Calendario", shortLabel:"Calendario" },
-    { id:"perfil", icon:"", label:"Mi Perfil", shortLabel:"Perfil" },
+    { id:"hoy", icon:"⏱️", label:"Hoy", shortLabel:"Hoy", mobilePrimary:true },
+    { id:"semana", icon:"🗓️", label:"Mi Semana", shortLabel:"Semana", mobilePrimary:true },
+    { id:"jogatina", icon:"🎯", label:"Jogatina", shortLabel:"Jogatina", mobilePrimary:true },
+    { id:"gym", icon:"🏋️", label:"Mi Gym", shortLabel:"Gym", mobilePrimary:false },
+    { id:"calendario", icon:"📅", label:"Mi Calendario", shortLabel:"Calendario", mobilePrimary:false },
+    { id:"perfil", icon:"👤", label:"Mi Perfil", shortLabel:"Perfil", mobilePrimary:true },
   ],
 };
 const getNavByRole = (role) => role === "coach" ? NAV_ITEMS.coach : NAV_ITEMS.athlete;
+const getMobilePrimaryNav = (role) => getNavByRole(role).filter((item) => item.mobilePrimary);
 
 const PESAS_DB_SOURCE = { file: "pesas2024_hardcoded_db.js", workbook: "PESAS2024.xlsx", format: "sparse-rows-trailing-null-trimmed" };
 const HARDCODED_PESAS_DB = (typeof window !== "undefined" && window.PESAS2024_HARDCODED_DB) ? window.PESAS2024_HARDCODED_DB : null;
@@ -527,6 +536,27 @@ const groupLabel = (g) => {
   return String(g || "").trim();
 };
 const normalizeGroupName = (g) => String(g || "").trim().replace(/\s+/g, " ");
+const getTodayEmptyStateMeta = ({ isWeekPublished, hasAnyAssignedToday }) => {
+  if (!isWeekPublished) {
+    return {
+      icon: UI_EMOJI.lock,
+      title: "SEMANA NO PUBLICADA",
+      message: "El entrenador todavía no ha publicado la semana.",
+    };
+  }
+  if (hasAnyAssignedToday) {
+    return {
+      icon: UI_EMOJI.groups,
+      title: "SIN PLAN ASIGNADO",
+      message: "Hoy hay trabajo para otros grupos, pero no para los tuyos.",
+    };
+  }
+  return {
+    icon: UI_EMOJI.rest,
+    title: "DÍA DE DESCANSO",
+    message: "Recarga energías para mañana.",
+  };
+};
 const formatExerciseMarker = (exercise = {}) => {
   const raw = String(exercise?.emoji || "").trim();
   if (hasVisualExerciseEmoji(raw)) return raw;
@@ -704,10 +734,16 @@ const normalizeCompetitionList = (items) => {
         id: item?.id || `comp_${dateIso}_${index}`,
         dateIso,
         name: String(item?.name || "Competición").trim() || "Competición",
+        mark: String(item?.mark || item?.targetMark || "").trim() || null,
+        notes: String(item?.notes || "").trim() || null,
       };
     })
     .filter(Boolean)
-    .sort((a, b) => String(a.dateIso).localeCompare(String(b.dateIso)));
+    .sort((a, b) => {
+      const dateDiff = String(a.dateIso).localeCompare(String(b.dateIso));
+      if (dateDiff !== 0) return dateDiff;
+      return String(a.name || "").localeCompare(String(b.name || ""), "es", { sensitivity:"base" });
+    });
 };
 const normalizeAthleteRecord = (rawAthlete, idx = 0) => {
   const source = rawAthlete && typeof rawAthlete === "object" ? rawAthlete : {};
@@ -808,6 +844,99 @@ const normalizeTraining = (training, idx = 0) => ({
 });
 const normalizeTrainingCatalog = (raw) =>
   (Array.isArray(raw) && raw.length ? raw : TRAINING_DATASET).map(normalizeTraining);
+const normalizeTrainingFingerprintText = (value) => String(value || "")
+  .trim()
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/\s+/g, " ")
+  .toLowerCase();
+const buildTrainingFingerprint = (training) => {
+  const zones = safeZones(training?.zones);
+  return JSON.stringify({
+    name: normalizeTrainingFingerprintText(training?.name),
+    description: normalizeTrainingFingerprintText(training?.description),
+    zones: [Number(zones.regen || 0), Number(zones.ua || 0), Number(zones.uan || 0), Number(zones.anae || 0)],
+  });
+};
+const buildCatalogTrainingFromManualSession = (session, weekType) => normalizeTraining({
+  id: `custom_training_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+  name: session?.name,
+  description: session?.description || "",
+  zones: safeZones(session?.zones),
+  weekTypes: [normalizeWeekType(weekType)],
+  source: "custom",
+});
+const collectManualTrainingsFromWeek = (week) => {
+  if (!Array.isArray(week?.days) || !week.days.length) return [];
+  const byFingerprint = new Map();
+  week.days.forEach((day) => {
+    ["am", "pm"].forEach((slot) => {
+      getSlotSessions(day, slot, week).forEach((session) => {
+        const safeName = String(session?.name || "").trim();
+        if (!safeName) return;
+        if (String(session?.trainingId || "").trim()) return;
+        const candidate = buildCatalogTrainingFromManualSession(session, week?.type);
+        const fingerprint = buildTrainingFingerprint(candidate);
+        const current = byFingerprint.get(fingerprint);
+        if (!current) {
+          byFingerprint.set(fingerprint, candidate);
+          return;
+        }
+        byFingerprint.set(fingerprint, {
+          ...current,
+          weekTypes: normalizeTrainingWeekTypes([...(current.weekTypes || []), ...(candidate.weekTypes || [])]),
+        });
+      });
+    });
+  });
+  return Array.from(byFingerprint.values());
+};
+const mergeManualTrainingsIntoCatalog = (catalog, week) => {
+  const manualTrainings = collectManualTrainingsFromWeek(week);
+  if (!manualTrainings.length) {
+    return { changed:false, trainings: normalizeTrainingCatalog(catalog) };
+  }
+  const normalizedCatalog = normalizeTrainingCatalog(catalog);
+  const fingerprintToIndex = new Map(
+    normalizedCatalog.map((training, index) => [buildTrainingFingerprint(training), index])
+  );
+  let nextCatalog = normalizedCatalog;
+  let changed = false;
+
+  manualTrainings.forEach((candidate) => {
+    const fingerprint = buildTrainingFingerprint(candidate);
+    const existingIndex = fingerprintToIndex.get(fingerprint);
+    if (existingIndex == null) {
+      if (nextCatalog === normalizedCatalog) nextCatalog = [...normalizedCatalog];
+      nextCatalog.push(candidate);
+      fingerprintToIndex.set(fingerprint, nextCatalog.length - 1);
+      changed = true;
+      return;
+    }
+
+    const existing = nextCatalog[existingIndex];
+    const mergedWeekTypes = normalizeTrainingWeekTypes([
+      ...(existing?.weekTypes || []),
+      ...(candidate?.weekTypes || []),
+    ]);
+    const keepSource = existing?.source === "dataset" ? "dataset" : (existing?.source || candidate?.source || "custom");
+    const existingWeekTypes = normalizeTrainingWeekTypes(existing?.weekTypes);
+    const needsUpdate = keepSource !== (existing?.source || "dataset")
+      || mergedWeekTypes.length !== existingWeekTypes.length
+      || mergedWeekTypes.some((type, index) => type !== existingWeekTypes[index]);
+    if (!needsUpdate) return;
+
+    if (nextCatalog === normalizedCatalog) nextCatalog = [...normalizedCatalog];
+    nextCatalog[existingIndex] = normalizeTraining({
+      ...existing,
+      weekTypes: mergedWeekTypes,
+      source: keepSource,
+    }, existingIndex);
+    changed = true;
+  });
+
+  return { changed, trainings: changed ? nextCatalog : normalizedCatalog };
+};
 const getTrainingById = (trainings, id) =>
   (Array.isArray(trainings) ? trainings : []).find((training) => training.id === id) || null;
 const collectAthleteIdValues = (...sources) => {
@@ -1281,6 +1410,21 @@ const getDateIsoForWeekDay = (weekNumber, dayIndex = 0, seasonAnchorDate = SEASO
   return toIsoDate(date);
 };
 
+const mapWeekPlansByDate = (week, seasonAnchorDate = SEASON_ANCHOR_DATE) => {
+  if (!week || !Array.isArray(week?.days) || !week.days.length) return {};
+  const safeWeekNumber = normalizeWeekNumber(week?.weekNumber, getTodaySeasonWeekNumber(seasonAnchorDate));
+  const parsedStartDate = parseIsoDateToLocalDate(week?.startDate);
+  const baseStartDate = parsedStartDate || getSeasonWeekStartDate(safeWeekNumber, seasonAnchorDate);
+  return DAYS_FULL.reduce((acc, _day, dayIndex) => {
+    const date = new Date(baseStartDate.getFullYear(), baseStartDate.getMonth(), baseStartDate.getDate() + dayIndex);
+    acc[toIsoDate(date)] = {
+      dayIndex,
+      dayPlan: week.days?.[dayIndex] || {},
+    };
+    return acc;
+  }, {});
+};
+
 const pickActiveCalendarWeek = (weeks) => {
   if (!Array.isArray(weeks) || !weeks.length) return null;
   const today = toIsoDate();
@@ -1428,11 +1572,26 @@ const getNextCompetitionCountdown = (competitions, maxDays = 90, fromDateIso = t
       const targetDate = new Date(`${item.dateIso}T00:00:00`);
       const diffMs = targetDate.getTime() - baseDate.getTime();
       const diffDays = Math.ceil(diffMs / MS_PER_DAY);
-      return { ...item, diffDays };
+      return {
+        ...item,
+        diffDays,
+        countdownLabel: diffDays === 0 ? "Hoy" : diffDays === 1 ? "Mañana" : `${diffDays} días`,
+      };
     })
     .filter((item) => item.diffDays >= 0 && item.diffDays <= maxDays)
     .sort((a, b) => a.diffDays - b.diffDays);
   return inRange[0] || null;
+};
+const getCompetitionCountdownMeta = (dateIso, fromDateIso = toIsoDate()) => {
+  const targetDate = parseIsoDateToLocalDate(dateIso);
+  const baseDate = parseIsoDateToLocalDate(fromDateIso);
+  if (!targetDate || !baseDate) return null;
+  const diffMs = targetDate.getTime() - baseDate.getTime();
+  const diffDays = Math.ceil(diffMs / MS_PER_DAY);
+  if (diffDays < 0) return { diffDays, label: `Hace ${Math.abs(diffDays)} días`, isPast:true };
+  if (diffDays === 0) return { diffDays, label:"Hoy", isPast:false };
+  if (diffDays === 1) return { diffDays, label:"Mañana", isPast:false };
+  return { diffDays, label:`Faltan ${diffDays} días`, isPast:false };
 };
 const collectDayTargetGroups = (day, week, routines = []) => {
   const targets = new Set();
@@ -1774,7 +1933,7 @@ function LoginScreen({ onLogin, athletes }) {
 }
 
 //  SIDEBAR 
-function Sidebar({ user, page, setPage, onLogout, notifCount }) {
+function Sidebar({ user, page, setPage, notifCount }) {
   const isCoach = user.role === "coach";
   const nav = getNavByRole(user.role);
   const badgePage = isCoach ? "semana" : "hoy";
@@ -1814,17 +1973,15 @@ function Sidebar({ user, page, setPage, onLogout, notifCount }) {
             <div className="u-role">{isCoach ? "Entrenador" : getAthleteGroupsLabel(user)}</div>
           </div>
         </div>
-        <button className="nav-item nav-item-danger mt3" onClick={onLogout}>
-          Cerrar sesión
-        </button>
       </div>
     </div>
   );
 }
 
-function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
+function MobileNavigation({ user, page, setPage, notifCount }) {
   const isCoach = user.role === "coach";
   const nav = getNavByRole(user.role);
+  const primaryNav = getMobilePrimaryNav(user.role);
   const current = nav.find((item) => item.id === page) || nav[0];
   const badgePage = isCoach ? "semana" : "hoy";
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1859,7 +2016,6 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
           <span className="mobile-brand-sub">{isCoach ? "Entrenador" : "Atleta"}</span>
         </button>
         <div className="mobile-current" title={current?.label || ""}>{current?.label || ""}</div>
-        <button className="mobile-logout" onClick={onLogout} aria-label="Cerrar sesión">Salir</button>
       </header>
 
       {menuOpen && (
@@ -1870,7 +2026,7 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
             onClick={(event) => event.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label="Menu principal"
+            aria-label="Menú principal"
           >
             <div className="mobile-menu-head">
               <div>
@@ -1900,8 +2056,8 @@ function MobileNavigation({ user, page, setPage, onLogout, notifCount }) {
         </div>
       )}
 
-      <nav className="mobile-tabbar" aria-label="Navegación movil">
-        {nav.map((item) => (
+      <nav className="mobile-tabbar" aria-label="Navegación móvil">
+        {primaryNav.map((item) => (
           <button
             key={item.id}
             className={`mobile-tab-btn ${page === item.id ? "active" : ""}`}
@@ -2196,8 +2352,10 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
               <button className="modal-close" onClick={closeCompetitionModal}>Cerrar</button>
             </div>
             <div className="form-group">
-              <label className="form-label">Fecha</label>
+              <label className="form-label" htmlFor="competition-date-input">Fecha</label>
               <input
+                id="competition-date-input"
+                aria-label="Fecha"
                 type="date"
                 className="input"
                 value={competitionDate}
@@ -2206,8 +2364,10 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Nombre</label>
+              <label className="form-label" htmlFor="competition-name-input">Nombre</label>
               <input
+                id="competition-name-input"
+                aria-label="Nombre"
                 className="input"
                 value={competitionName}
                 onChange={(event) => setCompetitionName(event.target.value)}
@@ -2216,8 +2376,10 @@ function CoachDashboard({ athletes, notifications, week, onClearNotif }) {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Nota (opcional)</label>
+              <label className="form-label" htmlFor="competition-notes-input">Nota (opcional)</label>
               <textarea
+                id="competition-notes-input"
+                aria-label="Nota (opcional)"
                 className="input"
                 value={competitionNotes}
                 onChange={(event) => setCompetitionNotes(event.target.value)}
@@ -2489,7 +2651,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
             </div>
             {draft.am && (
               <div className="form-group">
-                <label className="form-label">YS Km AM por zona de intensidad</label>
+                <label className="form-label">Km AM por zona de intensidad</label>
                 <div className="zone-inputs">
                   {ZONES.map(z => (
                     <div key={z.id} className="zone-input-wrap">
@@ -2519,7 +2681,7 @@ function CoachSemana({ week, setWeek, routines, setRoutines, groups }) {
             </div>
             {draft.pm && (
               <div className="form-group">
-                <label className="form-label">YS Km PM por zona de intensidad</label>
+                <label className="form-label">Km PM por zona de intensidad</label>
                 <div className="zone-inputs">
                   {ZONES.map(z => (
                     <div key={z.id} className="zone-input-wrap">
@@ -3062,6 +3224,7 @@ function CoachSemanaV2({
         weekNumber: normalizeWeekNumber(committed.weekNumber, currentWeekNumber),
         isUpdate: wasPublished,
         targetGroups: Array.from(targetGroups),
+        publishedWeek: committed,
       });
     }
   };
@@ -3127,7 +3290,7 @@ function CoachSemanaV2({
         <div className="ph-row">
           <div>
             <div className="ph-title">PLAN <span>SEMANAL</span></div>
-            <div className="ph-sub">Crea y publica la semana. Si ya est publicada, entra en modo consulta o modifica y guarda cambios.</div>
+            <div className="ph-sub">Crea y publica la semana. Si ya está publicada, entra en modo consulta o modifica y guarda cambios.</div>
           </div>
           <div className="flex ic g2r" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
             <span className={`badge ${editorWeek.published ? "b-gr" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
@@ -3450,10 +3613,10 @@ function CoachSemanaV2({
               <div className="flex ic jb mb3">
                 <div>
                   <div className="fw7" style={{fontSize:16}}>Rutina del día</div>
-                  <div className="text-sm text-mu">La rutina se crea inline aqu mismo. No se guarda en una biblioteca global.</div>
+                  <div className="text-sm text-mu">La rutina se crea inline aquí mismo. No se guarda en una biblioteca global.</div>
                 </div>
                 <div className="flex ic g2r">
-                  <button className={`btn btn-sm ${draft.gym ? "btn-or" : "btn-ghost"}`} onClick={() => canEditWeek && setDraft({ ...draft, gym:true })}>S</button>
+                  <button className={`btn btn-sm ${draft.gym ? "btn-or" : "btn-ghost"}`} onClick={() => canEditWeek && setDraft({ ...draft, gym:true })}>Sí</button>
                   <button className={`btn btn-sm ${!draft.gym ? "btn-danger" : "btn-ghost"}`} onClick={() => canEditWeek && setDraft({ ...draft, gym:false })}>No</button>
                 </div>
               </div>
@@ -3534,7 +3697,15 @@ function CoachSemanaV2({
                               : exType === "time_reps"
                                 ? <input type="number" min={3} max={120} className="input" value={row.duration || 20} onChange={(e) => updateInlineExercise(row.exId, "duration", e.target.value)} disabled={!canEditWeek} title="Tiempo (segundos)" />
                                 : <div style={{textAlign:"center"}}><span className="badge b-bl">Reps</span></div>}
-                            {canEditWeek ? <button className="btn btn-danger btn-sm" onClick={() => removeInlineExercise(row.exId)}></button> : <div />}
+                            {canEditWeek ? (
+                              <button
+                                className="btn btn-danger btn-sm"
+                                aria-label={`Quitar ${exercise.name} de la rutina`}
+                                onClick={() => removeInlineExercise(row.exId)}
+                              >
+                                Quitar
+                              </button>
+                            ) : <div />}
                           </div>
                         );
                       })}
@@ -4029,7 +4200,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
           </div>
           <div className="flex ic g3r">
             <button className="btn btn-ghost" onClick={()=>setTab(tab==="library"?"routines":"library")}>
-              {tab==="library" ? " Rutinas" : "Ys Biblioteca ejercicios"}
+              {tab==="library" ? "📋 Rutinas" : "🧩 Biblioteca de ejercicios"}
             </button>
             {tab==="routines" && <button className="btn btn-or" onClick={createRoutine}>+ Nueva rutina</button>}
             {tab==="library" && <button className="btn btn-or" onClick={()=>setNewExForm({ name:"", emoji:"", muscles:"", category:"custom", type:"weight", imageFile:null })}>+ Nuevo ejercicio</button>}
@@ -4045,7 +4216,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
             <div className="card mb4">
               <div className="flex ic jb mb4">
                 <div className="modal-title" style={{fontSize:22}}>Nuevo ejercicio</div>
-                <button className="modal-close" onClick={()=>setNewExForm(null)}></button>
+                <button className="modal-close" onClick={()=>setNewExForm(null)} aria-label="Cerrar modal">Cerrar</button>
               </div>
               <div className="g2">
                 <div className="form-group">
@@ -4132,7 +4303,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
       {tab === "routines" && (
         <div className="g2">
           <div className="card">
-            <div className="card-title">Ys Biblioteca de rutinas</div>
+            <div className="card-title">📋 Biblioteca de rutinas</div>
             {(routines||[]).length===0 && <div className="text-mu text-sm">No hay rutinas guardadas</div>}
             {(routines||[]).map(rt => (
               <div key={rt.id} style={{
@@ -4142,7 +4313,7 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
               }}>
                 <div className="flex ic jb g2r">
                   <button className="nav-item" style={{margin:0,padding:0,background:"transparent",color:"var(--tx)"}} onClick={()=>setSelectedId(rt.id)}>
-                    <span className="ni">Y</span><span style={{fontWeight:700}}>{rt.name}</span>
+                    <span className="ni" aria-hidden="true">{UI_EMOJI.routine}</span><span style={{fontWeight:700}}>{rt.name}</span>
                   </button>
                   <button className="btn btn-danger btn-sm" onClick={()=>deleteRoutine(rt.id)}>Eliminar</button>
                 </div>
@@ -4238,7 +4409,14 @@ function CoachGym({ routines, setRoutines, groups, customExercises, setCustomExe
                           {exType === "reps"   && <span className="badge b-bl">SIN PESO</span>}
                           {exType === "time_reps" && <span className="badge b-ya">{row.reps} x {formatExDuration(row.duration)}</span>}
                         </div>
-                        <button className="btn btn-danger btn-sm" style={{padding:"4px 8px"}} onClick={()=>toggleExercise(row.exId)}></button>
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{padding:"4px 8px"}}
+                          aria-label={`Quitar ${exercise.name || row.exId} de la rutina`}
+                          onClick={()=>toggleExercise(row.exId)}
+                        >
+                          Quitar
+                        </button>
                       </div>
                     );
                   })}
@@ -4381,7 +4559,7 @@ function CoachGymV2({ customExercises, setCustomExercises, exerciseImages, setEx
         <div className="card mb4">
           <div className="flex ic jb mb4">
             <div className="modal-title" style={{fontSize:22}}>Nuevo ejercicio</div>
-            <button className="modal-close" onClick={() => setNewExForm(null)}></button>
+            <button className="modal-close" onClick={() => setNewExForm(null)} aria-label="Cerrar modal">Cerrar</button>
           </div>
           <div className="g2">
             <div className="form-group">
@@ -4567,7 +4745,7 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
           <div className="modal" style={{width:420}}>
             <div className="flex ic jb mb4">
               <div className="modal-title">Nuevo Grupo</div>
-              <button className="modal-close" onClick={()=>setCreating(false)}></button>
+              <button className="modal-close" onClick={()=>setCreating(false)} aria-label="Cerrar modal">Cerrar</button>
             </div>
             <div className="form-group">
               <label className="form-label">Nombre del grupo</label>
@@ -4602,11 +4780,7 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
   );
   const publishedWeek = resolvePublishedWeek(week, routines);
   const calendarWeek = publishedWeek || null;
-  const weekPlansByDate = DAYS_FULL.reduce((acc, _day, dayIndex) => {
-    const dateIso = getDateIsoForWeekDay(currentWeekNumber, dayIndex, seasonAnchorDate);
-    acc[dateIso] = calendarWeek ? { dayIndex, dayPlan: calendarWeek.days?.[dayIndex] || {} } : null;
-    return acc;
-  }, {});
+  const weekPlansByDate = calendarWeek ? mapWeekPlansByDate(calendarWeek, seasonAnchorDate) : {};
   const weekSummary = calendarWeek ? weekZoneSummary(calendarWeek) : { ...emptyZones(), total:0 };
 
   const historyByDate = {};
@@ -4716,7 +4890,7 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
 
           {!selected && (
             <div className="card" style={{textAlign:"center",padding:34}}>
-              <div style={{fontSize:34,marginBottom:8}}>Y</div>
+              <div style={{fontSize:34,marginBottom:8}} aria-hidden="true">{UI_EMOJI.calendar}</div>
               <div style={{color:"var(--mu)"}}>Selecciona un día para ver el detalle.</div>
             </div>
           )}
@@ -4725,7 +4899,7 @@ function CoachCalendario({ week, routines, history, activeWeekNumber, seasonAnch
               <div className="card">
                 <div className="flex ic jb mb4">
                   <div>
-                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900}}>{selectedInfo.dayIndex != null ? DAYS_FULL[selectedInfo.dayIndex] : "Sin planificacin"} {selected.dateIso}</div>
+                    <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:900}}>{selectedInfo.dayIndex != null ? DAYS_FULL[selectedInfo.dayIndex] : "Sin planificación"} {selected.dateIso}</div>
                     {selectedInfo.records.length > 0
                       ? <span className="badge b-gr">Realizado  {selectedInfo.records.length} registro(s)</span>
                       : selectedInfo.dayIndex == null
@@ -5128,7 +5302,7 @@ function CoachHistorial({
 
       {!isAthletesView && publishedWeeks.length === 0 && (
         <div className="card">
-          <div className="text-mu text-sm">Todava no hay semanas publicadas en el historial.</div>
+          <div className="text-mu text-sm">Todavía no hay semanas publicadas en el historial.</div>
         </div>
       )}
 
@@ -5226,7 +5400,7 @@ function CoachHistorial({
           <div className="modal" style={{maxWidth:760}}>
             <div className="flex ic jb mb4">
               <div className="modal-title">Pesos máximos  {editingAthlete.name}</div>
-              <button className="modal-close" onClick={closeWeightEditor}></button>
+              <button className="modal-close" onClick={closeWeightEditor} aria-label="Cerrar modal">Cerrar</button>
             </div>
             <div className="g3">
               {weightExercises.map((exercise) => (
@@ -5256,7 +5430,7 @@ function CoachHistorial({
           <div className="modal modal-no-scroll" style={{width:"96vw",maxWidth:1400}}>
             <div className="flex ic jb mb4">
               <div className="modal-title">Modificar Pesos Generales</div>
-              <button className="modal-close" onClick={closeBulkWeightEditor}></button>
+              <button className="modal-close" onClick={closeBulkWeightEditor} aria-label="Cerrar modal">Cerrar</button>
             </div>
             <div className="text-sm text-mu mb4">
               Edita pesos máximos por atleta y ejercicio. Al guardar se aplicarn todas las modificaciones de la tabla.
@@ -5317,6 +5491,7 @@ function CoachTemporadas({
   seasonWeekOneStartIso,
   seasons,
   onFinalizeSeason,
+  onLogout,
 }) {
   const [nextSeasonId, setNextSeasonId] = useState(getNextSeasonId(currentSeasonId));
   const [nextWeekOneStartIso, setNextWeekOneStartIso] = useState("");
@@ -5364,7 +5539,7 @@ function CoachTemporadas({
     <div className="coach-temporadas-page">
       <div className="ph">
         <div className="ph-title">TEMPORADAS <span>COACH</span></div>
-        <div className="ph-sub">Gestiona cierres de temporada y reinicio de planificacin</div>
+        <div className="ph-sub">Gestiona cierres de temporada y reinicio de planificación</div>
       </div>
 
       <div className="card season-card mb4">
@@ -5425,7 +5600,7 @@ function CoachTemporadas({
       <div className="card">
         <div className="card-title">Temporadas archivadas</div>
         {archived.length === 0 && (
-          <div className="text-sm text-mu">Todava no hay temporadas finalizadas.</div>
+          <div className="text-sm text-mu">Todavía no hay temporadas finalizadas.</div>
         )}
         {archived.length > 0 && (
           <div className="table-scroll">
@@ -5449,6 +5624,16 @@ function CoachTemporadas({
             </table>
           </div>
         )}
+      </div>
+
+      <div className="card mt4">
+        <div className="card-title">Sesión</div>
+        <div className="text-sm text-mu mb4">
+          Cierra tu sesión desde aquí cuando termines de trabajar con la temporada.
+        </div>
+        <button className="btn btn-danger" data-testid="coach-logout-button" onClick={onLogout}>
+          Cerrar sesión
+        </button>
       </div>
     </div>
   );
@@ -5482,6 +5667,7 @@ function AthleteHoy({
   const gymExercises = visibleToday.gym ? getDayGymExercisesForAthlete(rawTodayPlan, routines, user, customExercises, exerciseImages) : [];
   const gymResolved = visibleToday.gym ? getDayResolvedGymPlan(rawTodayPlan, routines) : null;
   const notifList = Array.isArray(athleteNotifications) ? athleteNotifications : [];
+  const todayEmptyState = getTodayEmptyStateMeta({ isWeekPublished, hasAnyAssignedToday });
   const completionLabel = completion.plannedSlots === 0
     ? "Sin bloques planificados hoy"
     : completion.status === "full"
@@ -5508,22 +5694,6 @@ function AthleteHoy({
       <div className="ph">
         <div className="ph-title">HOY, <span>{DAYS_FULL[todayI].toUpperCase()}</span></div>
         <div className="ph-sub">{new Date().toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"})}</div>
-      </div>
-
-      <div className="wt-banner">
-        <div>
-          <div className="wt-label">Semana</div>
-          <div className="wt-val">{week.type}</div>
-        </div>
-        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
-          <span className="badge b-bl" style={{fontSize:12,padding:"6px 12px"}}>Grupos: {userGroups.join("  ")}</span>
-          <span className={`badge ${isWeekPublished ? (visibleToday.hasContent ? "b-gr" : "b-mu") : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
-            {!isWeekPublished ? "Semana pendiente de publicar" : visibleToday.hasContent ? "Plan publicado para tus grupos" : "Sin plan para tus grupos hoy"}
-          </span>
-          <span className={`badge ${completion.status === "full" ? "b-gr" : completion.status === "partial" ? "b-ya" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
-            {completionLabel}
-          </span>
-        </div>
       </div>
 
       <div className="g2 mb4">
@@ -5645,18 +5815,44 @@ function AthleteHoy({
 
       {nextCompetition && (
         <div className="card mb4" style={{background:"linear-gradient(135deg,rgba(167,139,250,.16),rgba(167,139,250,.06))",borderColor:"rgba(167,139,250,.45)"}}>
-          <div className="flex ic jb">
+          <div className="flex ic jb" style={{alignItems:"stretch",gap:14,flexWrap:"wrap"}}>
             <div>
               <div className="card-title" style={{margin:0}}>Próxima competición</div>
-              <div className="text-sm text-mu mt3">{nextCompetition.name}  {nextCompetition.dateIso}</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:800,lineHeight:1.05,marginTop:8}}>
+                {nextCompetition.name}
+              </div>
+              <div className="text-sm text-mu mt3">{nextCompetition.dateIso}</div>
+              {nextCompetition.mark && (
+                <div className="mt3">
+                  <span className="badge b-pu" style={{fontSize:12,padding:"6px 12px"}}>Marca objetivo: {nextCompetition.mark}</span>
+                </div>
+              )}
             </div>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,color:"var(--pu)"}}>
-              {nextCompetition.diffDays}
-              <span style={{fontSize:14,color:"var(--mu)",marginLeft:6}}>días</span>
+            <div style={{marginLeft:"auto",minWidth:160,textAlign:"right"}}>
+              <div style={{fontSize:11,letterSpacing:2,textTransform:"uppercase",color:"var(--mu2)",fontWeight:700}}>Cuenta atrás</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:40,fontWeight:900,color:"var(--pu)",lineHeight:1,marginTop:6}}>
+                {nextCompetition.countdownLabel}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      <div className="wt-banner mb4" style={{gap:12,alignItems:"flex-start"}}>
+        <div>
+          <div className="wt-label">Semana</div>
+          <div className="wt-val" style={{fontSize:30}}>{week.type}</div>
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",justifyContent:"flex-end"}}>
+          <span className="badge b-bl" style={{fontSize:12,padding:"6px 12px"}}>Grupos: {userGroups.join(" · ")}</span>
+          <span className={`badge ${isWeekPublished ? (visibleToday.hasContent ? "b-gr" : "b-mu") : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
+            {!isWeekPublished ? "Semana pendiente de publicar" : visibleToday.hasContent ? "Plan visible para tus grupos" : "Sin plan para tus grupos hoy"}
+          </span>
+          <span className={`badge ${completion.status === "full" ? "b-gr" : completion.status === "partial" ? "b-ya" : "b-re"}`} style={{fontSize:12,padding:"6px 12px"}}>
+            {completionLabel}
+          </span>
+        </div>
+      </div>
 
       {notifList.length > 0 && (
         <div className="card mb4">
@@ -5680,16 +5876,12 @@ function AthleteHoy({
 
       {!visibleToday.am.length && !visibleToday.pm.length && (
         <div className="card mb4" style={{textAlign:"center",padding:40}}>
-          <div style={{fontSize:48,marginBottom:12}}>Y</div>
+          <div style={{fontSize:48,marginBottom:12}} aria-hidden="true">{todayEmptyState.icon}</div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:800}}>
-            {!isWeekPublished ? "SEMANA NO PUBLICADA" : hasAnyAssignedToday ? "SIN PLAN ASIGNADO" : "DA DE DESCANSO"}
+            {todayEmptyState.title}
           </div>
           <div style={{color:"var(--mu)",marginTop:8}}>
-            {!isWeekPublished
-              ? "El entrenador todavía no ha publicado la semana."
-              : hasAnyAssignedToday
-                ? "Hoy hay trabajo para otros grupos, pero no para los tuyos."
-                : "Recarga energías para mañana."}
+            {todayEmptyState.message}
           </div>
         </div>
       )}
@@ -5895,7 +6087,7 @@ function AthleteGym({ user, routines, week, customExercises, exerciseImages, isW
 }
 
 //  ATHLETE: PERFIL 
-function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
+function AthletePerfil({ user, onUpdatePassword, onUpdateName, onLogout }) {
   const athleteGroups = getAthleteGroups(user);
   const [nameDraft, setNameDraft] = useState(String(user?.name || ""));
   const [nameMsg, setNameMsg] = useState(null);
@@ -6025,6 +6217,16 @@ function AthletePerfil({ user, onUpdatePassword, onUpdateName }) {
               </div>
             )}
           </div>
+
+          <div className="profile-group-panel mt3">
+            <div className="form-group" style={{marginBottom:0}}>
+              <label className="form-label">Sesión</label>
+              <div className="text-sm text-mu mb3">Cierra tu sesión desde aquí cuando termines.</div>
+              <button className="btn btn-danger btn-sm" data-testid="athlete-logout-button" onClick={onLogout}>
+                Cerrar sesión
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="card profile-max-card">
@@ -6069,15 +6271,16 @@ function AthleteCalendario({
   const now = new Date();
   const [viewYear, setViewYear]   = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
-  const [selected, setSelected]   = useState(null); // { dateIso, dayOfWeek }
+  const [selected, setSelected]   = useState(null); // { dateIso }
   const [competitionModalOpen, setCompetitionModalOpen] = useState(false);
   const [competitionDate, setCompetitionDate] = useState("");
   const [competitionName, setCompetitionName] = useState("");
+  const [competitionMark, setCompetitionMark] = useState("");
   const [competitionNotes, setCompetitionNotes] = useState("");
   const [competitionError, setCompetitionError] = useState("");
   const [competitionSaving, setCompetitionSaving] = useState(false);
-  const userGroups = getAthleteGroups(user);
   const competitions = normalizeCompetitionList(user.competitions || []);
+  const publishedPlansByDate = isWeekPublished ? mapWeekPlansByDate(week) : {};
   const competitionsByDate = competitions.reduce((acc, competition) => {
     if (!acc[competition.dateIso]) acc[competition.dateIso] = [];
     acc[competition.dateIso].push(competition);
@@ -6101,15 +6304,11 @@ function AthleteCalendario({
   const histMap = {};
   (history||[]).filter((h) => h.athleteId===user.id).forEach((h) => { histMap[h.dateIso] = h; });
 
-  const weekDayForDate = (y,m,d) => {
-    const dow = new Date(y,m,d).getDay();
-    return dow === 0 ? 6 : dow - 1;
-  };
-
   const openCompetitionModal = () => {
     setCompetitionError("");
     setCompetitionDate(selected?.dateIso || todayIso);
     setCompetitionName("");
+    setCompetitionMark("");
     setCompetitionNotes("");
     setCompetitionModalOpen(true);
   };
@@ -6132,6 +6331,7 @@ function AthleteCalendario({
         id: `comp_${competitionDate}_${Date.now()}`,
         dateIso: competitionDate,
         name: competitionName.trim() || "Competición",
+        mark: competitionMark.trim() || null,
         notes: competitionNotes.trim() || null,
       });
       if (result?.ok === false) {
@@ -6141,6 +6341,7 @@ function AthleteCalendario({
       setCompetitionModalOpen(false);
       setCompetitionDate("");
       setCompetitionName("");
+      setCompetitionMark("");
       setCompetitionNotes("");
     } finally {
       setCompetitionSaving(false);
@@ -6150,20 +6351,26 @@ function AthleteCalendario({
   const getSelectedInfo = () => {
     if (!selected) return null;
     const hist = histMap[selected.dateIso] || null;
-    const dow  = selected.dayOfWeek;
-    const dayPlan = week.days[dow];
-    const visiblePlan = getVisibleDayPlanForAthlete(week, dayPlan, user, routines);
+    const mapped = publishedPlansByDate[selected.dateIso] || null;
+    const selectedDate = parseIsoDateToLocalDate(selected.dateIso);
+    const selectedDayIndex = selectedDate ? (selectedDate.getDay() === 0 ? 6 : selectedDate.getDay() - 1) : 0;
+    const dayPlan = mapped?.dayPlan || {};
+    const visiblePlan = mapped
+      ? getVisibleDayPlanForAthlete(week, dayPlan, user, routines)
+      : { am:[], pm:[], gym:false, gymPlan:null, hasContent:false };
     const completion = getDayCompletionFromHistory(visiblePlan, hist);
-    const gymExs  = visiblePlan.gym ? getDayGymExercisesForAthlete(dayPlan, routines, user, customExercises, exerciseImages) : [];
-    const gymPlan = visiblePlan.gym ? getDayResolvedGymPlan(dayPlan, routines) : null;
+    const gymExs  = mapped && visiblePlan.gym ? getDayGymExercisesForAthlete(dayPlan, routines, user, customExercises, exerciseImages) : [];
+    const gymPlan = mapped && visiblePlan.gym ? getDayResolvedGymPlan(dayPlan, routines) : null;
     return {
       hist,
+      mapped,
       dayPlan,
       visiblePlan,
       completion,
       gymExs,
       gymPlan,
-      dow,
+      dayIndex: mapped?.dayIndex ?? null,
+      dayLabel: DAYS_FULL[mapped?.dayIndex ?? selectedDayIndex] || selected.dateIso,
       competitions: competitionsByDate[selected.dateIso] || [],
     };
   };
@@ -6182,15 +6389,19 @@ function AthleteCalendario({
             <div className="divider" style={{margin:"10px 0"}} />
             <div className="athlete-comp-list">
               {(competitions || []).length === 0 && <div className="text-sm text-mu">No hay competiciones añadidas.</div>}
-              {(competitions || []).map((competition) => (
-                <div key={competition.id} className="flex ic jb mb3">
+              {(competitions || []).map((competition) => {
+                const countdown = getCompetitionCountdownMeta(competition.dateIso, todayIso);
+                return (
+                <div key={competition.id} className="flex ic jb mb3" style={{alignItems:"flex-start",gap:12}}>
                   <div>
                     <div style={{fontWeight:700,fontSize:13}}>{competition.name}</div>
                     <div className="text-sm text-mu">{competition.dateIso}</div>
+                    {competition.mark && <div className="text-sm" style={{color:"var(--pu)",fontWeight:700}}>Marca objetivo: {competition.mark}</div>}
+                    {countdown && !countdown.isPast && <div className="text-sm text-mu">{countdown.label}</div>}
                   </div>
                   <button className="btn btn-ghost btn-sm" onClick={() => onRemoveCompetition?.(competition.id)}>Eliminar</button>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
 
@@ -6212,10 +6423,12 @@ function AthleteCalendario({
                 const y = viewYear;
                 const m = viewMonth;
                 const dateIso = `${String(y).padStart(4,"0")}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-                const dow    = weekDayForDate(y, m, day);
+                const mapped = publishedPlansByDate[dateIso] || null;
                 const isToday = dateIso === todayIso;
                 const hist   = histMap[dateIso] || null;
-                const visiblePlan = getVisibleDayPlanForAthlete(week, week.days[dow], user, routines);
+                const visiblePlan = mapped
+                  ? getVisibleDayPlanForAthlete(week, mapped.dayPlan, user, routines)
+                  : { am:[], pm:[], gym:false, gymPlan:null, hasContent:false };
                 const completion = getDayCompletionFromHistory(visiblePlan, hist);
                 const hasTrain = visiblePlan.hasContent;
                 const isCompetitionDay = !!competitionsByDate[dateIso]?.length;
@@ -6231,13 +6444,13 @@ function AthleteCalendario({
                   <div key={day}
                     className={`cal-cell ${hasTrain?"has-training":""} ${isToday?"today-cell":""}`}
                     style={style}
-                    onClick={()=>setSelected({ dateIso, dayOfWeek:dow })}
+                    onClick={()=>setSelected({ dateIso })}
                   >
                     <div className="cal-day-num" style={{color:isToday ? "var(--or)" : isFuture ? "var(--mu2)" : "var(--tx)"}}>{day}</div>
                     {hasTrain && completion.status === "full" && <span className="cal-dot" style={{background:"var(--gr)"}} title="Completado todo" />}
                     {hasTrain && completion.status === "partial" && <span className="cal-dot" style={{background:"var(--or)"}} title="Completado parcial" />}
                     {hasTrain && completion.status === "none" && <span className="cal-dot" style={{background:"var(--re)"}} title="Sin completar" />}
-                    {week.days[dow]?.gym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
+                    {mapped?.dayPlan?.gym && visiblePlan.gym && <span className="cal-dot" style={{background:"var(--pu)"}} />}
                     {isCompetitionDay && <span className="cal-dot" style={{background:"#c084fc"}} title="Competición" />}
                   </div>
                 );
@@ -6246,10 +6459,10 @@ function AthleteCalendario({
 
             <div className="divider" style={{margin:"12px 0"}} />
             <div className="flex ic g4r athlete-cal-legend" style={{flexWrap:"wrap"}}>
-              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--gr)"}} /> Da completo</div>
-              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> Da parcial</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--gr)"}} /> Día completo</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--or)"}} /> Día parcial</div>
               <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--re)"}} /> Sin completar</div>
-              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--mu2)"}} /> Da futuro</div>
+              <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"var(--mu2)"}} /> Día futuro</div>
               <div className="flex ic g2r text-sm"><span className="cal-dot" style={{width:8,height:8,background:"#c084fc"}} /> Competición</div>
             </div>
           </div>
@@ -6258,7 +6471,7 @@ function AthleteCalendario({
         <div className="athlete-cal-right">
           {!selected && (
             <div className="card athlete-cal-placeholder" style={{textAlign:"center"}}>
-              <div style={{fontSize:36,marginBottom:12}}>Y</div>
+              <div style={{fontSize:36,marginBottom:12}} aria-hidden="true">{UI_EMOJI.calendar}</div>
               <div style={{color:"var(--mu)",fontSize:14}}>Selecciona un día para ver el detalle</div>
             </div>
           )}
@@ -6269,7 +6482,7 @@ function AthleteCalendario({
                 <div className="flex ic jb mb4">
                   <div>
                     <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:22,fontWeight:900}}>
-                      {DAYS_FULL[info.dow]} {selected.dateIso}
+                      {info.dayLabel} {selected.dateIso}
                     </div>
                     {info.completion.plannedSlots > 0 && (
                       <span className={`badge ${info.completion.status === "full" ? "b-gr" : info.completion.status === "partial" ? "b-ya" : "b-re"}`}>
@@ -6281,15 +6494,23 @@ function AthleteCalendario({
                       </span>
                     )}
                   </div>
-                  <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)}></button>
+                  <button className="btn btn-ghost btn-sm" onClick={()=>setSelected(null)}>Cerrar</button>
                 </div>
 
                 {info.competitions.length > 0 && (
                   <div className="card card-sm mb3" style={{background:"rgba(167,139,250,.12)",borderColor:"rgba(167,139,250,.35)"}}>
                     <div className="fw7 mb3">Competiciones del día</div>
-                    {info.competitions.map((competition) => (
-                      <div key={competition.id} className="text-sm" style={{fontWeight:700}}>{competition.name}</div>
-                    ))}
+                    {info.competitions.map((competition) => {
+                      const countdown = getCompetitionCountdownMeta(competition.dateIso, todayIso);
+                      return (
+                        <div key={competition.id} className="mb3">
+                          <div className="text-sm" style={{fontWeight:700}}>{competition.name}</div>
+                          {competition.mark && <div className="text-sm" style={{color:"var(--pu)",fontWeight:700}}>Marca objetivo: {competition.mark}</div>}
+                          {countdown && <div className="text-sm text-mu">{countdown.label}</div>}
+                          {competition.notes && <div className="text-sm text-mu2">{competition.notes}</div>}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -6382,6 +6603,73 @@ function AthleteCalendario({
           )}
         </div>
       </div>
+
+      {competitionModalOpen && (
+        <div className="modal-overlay" onClick={(event) => event.target === event.currentTarget && closeCompetitionModal()}>
+          <div className="modal" style={{ maxWidth: 520 }}>
+            <div className="flex ic jb mb4">
+              <div className="modal-title" style={{ fontSize: 24 }}>Añadir competición</div>
+              <button className="modal-close" onClick={closeCompetitionModal}>Cerrar</button>
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="athlete-competition-date">Fecha</label>
+              <input
+                id="athlete-competition-date"
+                type="date"
+                className="input"
+                value={competitionDate}
+                onChange={(event) => setCompetitionDate(event.target.value)}
+                aria-label="Fecha"
+                disabled={competitionSaving}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="athlete-competition-name">Nombre</label>
+              <input
+                id="athlete-competition-name"
+                className="input"
+                value={competitionName}
+                onChange={(event) => setCompetitionName(event.target.value)}
+                placeholder="Control 1500m, campeonato..."
+                aria-label="Nombre"
+                disabled={competitionSaving}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="athlete-competition-mark">Marca objetivo (opcional)</label>
+              <input
+                id="athlete-competition-mark"
+                className="input"
+                value={competitionMark}
+                onChange={(event) => setCompetitionMark(event.target.value)}
+                placeholder="3:58.20, 1.82m, 62.50..."
+                aria-label="Marca objetivo (opcional)"
+                disabled={competitionSaving}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="athlete-competition-notes">Nota (opcional)</label>
+              <textarea
+                id="athlete-competition-notes"
+                className="input"
+                value={competitionNotes}
+                onChange={(event) => setCompetitionNotes(event.target.value)}
+                placeholder="Detalles de la prueba"
+                rows={3}
+                aria-label="Nota (opcional)"
+                disabled={competitionSaving}
+                style={{ minHeight: 96, resize: "vertical" }}
+              />
+            </div>
+            {!!competitionError && (
+              <div className="text-sm mb3 form-error">{competitionError}</div>
+            )}
+            <button className="btn btn-or" style={{ width: "100%" }} onClick={handleAddCompetition} disabled={competitionSaving}>
+              {competitionSaving ? "Guardando..." : "Guardar competición"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6791,6 +7079,11 @@ export default function TrackFlow() {
 
     setUser(resolvedUser);
     setPage(resolvedUser.role === "coach" ? "semana" : "hoy");
+    persistedStorageKeysRef.current.add("tf_user");
+    localRawSet("tf_user", JSON.stringify(resolvedUser));
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => window.location.reload(), 0);
+    }
     return { ok:true, user: resolvedUser };
   };
 
@@ -6843,7 +7136,13 @@ export default function TrackFlow() {
       return next;
     });
   };
-  const handlePublishWeek = ({ weekNumber, isUpdate, targetGroups }) => {
+  const handlePublishWeek = ({ weekNumber, isUpdate, targetGroups, publishedWeek }) => {
+    if (publishedWeek) {
+      setTrainings((prev) => {
+        const { changed, trainings: nextTrainings } = mergeManualTrainingsIntoCatalog(prev, publishedWeek);
+        return changed ? nextTrainings : prev;
+      });
+    }
     const hasTargets = Array.isArray(targetGroups) && targetGroups.length > 0;
     if (isUpdate && !hasTargets) return;
     const targets = hasTargets ? targetGroups : ["all"];
@@ -7018,6 +7317,7 @@ export default function TrackFlow() {
           id: competition.id,
           dateIso: competition.dateIso,
           name: competition.name,
+          mark: competition.mark || null,
           notes: competition.notes || null,
         },
       });
@@ -7030,6 +7330,7 @@ export default function TrackFlow() {
         id: generatedId || competition.id,
         dateIso: saved?.dateIso || competition.dateIso,
         name: saved?.name || competition.name,
+        mark: saved?.mark || competition.mark || null,
         notes: saved?.notes || competition.notes || null,
       }])[0];
 
@@ -7148,7 +7449,7 @@ export default function TrackFlow() {
         case "gym":        return <CoachGymV2 customExercises={customExercises} setCustomExercises={setCustomExercises} exerciseImages={exerciseImages} setExerciseImages={setExerciseImages} />;
         case "dataset":    return <CoachTrainingsDataset trainings={trainings} setTrainings={setTrainings} />;
         case "athletes":   return <CoachHistorial weekPlansByNumber={weekPlansByNumber} routines={routines} history={history} athletes={athletes} setAthletes={setAthletes} groups={groups} setGroups={setGroups} onRenameAthlete={handleUpdateAthleteName} onDeleteAthlete={handleDeleteAthlete} view="athletes" seasonAnchorDate={seasonAnchorDate} />;
-        case "temporadas": return <CoachTemporadas currentSeasonId={currentSeasonId} seasonWeekOneStartIso={seasonWeekOneStartIso} seasons={seasons} onFinalizeSeason={handleFinalizeSeason} />;
+        case "temporadas": return <CoachTemporadas currentSeasonId={currentSeasonId} seasonWeekOneStartIso={seasonWeekOneStartIso} seasons={seasons} onFinalizeSeason={handleFinalizeSeason} onLogout={handleLogout} />;
         default:           return <CoachSemanaV2 week={week} setWeek={setWeek} routines={routines} trainings={trainings} athletes={athletes} groups={groups} customExercises={customExercises} exerciseImages={exerciseImages} activeWeekNumber={activeWeekNumber} setActiveWeekNumber={setActiveWeekNumber} onPublishWeek={handlePublishWeek} seasonAnchorDate={seasonAnchorDate} />;
       }
     } else {
@@ -7159,7 +7460,7 @@ export default function TrackFlow() {
         case "semana":     return <AthleteSemana week={athleteWeek} routines={routines} user={currentUser} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
         case "jogatina":   return <AthleteJogatina athlete={currentUser} />;
         case "gym":        return <AthleteGym user={currentUser} routines={routines} week={athleteWeek} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} />;
-        case "perfil":     return <AthletePerfil user={currentUser} onUpdateName={(nextName) => handleUpdateAthleteName(currentUser?.id, nextName)} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} />;
+        case "perfil":     return <AthletePerfil user={currentUser} onUpdateName={(nextName) => handleUpdateAthleteName(currentUser?.id, nextName)} onUpdatePassword={(nextPassword) => handleUpdateAthletePassword(currentUser?.id, nextPassword)} onLogout={handleLogout} />;
         case "calendario": return <AthleteCalendario user={currentUser} week={athleteWeek} routines={routines} history={history} customExercises={customExercises} exerciseImages={exerciseImages} isWeekPublished={!!publishedWeek} onAddCompetition={(competition) => handleAddCompetition(currentUser.id, competition)} onRemoveCompetition={(competitionId) => handleRemoveCompetition(currentUser.id, competitionId)} />;
         default: return null;
       }
@@ -7172,14 +7473,12 @@ export default function TrackFlow() {
         user={user}
         page={page}
         setPage={setPage}
-        onLogout={handleLogout}
         notifCount={isCoach ? notifications.length : athleteNotifications.length}
       />
       <MobileNavigation
         user={user}
         page={page}
         setPage={setPage}
-        onLogout={handleLogout}
         notifCount={isCoach ? notifications.length : athleteNotifications.length}
       />
       <div className={mainAreaClass}>
