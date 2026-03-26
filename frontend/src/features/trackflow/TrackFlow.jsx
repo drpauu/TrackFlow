@@ -6535,9 +6535,7 @@ function AthleteCalendario({
                 const mapped = publishedPlansByDate[dateIso] || null;
                 const isToday = dateIso === todayIso;
                 const hist   = histMap[dateIso] || null;
-                const visiblePlan = mapped
-                  ? getVisibleDayPlanForAthlete(week, mapped.dayPlan, user, routines)
-                  : { am:[], pm:[], gym:false, gymPlan:null, hasContent:false };
+                const visiblePlan = mapped?.visiblePlan || { am:[], pm:[], gym:false, gymPlan:null, hasContent:false };
                 const completion = getDayCompletionFromHistory(visiblePlan, hist);
                 const hasTrain = visiblePlan.hasContent;
                 const isCompetitionDay = !!competitionsByDate[dateIso]?.length;

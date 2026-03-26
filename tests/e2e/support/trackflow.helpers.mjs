@@ -371,6 +371,311 @@ export async function seedPublishedCurrentWeekOnly({
   };
 }
 
+export async function assignAthleteGroups(seed, groups = ['800m']) {
+  const athleteId = String(seed?.athleteId || '').trim();
+  const coachId = String(seed?.coachId || config.defaultCoachId || 'juancarlos').trim() || 'juancarlos';
+  if (!athleteId) throw new Error('assignAthleteGroups requiere athleteId.');
+
+  const cleanGroups = Array.from(new Set((Array.isArray(groups) ? groups : [groups])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)));
+  const nextGroups = cleanGroups.length ? cleanGroups : ['por-asignar'];
+  const primaryGroup = nextGroups[0];
+  const db = await getDb();
+  const now = new Date();
+
+  await db.collection('athletes').updateOne(
+    { _id: `${coachId}:${athleteId}` },
+    {
+      $set: {
+        primaryGroupSlug: primaryGroup,
+        groupSlugs: nextGroups,
+        updatedAt: now,
+      },
+    }
+  );
+
+  const stateDoc = await db.collection('state_cache').findOne({ coachId, key: 'tf_athletes' });
+  const athletes = parseAthletesState(stateDoc?.valueJsonString || '');
+  const nextAthletes = athletes.map((athlete) => (
+    String(athlete?.id || '').trim() === athleteId
+      ? {
+          ...athlete,
+          group: primaryGroup,
+          groups: nextGroups,
+        }
+      : athlete
+  ));
+
+  await db.collection('state_cache').updateOne(
+    { coachId, key: 'tf_athletes' },
+    {
+      $set: {
+        _id: `${coachId}:tf_athletes`,
+        coachId,
+        key: 'tf_athletes',
+        valueJsonString: JSON.stringify(nextAthletes),
+        updatedAt: now,
+        updatedBy: 'e2e_seed',
+      },
+      $setOnInsert: { createdAt: now, syncVersion: 1 },
+    },
+    { upsert: true }
+  );
+
+  await db.collection('state_cache').updateOne(
+    { coachId, key: 'tf_users_csv' },
+    {
+      $set: {
+        _id: `${coachId}:tf_users_csv`,
+        coachId,
+        key: 'tf_users_csv',
+        valueJsonString: toAthletesCsv(nextAthletes),
+        updatedAt: now,
+        updatedBy: 'e2e_seed',
+      },
+      $setOnInsert: { createdAt: now, syncVersion: 1 },
+    },
+    { upsert: true }
+  );
+
+  return {
+    coachId,
+    athleteId,
+    groups: nextGroups,
+  };
+}
+
+export async function seedPublishedTargetedWeekOutsideActiveWeek({
+  coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos',
+  targetDateIso = '2026-03-26',
+  targetGroup = '800m',
+  activeWeekTargetGroup = '1500m',
+  sessionName = 'Control QA grupo objetivo fuera de la activa',
+} = {}) {
+  const db = await getDb();
+  const targetDate = new Date(`${targetDateIso}T12:00:00`);
+  const publishedWeekNumber = getSeasonWeekNumber(targetDate);
+  const publishedWeekStart = getSeasonWeekStartDate(publishedWeekNumber);
+  const publishedWeekEnd = new Date(
+    publishedWeekStart.getFullYear(),
+    publishedWeekStart.getMonth(),
+    publishedWeekStart.getDate() + 6
+  );
+
+  const publishedDays = Array.from({ length: 7 }, () => buildEmptyWeekDay());
+  publishedDays[3] = {
+    ...buildEmptyWeekDay(),
+    am: sessionName,
+    sessions: {
+      am: {
+        id: `session_targeted_${publishedWeekNumber}_thu_am`,
+        slot: 'am',
+        trainingId: '',
+        name: sessionName,
+        description: 'Sesión QA visible solo por fallback de targetGroup de la semana publicada.',
+        zones: { regen: 2, ua: 2, uan: 0, anae: 0 },
+      },
+      pm: null,
+    },
+  };
+
+  const publishedWeek = {
+    id: `week_${publishedWeekNumber}`,
+    name: `Semana ${publishedWeekNumber}`,
+    type: 'Inicial',
+    targetGroup,
+    weekNumber: publishedWeekNumber,
+    startDate: toIsoDate(publishedWeekStart),
+    endDate: toIsoDate(publishedWeekEnd),
+    published: true,
+    publishedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEditingPublished: false,
+    publishedVersion: null,
+    days: publishedDays,
+  };
+
+  const activeWeekNumber = publishedWeekNumber + 1;
+  const activeWeekStart = getSeasonWeekStartDate(activeWeekNumber);
+  const activeWeekEnd = new Date(
+    activeWeekStart.getFullYear(),
+    activeWeekStart.getMonth(),
+    activeWeekStart.getDate() + 6
+  );
+  const draftWeek = {
+    id: `week_${activeWeekNumber}`,
+    name: `Semana ${activeWeekNumber}`,
+    type: 'Inicial',
+    targetGroup: activeWeekTargetGroup,
+    weekNumber: activeWeekNumber,
+    startDate: toIsoDate(activeWeekStart),
+    endDate: toIsoDate(activeWeekEnd),
+    published: false,
+    publishedAt: null,
+    updatedAt: new Date().toISOString(),
+    isEditingPublished: false,
+    publishedVersion: null,
+    days: Array.from({ length: 7 }, () => buildEmptyWeekDay()),
+  };
+
+  await writeStateCacheValue(db, coachId, 'tf_week_plans', {
+    [publishedWeekNumber]: publishedWeek,
+    [activeWeekNumber]: draftWeek,
+  });
+  await writeStateCacheValue(db, coachId, 'tf_week', draftWeek);
+  await writeStateCacheValue(db, coachId, 'tf_active_week_number', activeWeekNumber);
+
+  return {
+    coachId,
+    publishedWeekNumber,
+    activeWeekNumber,
+    targetDateIso,
+    targetGroup,
+    activeWeekTargetGroup,
+    sessionName,
+  };
+}
+
+export async function seedAthleteHistoryRows({
+  coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos',
+  athleteId,
+  rows = [],
+} = {}) {
+  const safeAthleteId = String(athleteId || '').trim();
+  if (!safeAthleteId) throw new Error('seedAthleteHistoryRows requiere athleteId.');
+
+  const db = await getDb();
+  const now = new Date();
+  const stateDoc = await db.collection('state_cache').findOne({ coachId, key: 'tf_history' });
+  const current = (() => {
+    try {
+      const parsed = JSON.parse(stateDoc?.valueJsonString || '[]');
+      return Array.isArray(parsed) ? parsed.filter((row) => row && typeof row === 'object') : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  const incomingByDate = new Map(
+    (Array.isArray(rows) ? rows : [])
+      .filter((row) => row?.dateIso)
+      .map((row) => [String(row.dateIso), {
+        id: row.id || `${String(row.dateIso)}_${safeAthleteId}`,
+        athleteId: safeAthleteId,
+        dateIso: String(row.dateIso),
+        amDone: !!row.amDone,
+        pmDone: !!row.pmDone,
+        gymDone: !!row.gymDone,
+      }])
+  );
+
+  const next = [
+    ...current.filter((row) => !(String(row?.athleteId || '').trim() === safeAthleteId && incomingByDate.has(String(row?.dateIso || '').trim()))),
+    ...incomingByDate.values(),
+  ];
+
+  await db.collection('state_cache').updateOne(
+    { coachId, key: 'tf_history' },
+    {
+      $set: {
+        coachId,
+        key: 'tf_history',
+        valueJsonString: JSON.stringify(next),
+        updatedAt: now,
+        updatedBy: 'e2e_seed',
+      },
+      $setOnInsert: { _id: `${coachId}:tf_history`, createdAt: now, syncVersion: 1 },
+    },
+    { upsert: true }
+  );
+
+  return {
+    coachId,
+    athleteId: safeAthleteId,
+    rowCount: incomingByDate.size,
+  };
+}
+
+export async function seedPublishedCompletionWeek({
+  coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos',
+  referenceDateIso = '2026-03-26',
+  sessionPrefix = 'Control color',
+} = {}) {
+  const db = await getDb();
+  const referenceDate = new Date(`${referenceDateIso}T12:00:00`);
+  const weekNumber = getSeasonWeekNumber(referenceDate);
+  const weekStart = getSeasonWeekStartDate(weekNumber);
+  const weekEnd = new Date(
+    weekStart.getFullYear(),
+    weekStart.getMonth(),
+    weekStart.getDate() + 6
+  );
+  const days = Array.from({ length: 7 }, () => buildEmptyWeekDay());
+  [0, 1, 2].forEach((dayIndex) => {
+    days[dayIndex] = {
+      ...buildEmptyWeekDay(),
+      am: `${sessionPrefix} ${dayIndex + 1}`,
+      sessions: {
+        am: {
+          id: `session_completion_${weekNumber}_${dayIndex}_am`,
+          slot: 'am',
+          trainingId: '',
+          name: `${sessionPrefix} ${dayIndex + 1}`,
+          description: 'Sesión QA para validar colores del calendario.',
+          targetAll: true,
+          targetGroups: [],
+          targetAthleteIds: [],
+          targetGroup: 'all',
+          zones: { regen: 2, ua: 0, uan: 0, anae: 0 },
+        },
+        pm: dayIndex === 1
+          ? {
+              id: `session_completion_${weekNumber}_${dayIndex}_pm`,
+              slot: 'pm',
+              trainingId: '',
+              name: `${sessionPrefix} ${dayIndex + 1} PM`,
+              description: 'Sesión QA PM para validar estado parcial.',
+              targetAll: true,
+              targetGroups: [],
+              targetAthleteIds: [],
+              targetGroup: 'all',
+              zones: { regen: 1, ua: 1, uan: 0, anae: 0 },
+            }
+          : null,
+      },
+    };
+  });
+
+  const week = {
+    id: `week_${weekNumber}`,
+    name: `Semana ${weekNumber}`,
+    type: 'Inicial',
+    targetGroup: 'all',
+    weekNumber,
+    startDate: toIsoDate(weekStart),
+    endDate: toIsoDate(weekEnd),
+    published: true,
+    publishedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    isEditingPublished: false,
+    publishedVersion: null,
+    days,
+  };
+
+  await writeStateCacheValue(db, coachId, 'tf_week_plans', { [weekNumber]: week });
+  await writeStateCacheValue(db, coachId, 'tf_week', week);
+  await writeStateCacheValue(db, coachId, 'tf_active_week_number', weekNumber);
+
+  return {
+    coachId,
+    weekNumber,
+    fullDateIso: toIsoDate(weekStart),
+    partialDateIso: toIsoDate(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 1)),
+    noneDateIso: toIsoDate(new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 2)),
+  };
+}
+
 export async function createTemporaryAthlete({ name = 'Atleta QA', password = DEFAULT_ATHLETE_PASSWORD } = {}) {
   const db = await getDb();
   const coachId = String(config.defaultCoachId || 'juancarlos').trim() || 'juancarlos';
@@ -511,6 +816,33 @@ export async function removeTemporaryAthlete(seed) {
     { coachId, key: 'tf_users_csv' },
     { $set: { valueJsonString: toAthletesCsv(filtered), updatedAt: now, updatedBy: 'e2e_cleanup' } }
   );
+
+  const historyDoc = await db.collection('state_cache').findOne({ coachId, key: 'tf_history' });
+  const historyRows = (() => {
+    try {
+      const parsed = JSON.parse(historyDoc?.valueJsonString || '[]');
+      return Array.isArray(parsed) ? parsed.filter((row) => row && typeof row === 'object') : [];
+    } catch {
+      return [];
+    }
+  })();
+  const filteredHistory = historyRows.filter((row) => String(row?.athleteId || '').trim() !== athleteId);
+  if (filteredHistory.length !== historyRows.length) {
+    await db.collection('state_cache').updateOne(
+      { coachId, key: 'tf_history' },
+      {
+        $set: {
+          coachId,
+          key: 'tf_history',
+          valueJsonString: JSON.stringify(filteredHistory),
+          updatedAt: now,
+          updatedBy: 'e2e_cleanup',
+        },
+        $setOnInsert: { _id: `${coachId}:tf_history`, createdAt: now, syncVersion: 1 },
+      },
+      { upsert: true }
+    );
+  }
 }
 
 export async function resetBrowserStorage(page) {

@@ -1,13 +1,17 @@
 ﻿import { test, expect } from '@playwright/test';
 
 import {
+  assignAthleteGroups,
   clickNav,
   createTemporaryAthlete,
   loginCoach,
   loginAthlete,
   removeTemporaryAthlete,
   restoreWeekPlanState,
+  seedAthleteHistoryRows,
+  seedPublishedCompletionWeek,
   seedPublishedCurrentWeekOnly,
+  seedPublishedTargetedWeekOutsideActiveWeek,
   seedPublishedThursdayOnlyWeek,
   seedPublishedThursdayOutsideActiveWeek,
   snapshotWeekPlanState,
@@ -100,6 +104,72 @@ test('el calendario del atleta muestra días publicados aunque la semana activa 
     const detail = page.locator('.athlete-cal-detail').first();
     await expect(detail).toContainText('Jueves 2026-03-26');
     await expect(detail).toContainText(seededWeek.sessionName);
+  } finally {
+    await restoreWeekPlanState(snapshot);
+    await removeTemporaryAthlete(seed);
+  }
+});
+
+test('el calendario del atleta usa la semana real mapeada por fecha para respetar targetGroup', async ({ page }) => {
+  const seed = await createTemporaryAthlete({ name: 'Atleta QA Calendario Grupo Objetivo' });
+  const snapshot = await snapshotWeekPlanState();
+  const seededWeek = await seedPublishedTargetedWeekOutsideActiveWeek({
+    sessionName: `Control grupo objetivo ${Date.now()}`,
+    targetGroup: '800m',
+    activeWeekTargetGroup: '1500m',
+  });
+
+  try {
+    await assignAthleteGroups(seed, ['800m']);
+
+    await loginAthlete(page, seed.athleteName, seed.password);
+    await clickNav(page, 'Mi Calendario');
+
+    const targetDay = page.locator('.cal-cell').filter({ hasText: /^26$/ }).first();
+    await expect(targetDay).toBeVisible();
+    await expect(targetDay).toHaveClass(/has-training/);
+
+    await targetDay.click();
+    const detail = page.locator('.athlete-cal-detail').first();
+    await expect(detail).toContainText('Jueves 2026-03-26');
+    await expect(detail).toContainText(seededWeek.sessionName);
+  } finally {
+    await restoreWeekPlanState(snapshot);
+    await removeTemporaryAthlete(seed);
+  }
+});
+
+test('el calendario del atleta pinta rojo, amarillo y verde según el progreso real del día', async ({ page }) => {
+  const seed = await createTemporaryAthlete({ name: 'Atleta QA Calendario Colores' });
+  const snapshot = await snapshotWeekPlanState();
+  const seededWeek = await seedPublishedCompletionWeek({
+    sessionPrefix: `Control color ${Date.now()}`,
+  });
+
+  try {
+    await seedAthleteHistoryRows({
+      athleteId: seed.athleteId,
+      rows: [
+        { dateIso: seededWeek.fullDateIso, amDone: true, pmDone: false, gymDone: false },
+        { dateIso: seededWeek.partialDateIso, amDone: true, pmDone: false, gymDone: false },
+        { dateIso: seededWeek.noneDateIso, amDone: false, pmDone: false, gymDone: false },
+      ],
+    });
+
+    await loginAthlete(page, seed.athleteName, seed.password);
+    await clickNav(page, 'Mi Calendario');
+
+    const fullDay = page.locator('.cal-cell').filter({ hasText: new RegExp(`^${Number(seededWeek.fullDateIso.slice(-2))}$`) }).first();
+    const partialDay = page.locator('.cal-cell').filter({ hasText: new RegExp(`^${Number(seededWeek.partialDateIso.slice(-2))}$`) }).first();
+    const noneDay = page.locator('.cal-cell').filter({ hasText: new RegExp(`^${Number(seededWeek.noneDateIso.slice(-2))}$`) }).first();
+
+    await expect(fullDay).toHaveClass(/has-training/);
+    await expect(partialDay).toHaveClass(/has-training/);
+    await expect(noneDay).toHaveClass(/has-training/);
+
+    await expect(fullDay).toHaveAttribute('style', /74,\s*222,\s*128/);
+    await expect(partialDay).toHaveAttribute('style', /255,\s*167,\s*38/);
+    await expect(noneDay).toHaveAttribute('style', /248,\s*113,\s*113/);
   } finally {
     await restoreWeekPlanState(snapshot);
     await removeTemporaryAthlete(seed);
