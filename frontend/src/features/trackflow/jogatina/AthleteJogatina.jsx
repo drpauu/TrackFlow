@@ -691,7 +691,7 @@ export default function AthleteJogatina({ athlete }) {
 
                               <div className="jogatina-bet-actions">
                                 <label>
-                                  Apostar por
+                                  <span>Apostar por</span>
                                   <select
                                     value={wagerDraft.pickedAthleteId}
                                     onChange={(event) => handleWagerChange(bet.id, { pickedAthleteId: event.target.value })}
@@ -706,7 +706,7 @@ export default function AthleteJogatina({ athlete }) {
                                   </select>
                                 </label>
                                 <label>
-                                  Stake
+                                  <span>Stake</span>
                                   <input
                                     type="number"
                                     min={1}
@@ -729,7 +729,7 @@ export default function AthleteJogatina({ athlete }) {
                               <div className="jogatina-block-head">
                                 <div>
                                   <h5>Actividad del mercado</h5>
-                                  <p>Se muestran primero las jugadas m&aacute;s recientes y queda marcado cu&aacute;ndo la apuesta es tuya.</p>
+                                  <p>Jugadas recientes y selección marcada cuando la apuesta es tuya.</p>
                                 </div>
                               </div>
 
@@ -854,31 +854,46 @@ export default function AthleteJogatina({ athlete }) {
       <JogatinaModal
         open={showCreateBetModal}
         title="Crear apuesta"
-        description={'Pregunta compacta, fecha de cierre y publicaci\u00f3n inmediata sin salir de Jogatina.'}
+        description={'Define la pregunta, elige el cierre y publica sin salir de Jogatina.'}
         onClose={() => setShowCreateBetModal(false)}
         testId="jogatina-create-bet-modal"
+        width={640}
       >
-        <div className="jogatina-modal-body">
-          <label>
-            Pregunta
-            <input
-              type="text"
-              value={questionDraft}
-              onChange={(event) => setQuestionDraft(event.target.value)}
-              placeholder={'\u00bfQui\u00e9n har\u00e1 mejor tiempo hoy?'}
-            />
-          </label>
-          <label>
-            Cierre
-            <input
-              type="datetime-local"
-              value={closeAtDraft}
-              onChange={(event) => setCloseAtDraft(event.target.value)}
-            />
-          </label>
-          <div className="jogatina-modal-actions">
+        <div className="jogatina-modal-body jogatina-create-body">
+          <section className="jogatina-create-hero">
+            <span className="jogatina-section-kicker">Nueva apuesta</span>
+            <h3>Mueve el ranking</h3>
+            <p>Haz una pregunta clara, pon un cierre corto y deja que el grupo entre a jugar.</p>
+          </section>
+
+          <div className="jogatina-create-form">
+            <label className="jogatina-create-question">
+              <span>Pregunta</span>
+              <input
+                type="text"
+                value={questionDraft}
+                onChange={(event) => setQuestionDraft(event.target.value)}
+                placeholder={'¿Quién hará mejor tiempo hoy?'}
+              />
+            </label>
+            <label>
+              <span>Cierre</span>
+              <input
+                type="datetime-local"
+                value={closeAtDraft}
+                onChange={(event) => setCloseAtDraft(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="jogatina-create-note">
+            <strong>Recomendación</strong>
+            <span>Usa preguntas concretas y resolubles: mejor marca, asistencia, completar rutina o reto del día.</span>
+          </div>
+
+          <div className="jogatina-modal-actions jogatina-create-actions">
             <button type="button" className="jogatina-secondary-btn" onClick={() => setShowCreateBetModal(false)}>Cancelar</button>
-            <button type="button" disabled={busy} onClick={handleCreateBet}>Publicar apuesta</button>
+            <button type="button" className="jogatina-primary-btn" disabled={busy} onClick={handleCreateBet}>Publicar apuesta</button>
           </div>
         </div>
       </JogatinaModal>
@@ -887,11 +902,11 @@ export default function AthleteJogatina({ athlete }) {
         open={showManageGroupModal}
         title={isOwner ? 'Gestionar grupo' : 'Tu grupo'}
         description={isOwner
-          ? 'Solo el creador puede ajustar la configuraci\u00f3n del grupo.'
-          : 'Consulta la configuraci\u00f3n del grupo y sal si quieres entrar en otro.'}
+          ? 'Solo el creador puede ajustar la configuración del grupo.'
+          : 'Consulta la configuración del grupo y sal si quieres entrar en otro.'}
         onClose={() => setShowManageGroupModal(false)}
         testId="jogatina-manage-group-modal"
-        width={720}
+        width={780}
       >
         <div className="jogatina-modal-body jogatina-manage-body">
           <section className="jogatina-manage-hero">
@@ -901,15 +916,15 @@ export default function AthleteJogatina({ athlete }) {
               <p>{isOwner ? 'Eres el creador de este grupo.' : 'Estás dentro del grupo como miembro.'}</p>
             </div>
             <div className="jogatina-manage-summary" data-testid="jogatina-manage-summary">
-              <div>
-                <span>C&oacute;digo</span>
+              <div className="jogatina-manage-stat">
+                <span>Código</span>
                 <strong>{state?.group?.code5 || '-'}</strong>
               </div>
-              <div>
+              <div className="jogatina-manage-stat">
                 <span>Miembros</span>
                 <strong>{state?.group?.memberCount || 0}</strong>
               </div>
-              <div>
+              <div className="jogatina-manage-stat">
                 <span>Carryover</span>
                 <strong>{formatPoints(state?.carryoverPool ?? 0)}</strong>
               </div>
@@ -920,9 +935,10 @@ export default function AthleteJogatina({ athlete }) {
             className="jogatina-manage-block"
             data-testid={isOwner ? 'jogatina-manage-owner' : 'jogatina-manage-readonly'}
           >
-            <div className="jogatina-block-head">
+            <div className="jogatina-block-head jogatina-manage-block-head">
               <div>
-                <h5>Configuraci&oacute;n del grupo</h5>
+                <span className="jogatina-section-kicker">Ajustes</span>
+                <h5>Configuración del grupo</h5>
                 <p>
                   {isOwner
                     ? 'Solo el creador del grupo puede modificar esta configuración.'
@@ -933,25 +949,33 @@ export default function AthleteJogatina({ athlete }) {
 
             {isOwner ? (
               <>
-                <label>
-                  Nombre del grupo
-                  <input
-                    type="text"
-                    value={groupNameDraft}
-                    onChange={(event) => setGroupNameDraft(event.target.value)}
-                  />
-                </label>
-                <label>
-                  L&iacute;mite de apuestas activas
-                  <input
-                    type="number"
-                    min={1}
-                    value={groupLimitDraft}
-                    onChange={(event) => setGroupLimitDraft(event.target.value)}
-                  />
-                </label>
-                <div className="jogatina-modal-actions">
-                  <button type="button" disabled={busy} onClick={handleSaveGroupSettings}>Guardar cambios</button>
+                <div className="jogatina-manage-form-grid">
+                  <label>
+                    <span>Nombre del grupo</span>
+                    <input
+                      type="text"
+                      value={groupNameDraft}
+                      onChange={(event) => setGroupNameDraft(event.target.value)}
+                      placeholder="Nombre visible del grupo"
+                    />
+                  </label>
+                  <label>
+                    <span>Límite de apuestas activas</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={groupLimitDraft}
+                      onChange={(event) => setGroupLimitDraft(event.target.value)}
+                      placeholder="3"
+                    />
+                  </label>
+                </div>
+                <div className="jogatina-manage-owner-note">
+                  Los cambios se aplican al grupo completo y afectan a todos los miembros.
+                </div>
+                <div className="jogatina-modal-actions jogatina-manage-actions">
+                  <button type="button" className="jogatina-secondary-btn" onClick={() => setShowManageGroupModal(false)}>Cancelar</button>
+                  <button type="button" className="jogatina-primary-btn" disabled={busy} onClick={handleSaveGroupSettings}>Guardar cambios</button>
                 </div>
               </>
             ) : (
@@ -961,7 +985,7 @@ export default function AthleteJogatina({ athlete }) {
                   <strong>{state?.group?.name || '-'}</strong>
                 </div>
                 <div className="jogatina-manage-readonly-row">
-                  <span>L&iacute;mite de apuestas activas</span>
+                  <span>Límite de apuestas activas</span>
                   <strong>{state?.group?.openBetLimit || 0}</strong>
                 </div>
               </div>
@@ -970,6 +994,7 @@ export default function AthleteJogatina({ athlete }) {
 
           <section className="jogatina-manage-footer" data-testid="jogatina-manage-leave">
             <div>
+              <span className="jogatina-section-kicker">Zona de salida</span>
               <h4>Salir del grupo</h4>
               <p>Abandonas el ranking actual, pero conservas el acceso general a Jogatina para entrar en otro grupo.</p>
             </div>
@@ -980,3 +1005,4 @@ export default function AthleteJogatina({ athlete }) {
     </section>
   );
 }
+

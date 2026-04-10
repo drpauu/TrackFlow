@@ -1524,6 +1524,68 @@ const getCalendarMonthZoneSummary = (calendarDayMap, viewYear, viewMonth) => {
   return out;
 };
 
+const getCalendarInitialMonth = ({
+  calendarDayMap = {},
+  currentWeek = null,
+  extraDateIsos = [],
+  todayIso = toIsoDate(),
+} = {}) => {
+  const parseCandidate = (dateIso) => {
+    const parsed = parseIsoDateToLocalDate(dateIso);
+    return parsed ? toIsoDate(parsed) : null;
+  };
+  const today = parseCandidate(todayIso) || toIsoDate();
+  const todayPrefix = today.slice(0, 7);
+
+  const contentDates = Object.entries(calendarDayMap || {})
+    .filter(([, mapped]) => !!mapped?.hasContent)
+    .map(([dateIso]) => parseCandidate(dateIso))
+    .filter(Boolean)
+    .sort();
+  const extraDates = (Array.isArray(extraDateIsos) ? extraDateIsos : [])
+    .map(parseCandidate)
+    .filter(Boolean)
+    .sort();
+  const allDates = Array.from(new Set([...contentDates, ...extraDates])).sort();
+
+  const todayMonthDate = allDates.find((dateIso) => dateIso.startsWith(todayPrefix));
+  if (todayMonthDate) {
+    const date = parseIsoDateToLocalDate(todayMonthDate);
+    return { year: date.getFullYear(), month: date.getMonth() };
+  }
+
+  const currentWeekStart = parseCandidate(currentWeek?.startDate);
+  const currentWeekEnd = parseCandidate(currentWeek?.endDate);
+  const currentWeekDate = currentWeekStart && currentWeekEnd
+    ? allDates.find((dateIso) => currentWeekStart <= dateIso && dateIso <= currentWeekEnd)
+    : null;
+  if (currentWeekDate) {
+    const date = parseIsoDateToLocalDate(currentWeekDate);
+    return { year: date.getFullYear(), month: date.getMonth() };
+  }
+
+  const firstVisibleDate = allDates[0] || currentWeekStart || today;
+  const date = parseIsoDateToLocalDate(firstVisibleDate) || new Date();
+  return { year: date.getFullYear(), month: date.getMonth() };
+};
+
+const hasCalendarVisibleDate = (calendarDayMap = {}, extraDateIsos = []) => {
+  const hasPlanDate = Object.values(calendarDayMap || {}).some((mapped) => !!mapped?.hasContent);
+  if (hasPlanDate) return true;
+  return (Array.isArray(extraDateIsos) ? extraDateIsos : []).some((dateIso) => !!parseIsoDateToLocalDate(dateIso));
+};
+
+const hasCalendarVisibleDateInMonth = (calendarDayMap = {}, year, month, extraDateIsos = []) => {
+  const prefix = `${String(year).padStart(4, "0")}-${String(Number(month) + 1).padStart(2, "0")}`;
+  const hasPlanDate = Object.entries(calendarDayMap || {}).some(([dateIso, mapped]) =>
+    !!mapped?.hasContent && String(dateIso || "").startsWith(prefix)
+  );
+  if (hasPlanDate) return true;
+  return (Array.isArray(extraDateIsos) ? extraDateIsos : []).some((dateIso) =>
+    String(dateIso || "").startsWith(prefix)
+  );
+};
+
 const pickActiveCalendarWeek = (weeks) => {
   if (!Array.isArray(weeks) || !weeks.length) return null;
   const today = toIsoDate();
@@ -4864,14 +4926,6 @@ function CoachGrupos({ athletes, setAthletes, groups, setGroups }) {
 
 //  COACH: CALENDARIO 
 function CoachCalendario({ week, weekPlansByNumber, routines, history, activeWeekNumber, seasonAnchorDate }) {
-  const now = new Date();
-  const [viewYear, setViewYear] = useState(now.getFullYear());
-  const [viewMonth, setViewMonth] = useState(now.getMonth());
-  const [selected, setSelected] = useState(null); // { dateIso }
-  const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
-  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const offset = firstDow === 0 ? 6 : firstDow - 1;
   const todayIso = toIsoDate();
   const currentWeekNumber = normalizeWeekNumber(
     activeWeekNumber,
@@ -4883,7 +4937,36 @@ function CoachCalendario({ week, weekPlansByNumber, routines, history, activeWee
     routines,
     seasonAnchorDate,
   });
+  const initialMonth = getCalendarInitialMonth({
+    calendarDayMap,
+    currentWeek: week,
+    todayIso,
+  });
+  const [viewYear, setViewYear] = useState(initialMonth.year);
+  const [viewMonth, setViewMonth] = useState(initialMonth.month);
+  const [selected, setSelected] = useState(null); // { dateIso }
+  const autoPickedContentMonthRef = useRef(false);
+  const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const firstDow = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const offset = firstDow === 0 ? 6 : firstDow - 1;
   const weekSummary = getCalendarMonthZoneSummary(calendarDayMap, viewYear, viewMonth);
+
+  useEffect(() => {
+    if (autoPickedContentMonthRef.current) return;
+    if (!hasCalendarVisibleDate(calendarDayMap)) return;
+    autoPickedContentMonthRef.current = true;
+    if (hasCalendarVisibleDateInMonth(calendarDayMap, viewYear, viewMonth)) return;
+    const nextMonth = getCalendarInitialMonth({
+      calendarDayMap,
+      currentWeek: week,
+      todayIso,
+    });
+    if (nextMonth.year !== viewYear || nextMonth.month !== viewMonth) {
+      setViewYear(nextMonth.year);
+      setViewMonth(nextMonth.month);
+    }
+  }, [calendarDayMap, viewYear, viewMonth, week, todayIso]);
 
   const historyByDate = {};
   (history || []).forEach((row) => {
@@ -6372,17 +6455,7 @@ function AthleteCalendario({
   onAddCompetition,
   onRemoveCompetition,
 }) {
-  const now = new Date();
-  const [viewYear, setViewYear]   = useState(now.getFullYear());
-  const [viewMonth, setViewMonth] = useState(now.getMonth());
-  const [selected, setSelected]   = useState(null); // { dateIso }
-  const [competitionModalOpen, setCompetitionModalOpen] = useState(false);
-  const [competitionDate, setCompetitionDate] = useState("");
-  const [competitionName, setCompetitionName] = useState("");
-  const [competitionMark, setCompetitionMark] = useState("");
-  const [competitionNotes, setCompetitionNotes] = useState("");
-  const [competitionError, setCompetitionError] = useState("");
-  const [competitionSaving, setCompetitionSaving] = useState(false);
+  const todayIso  = toIsoDate();
   const competitions = normalizeCompetitionList(user.competitions || []);
   const publishedWeeks = buildPublishedWeeksForCalendar(week, weekPlansByNumber, routines, seasonAnchorDate);
   const publishedPlansByDate = buildCalendarDayMap({
@@ -6397,12 +6470,46 @@ function AthleteCalendario({
     acc[competition.dateIso].push(competition);
     return acc;
   }, {});
+  const competitionDateIsos = competitions.map((competition) => competition.dateIso);
+  const initialMonth = getCalendarInitialMonth({
+    calendarDayMap: publishedPlansByDate,
+    currentWeek: week,
+    extraDateIsos: competitionDateIsos,
+    todayIso,
+  });
+  const [viewYear, setViewYear]   = useState(initialMonth.year);
+  const [viewMonth, setViewMonth] = useState(initialMonth.month);
+  const [selected, setSelected]   = useState(null); // { dateIso }
+  const autoPickedContentMonthRef = useRef(false);
+  const [competitionModalOpen, setCompetitionModalOpen] = useState(false);
+  const [competitionDate, setCompetitionDate] = useState("");
+  const [competitionName, setCompetitionName] = useState("");
+  const [competitionMark, setCompetitionMark] = useState("");
+  const [competitionNotes, setCompetitionNotes] = useState("");
+  const [competitionError, setCompetitionError] = useState("");
+  const [competitionSaving, setCompetitionSaving] = useState(false);
 
   const monthNames = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
   const firstDow  = new Date(viewYear, viewMonth, 1).getDay();
   const daysInM   = new Date(viewYear, viewMonth + 1, 0).getDate();
   const offset    = firstDow === 0 ? 6 : firstDow - 1;
-  const todayIso  = toIsoDate();
+
+  useEffect(() => {
+    if (autoPickedContentMonthRef.current) return;
+    if (!hasCalendarVisibleDate(publishedPlansByDate, competitionDateIsos)) return;
+    autoPickedContentMonthRef.current = true;
+    if (hasCalendarVisibleDateInMonth(publishedPlansByDate, viewYear, viewMonth, competitionDateIsos)) return;
+    const nextMonth = getCalendarInitialMonth({
+      calendarDayMap: publishedPlansByDate,
+      currentWeek: week,
+      extraDateIsos: competitionDateIsos,
+      todayIso,
+    });
+    if (nextMonth.year !== viewYear || nextMonth.month !== viewMonth) {
+      setViewYear(nextMonth.year);
+      setViewMonth(nextMonth.month);
+    }
+  }, [publishedPlansByDate, competitionDateIsos, viewYear, viewMonth, week, todayIso]);
 
   const goMonth = (delta) => {
     let m = viewMonth + delta;
@@ -6803,6 +6910,7 @@ export default function TrackFlow() {
   const [trainings, setTrainings] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [athleteNotificationsById, setAthleteNotificationsById] = useState({});
+  const athleteNotificationsRef = useRef({});
   const [history, setHistory] = useState([]);
   const [calendarWeeks, setCalendarWeeks] = useState([]);
   const [seedMeta, setSeedMeta] = useState(null);
@@ -6861,6 +6969,18 @@ export default function TrackFlow() {
       };
     });
   }, [activeWeekNumber, routines, seasonAnchorDate]);
+  const commitAthleteNotifications = useCallback((nextMap) => {
+    const normalized = normalizeAthleteNotificationsMap(nextMap);
+    athleteNotificationsRef.current = normalized;
+    persistedStorageKeysRef.current.add("tf_athlete_notifs");
+    setAthleteNotificationsById(normalized);
+    void store.set("tf_athlete_notifs", normalized);
+    return normalized;
+  }, []);
+
+  useEffect(() => {
+    athleteNotificationsRef.current = normalizeAthleteNotificationsMap(athleteNotificationsById);
+  }, [athleteNotificationsById]);
 
   // Load persisted session
   useEffect(() => {
@@ -7224,26 +7344,24 @@ export default function TrackFlow() {
     });
     if (!includeAll && !groupSet.size && !athleteSet.size) includeAll = true;
     const createdAt = new Date().toISOString();
-    setAthleteNotificationsById((prev) => {
-      const next = { ...normalizeAthleteNotificationsMap(prev) };
-      normalizeAthletes(athletes).forEach((athlete) => {
-        const athleteGroups = getAthleteGroups(athlete);
-        const isTargeted = includeAll
-          || athleteSet.has(String(athlete.id || "").trim())
-          || athleteGroups.some((group) => groupSet.has(group));
-        if (!isTargeted) return;
-        const entry = {
-          id: `notif_${athlete.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          title: payload?.title || "Actualización",
-          message: payload?.message || "",
-          weekNumber: payload?.weekNumber != null ? Number(payload.weekNumber) : null,
-          createdAt,
-        };
-        const list = Array.isArray(next[athlete.id]) ? next[athlete.id] : [];
-        next[athlete.id] = [entry, ...list].slice(0, 50);
-      });
-      return next;
+    const next = { ...normalizeAthleteNotificationsMap(athleteNotificationsRef.current) };
+    normalizeAthletes(athletes).forEach((athlete) => {
+      const athleteGroups = getAthleteGroups(athlete);
+      const isTargeted = includeAll
+        || athleteSet.has(String(athlete.id || "").trim())
+        || athleteGroups.some((group) => groupSet.has(group));
+      if (!isTargeted) return;
+      const entry = {
+        id: `notif_${athlete.id}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        title: payload?.title || "Actualización",
+        message: payload?.message || "",
+        weekNumber: payload?.weekNumber != null ? Number(payload.weekNumber) : null,
+        createdAt,
+      };
+      const list = Array.isArray(next[athlete.id]) ? next[athlete.id] : [];
+      next[athlete.id] = [entry, ...list].slice(0, 50);
     });
+    commitAthleteNotifications(next);
   };
   const handlePublishWeek = ({ weekNumber, isUpdate, targetGroups, publishedWeek }) => {
     if (publishedWeek) {
@@ -7350,7 +7468,7 @@ export default function TrackFlow() {
     setActiveWeekNumber(1);
     setHistory([]);
     setNotifications([]);
-    setAthleteNotificationsById({});
+    commitAthleteNotifications({});
     setCalendarWeeks([]);
     setSeedMeta(null);
     setAthletes(resetAthletes);
@@ -7358,21 +7476,17 @@ export default function TrackFlow() {
   };
   const handleDismissAthleteNotification = (athleteId, notificationId) => {
     if (!athleteId || !notificationId) return;
-    setAthleteNotificationsById((prev) => {
-      const next = { ...normalizeAthleteNotificationsMap(prev) };
-      const list = Array.isArray(next[athleteId]) ? next[athleteId] : [];
-      next[athleteId] = list.filter((item) => item.id !== notificationId);
-      if (!next[athleteId].length) delete next[athleteId];
-      return next;
-    });
+    const next = { ...normalizeAthleteNotificationsMap(athleteNotificationsRef.current) };
+    const list = Array.isArray(next[athleteId]) ? next[athleteId] : [];
+    next[athleteId] = list.filter((item) => item.id !== notificationId);
+    if (!next[athleteId].length) delete next[athleteId];
+    commitAthleteNotifications(next);
   };
   const handleClearAthleteNotifications = (athleteId) => {
     if (!athleteId) return;
-    setAthleteNotificationsById((prev) => {
-      const next = { ...normalizeAthleteNotificationsMap(prev) };
-      delete next[athleteId];
-      return next;
-    });
+    const next = { ...normalizeAthleteNotificationsMap(athleteNotificationsRef.current) };
+    delete next[athleteId];
+    commitAthleteNotifications(next);
   };
   const handleUpdateAthleteName = (athleteId, nextName) => {
     if (!athleteId) return { ok:false, error:"Atleta no válido." };
@@ -7395,11 +7509,9 @@ export default function TrackFlow() {
   const handleDeleteAthlete = (athleteId) => {
     if (!athleteId) return;
     setAthletes((prev) => normalizeAthletes(prev).filter((athlete) => athlete.id !== athleteId));
-    setAthleteNotificationsById((prev) => {
-      const next = { ...normalizeAthleteNotificationsMap(prev) };
-      delete next[athleteId];
-      return next;
-    });
+    const nextNotifications = { ...normalizeAthleteNotificationsMap(athleteNotificationsRef.current) };
+    delete nextNotifications[athleteId];
+    commitAthleteNotifications(nextNotifications);
     setHistory((prev) => (Array.isArray(prev) ? prev.filter((row) => row?.athleteId !== athleteId) : []));
     setUser((prev) => (prev && prev.id === athleteId ? null : prev));
   };

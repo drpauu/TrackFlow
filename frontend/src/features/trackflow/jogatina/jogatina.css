@@ -313,12 +313,15 @@
 }
 
 .jogatina-bet {
-  border-radius: 20px;
+  border-radius: 24px;
   border: 1px solid rgba(75, 64, 128, 0.92);
-  background: rgba(14, 13, 39, 0.98);
-  padding: 22px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 126, 35, 0.1), transparent 32%),
+    linear-gradient(180deg, rgba(15, 14, 41, 0.98), rgba(10, 10, 28, 0.99));
+  padding: clamp(18px, 2.4vw, 28px);
   display: grid;
-  gap: 16px;
+  gap: 18px;
+  overflow: hidden;
 }
 
 .jogatina-bet--open {
@@ -347,9 +350,11 @@
 
 .jogatina-bet h4 {
   margin: 0;
-  font-size: clamp(24px, 2.6vw, 34px);
-  line-height: 1;
+  font-size: clamp(26px, 3vw, 42px);
+  line-height: 0.98;
   color: var(--tx);
+  max-width: 780px;
+  overflow-wrap: anywhere;
 }
 
 .jogatina-bet-meta {
@@ -357,9 +362,10 @@
 }
 
 .jogatina-bet-pool {
-  min-width: 220px;
+  min-width: 230px;
+  max-width: 300px;
   border-radius: 18px;
-  padding: 16px;
+  padding: 18px;
   background: linear-gradient(135deg, rgba(43, 20, 12, 0.92), rgba(18, 16, 37, 0.96));
   border: 1px solid rgba(255, 133, 58, 0.24);
   display: grid;
@@ -430,15 +436,32 @@
 
 .jogatina-bet-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 1.05fr) minmax(300px, 0.95fr);
   gap: 18px;
+  align-items: stretch;
 }
 
 .jogatina-bet-market {
-  padding: 16px;
-  border-radius: 18px;
+  padding: clamp(18px, 2vw, 24px);
+  border-radius: 22px;
   border: 1px solid rgba(70, 63, 120, 0.82);
-  background: rgba(12, 12, 33, 0.9);
+  background:
+    linear-gradient(180deg, rgba(16, 15, 42, 0.96), rgba(11, 11, 31, 0.97));
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.jogatina-bet-market h5 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.05;
+  color: var(--tx);
+}
+
+.jogatina-bet-market p {
+  max-width: 520px;
 }
 
 .jogatina-block-head {
@@ -450,13 +473,34 @@
 
 .jogatina-bet-actions {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px auto;
-  gap: 10px;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 120px);
+  gap: 12px;
+  align-items: start;
+}
+
+.jogatina-bet-actions label {
+  min-width: 0;
+}
+
+.jogatina-bet-actions label > span {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--tx);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.jogatina-bet-actions select,
+.jogatina-bet-actions input {
+  min-width: 0;
 }
 
 .jogatina-bet-actions > button {
-  min-width: 140px;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  min-height: 52px;
+  margin-top: 2px;
 }
 
 .jogatina-wager-list {
@@ -465,8 +509,8 @@
 }
 
 .jogatina-wager-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   align-items: center;
   border-radius: 14px;
@@ -478,6 +522,14 @@
 .jogatina-wager-row > div {
   display: grid;
   gap: 2px;
+  min-width: 0;
+}
+
+.jogatina-wager-row > div strong,
+.jogatina-wager-row > div span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .jogatina-wager-row strong,
@@ -613,15 +665,38 @@
 }
 
 .jogatina-modal {
-  width: min(560px, 92vw);
+  width: min(780px, 94vw);
+  max-height: min(88vh, 920px);
+  overflow: auto;
+  border: 1px solid rgba(89, 75, 150, 0.88);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 126, 35, 0.16), transparent 34%),
+    radial-gradient(circle at 0% 12%, rgba(96, 72, 190, 0.2), transparent 28%),
+    linear-gradient(180deg, rgba(15, 14, 39, 0.98), rgba(8, 8, 23, 0.99));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.56);
 }
 
 .jogatina-modal-head {
   display: flex;
   justify-content: space-between;
-  gap: 14px;
+  gap: 20px;
   align-items: flex-start;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(77, 67, 127, 0.7);
+}
+
+.jogatina-modal .modal-title {
+  font-size: clamp(32px, 5vw, 44px);
+  line-height: 0.9;
+}
+
+.jogatina-modal .modal-close {
+  border-radius: 14px;
+  border-color: rgba(86, 76, 146, 0.88);
+  background: rgba(20, 20, 52, 0.94);
+  color: var(--tx);
+  padding: 10px 16px;
 }
 
 .jogatina-modal-body label {
@@ -631,11 +706,110 @@
   color: var(--mu2);
 }
 
+.jogatina-modal-body label > span {
+  letter-spacing: 0.8px;
+  color: var(--mu2);
+}
+
+.jogatina-modal input,
+.jogatina-modal select {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(87, 76, 146, 0.82);
+  background: rgba(19, 18, 50, 0.96);
+  color: var(--tx);
+  padding: 14px 15px;
+  font-size: 14px;
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.015);
+}
+
+.jogatina-modal input:focus,
+.jogatina-modal select:focus {
+  border-color: rgba(255, 126, 35, 0.72);
+  box-shadow: 0 0 0 3px rgba(255, 126, 35, 0.12);
+}
+
+.jogatina-modal button:not(.modal-close) {
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ff6b1a, #ff9a2a);
+  color: #fff;
+  font-weight: 900;
+  padding: 13px 18px;
+}
+
 .jogatina-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.jogatina-create-body {
+  gap: 18px;
+}
+
+.jogatina-create-hero {
+  border-radius: 22px;
+  border: 1px solid rgba(96, 78, 170, 0.84);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 126, 35, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(30, 24, 74, 0.98), rgba(12, 12, 34, 0.96));
+  padding: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.jogatina-create-hero h3 {
+  margin: 0;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: clamp(34px, 5vw, 48px);
+  line-height: 0.92;
+  color: var(--tx);
+  text-transform: uppercase;
+}
+
+.jogatina-create-hero p {
+  margin: 0;
+  color: var(--mu2);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 520px;
+}
+
+.jogatina-create-form {
+  display: grid;
+  gap: 14px;
+}
+
+.jogatina-create-question input {
+  min-height: 54px;
+  font-size: 16px;
+}
+
+.jogatina-create-note {
+  display: grid;
+  gap: 4px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 183, 77, 0.22);
+  background: rgba(255, 167, 38, 0.08);
+  padding: 13px 15px;
+}
+
+.jogatina-create-note strong {
+  color: var(--tx);
+  font-size: 13px;
+}
+
+.jogatina-create-note span {
+  color: var(--mu2);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.jogatina-create-actions {
+  padding-top: 4px;
 }
 
 .jogatina-manage-summary {
@@ -645,39 +819,78 @@
 }
 
 .jogatina-manage-body {
-  gap: 18px;
+  gap: 20px;
 }
 
 .jogatina-manage-hero {
   display: grid;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 18px;
+  align-items: stretch;
+  border-radius: 24px;
+  border: 1px solid rgba(96, 78, 170, 0.84);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 126, 35, 0.18), transparent 36%),
+    linear-gradient(135deg, rgba(28, 24, 72, 0.98), rgba(12, 12, 34, 0.96));
+  padding: 18px;
 }
 
 .jogatina-manage-title {
   display: grid;
-  gap: 10px;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .jogatina-manage-title h3 {
   margin: 0;
   font-family: "Barlow Condensed", sans-serif;
-  font-size: clamp(32px, 4vw, 44px);
+  font-size: clamp(38px, 5vw, 58px);
   line-height: 0.95;
   color: var(--tx);
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .jogatina-manage-block,
 .jogatina-manage-footer {
-  border-radius: 20px;
+  border-radius: 24px;
   border: 1px solid rgba(72, 64, 122, 0.82);
-  background: rgba(13, 12, 34, 0.94);
-  padding: 18px;
+  background:
+    linear-gradient(180deg, rgba(15, 14, 39, 0.96), rgba(10, 10, 29, 0.98));
+  padding: 22px;
 }
 
 .jogatina-manage-block {
   display: grid;
+  gap: 18px;
+}
+
+.jogatina-manage-block-head h5 {
+  font-size: clamp(26px, 3.2vw, 34px);
+}
+
+.jogatina-manage-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(180px, 0.7fr);
   gap: 14px;
+}
+
+.jogatina-manage-owner-note {
+  border-radius: 16px;
+  border: 1px solid rgba(255, 183, 77, 0.22);
+  background: rgba(255, 167, 38, 0.08);
+  color: var(--mu2);
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.jogatina-manage-actions {
+  padding-top: 2px;
+}
+
+.jogatina-primary-btn {
+  min-width: 170px;
 }
 
 .jogatina-manage-readonly-grid {
@@ -703,9 +916,29 @@
 
 .jogatina-manage-footer {
   border-color: rgba(143, 70, 88, 0.48);
-  background: linear-gradient(180deg, rgba(31, 15, 27, 0.92), rgba(18, 12, 24, 0.96));
+  background:
+    radial-gradient(circle at 100% 0%, rgba(248, 113, 113, 0.1), transparent 32%),
+    linear-gradient(180deg, rgba(31, 15, 27, 0.92), rgba(18, 12, 24, 0.96));
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  align-items: center;
+}
+
+.jogatina-manage-footer p {
+  max-width: 520px;
+}
+
+.jogatina-danger-btn {
+  min-width: 150px;
+}
+
+.jogatina-manage-stat {
+  display: grid;
+  align-content: center;
+  min-height: 96px;
+}
+
+.jogatina-manage-stat strong {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 1180px) {
@@ -716,12 +949,21 @@
   .jogatina-hero-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .jogatina-bet-body {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {
   .jogatina-guest-grid,
   .jogatina-bet-body,
   .jogatina-manage-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .jogatina-manage-hero,
+  .jogatina-manage-form-grid {
     grid-template-columns: 1fr;
   }
 
@@ -752,7 +994,7 @@
   }
 
   .jogatina-bet-actions {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(86px, 112px);
   }
 
   .jogatina-feed-summary {
@@ -775,12 +1017,39 @@
     border-radius: 20px;
   }
 
+  .jogatina-bet-head {
+    gap: 14px;
+  }
+
+  .jogatina-bet-pool {
+    max-width: none;
+  }
+
+  .jogatina-bet-actions {
+    grid-template-columns: 1fr;
+  }
+
   .jogatina-hero-stats {
     grid-template-columns: 1fr;
   }
 
   .jogatina-floating-create {
     display: inline-flex;
+  }
+
+  .jogatina-modal-head {
+    flex-direction: column;
+  }
+
+  .jogatina-modal .modal-close {
+    width: 100%;
+  }
+
+  .jogatina-manage-hero,
+  .jogatina-manage-block,
+  .jogatina-manage-footer {
+    padding: 16px;
+    border-radius: 20px;
   }
 
   .jogatina-hero-actions {
